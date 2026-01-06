@@ -22,7 +22,8 @@
  * @property {{
  *   tokenRefreshSkewSeconds: number,
  *   rateLimitWindowMs: number,
- *   rateLimitMaxRequests: number
+ *   rateLimitMaxRequests: number,
+ *   mediaAdminKey: string|undefined
  * }} security
  */
 

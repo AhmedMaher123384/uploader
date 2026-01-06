@@ -671,6 +671,51 @@ function createApiRouter(config) {
     }
   });
 
+  function requireMediaAdminKey(req) {
+    const configured = String(config?.security?.mediaAdminKey || "").trim();
+    if (!configured) throw new ApiError(500, "Media admin key is not configured", { code: "MEDIA_ADMIN_KEY_MISSING" });
+    const provided = String(req.headers["x-media-admin-key"] || "").trim();
+    if (!provided) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+    if (!timingSafeEqualString(provided, configured)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+  }
+
+  router.delete("/public/media/assets/:id", validate(mediaDeleteParamsSchema, "params"), async (req, res, next) => {
+    try {
+      requireMediaAdminKey(req);
+      const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
+      const id = String(req.params.id);
+
+      const asset = await MediaAsset.findOne({ _id: id, deletedAt: null });
+      if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = cloudinarySign({ public_id: String(asset.publicId), timestamp }, apiSecret);
+
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(asset.resourceType)}/destroy`;
+      const body = new URLSearchParams();
+      body.set("public_id", String(asset.publicId));
+      body.set("api_key", apiKey);
+      body.set("timestamp", String(timestamp));
+      body.set("signature", signature);
+
+      await axios.post(url, body.toString(), {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 15000
+      });
+
+      asset.deletedAt = new Date();
+      await asset.save();
+
+      for (const key of publicCache.keys()) {
+        if (String(key || "").startsWith("public:media:")) publicCache.delete(key);
+      }
+
+      return res.json({ ok: true });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   const publicMediaStoresQuerySchema = Joi.object({
     q: Joi.string().trim().max(80).allow("").default(""),
     sort: Joi.string()

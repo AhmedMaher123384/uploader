@@ -30,7 +30,8 @@ function loadConfig() {
     security: {
       tokenRefreshSkewSeconds: Number(process.env.TOKEN_REFRESH_SKEW_SECONDS || 30),
       rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
-      rateLimitMaxRequests: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 120)
+      rateLimitMaxRequests: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 120),
+      mediaAdminKey: process.env.MEDIA_ADMIN_KEY
     }
   };
 }
