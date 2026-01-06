@@ -716,6 +716,57 @@ function createApiRouter(config) {
     }
   });
 
+  router.post("/public/media/assets/:id/break-link", validate(mediaDeleteParamsSchema, "params"), async (req, res, next) => {
+    try {
+      requireMediaAdminKey(req);
+      const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
+      const id = String(req.params.id);
+
+      const asset = await MediaAsset.findOne({ _id: id, deletedAt: null });
+      if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const fromPublicId = String(asset.publicId || "").trim();
+      if (!fromPublicId) throw new ApiError(409, "Invalid media asset", { code: "INVALID_MEDIA_ASSET" });
+
+      const baseDir = fromPublicId.includes("/") ? fromPublicId.split("/").slice(0, -1).join("/") : "";
+      const newLeaf = sha256Hex(`${fromPublicId}:${Date.now()}:${Math.random()}`).slice(0, 18);
+      const toPublicId = baseDir ? `${baseDir}/${newLeaf}` : newLeaf;
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = cloudinarySign({ from_public_id: fromPublicId, timestamp, to_public_id: toPublicId }, apiSecret);
+
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(asset.resourceType)}/rename`;
+      const body = new URLSearchParams();
+      body.set("from_public_id", fromPublicId);
+      body.set("to_public_id", toPublicId);
+      body.set("api_key", apiKey);
+      body.set("timestamp", String(timestamp));
+      body.set("signature", signature);
+
+      const resp = await axios.post(url, body.toString(), {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 15000
+      });
+
+      const nextPublicId = String(resp?.data?.public_id || toPublicId).trim() || toPublicId;
+      asset.publicId = nextPublicId;
+      asset.assetId = resp?.data?.asset_id ? String(resp.data.asset_id) : asset.assetId;
+      asset.url = resp?.data?.url ? String(resp.data.url) : asset.url;
+      asset.secureUrl = resp?.data?.secure_url ? String(resp.data.secure_url) : asset.secureUrl;
+      asset.thumbnailUrl = resp?.data?.secure_url ? String(resp.data.secure_url) : asset.thumbnailUrl;
+      asset.cloudinaryCreatedAt = resp?.data?.created_at ? new Date(resp.data.created_at) : asset.cloudinaryCreatedAt;
+      await asset.save();
+
+      for (const key of publicCache.keys()) {
+        if (String(key || "").startsWith("public:media:")) publicCache.delete(key);
+      }
+
+      return res.json({ ok: true, id: String(asset._id), publicId: asset.publicId });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   const publicMediaStoresQuerySchema = Joi.object({
     q: Joi.string().trim().max(80).allow("").default(""),
     sort: Joi.string()
