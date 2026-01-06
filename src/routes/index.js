@@ -1517,7 +1517,7 @@ function createApiRouter(config) {
     category: Joi.number().integer().min(1)
   });
 
-  router.get("/products", merchantAuth(config, { allowUnknownToken: true }), validate(sallaProductsQuerySchema, "query"), async (req, res, next) => {
+  router.get("/products", merchantAuth(config), validate(sallaProductsQuerySchema, "query"), async (req, res, next) => {
     const page = req.query.page;
     const perPage = req.query.per_page ?? req.query.perPage;
     const format = req.query.format;
@@ -1553,7 +1553,7 @@ function createApiRouter(config) {
 
   router.get(
     "/products/:productId",
-    merchantAuth(config, { allowUnknownToken: true }),
+    merchantAuth(config),
     validate(sallaProductParamsSchema, "params"),
     validate(sallaProductDetailsQuerySchema, "query"),
     async (req, res, next) => {
@@ -1584,7 +1584,7 @@ function createApiRouter(config) {
 
   router.get(
     "/variants/:variantId",
-    merchantAuth(config, { allowUnknownToken: true }),
+    merchantAuth(config),
     validate(sallaVariantParamsSchema, "params"),
     async (req, res, next) => {
       const variantId = req.params.variantId;
@@ -1613,7 +1613,7 @@ function createApiRouter(config) {
 
   router.post(
     "/variants/snapshots",
-    merchantAuth(config, { allowUnknownToken: true }),
+    merchantAuth(config),
     validate(variantsSnapshotSchema, "body"),
     async (req, res, next) => {
       const variantIds = req.body.variantIds || [];
