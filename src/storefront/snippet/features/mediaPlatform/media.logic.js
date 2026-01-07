@@ -159,7 +159,7 @@ const mount = () => {
 
     const fab = createFab();
     try {
-      setupFabFooterReveal(fab);
+      setFabVisible(fab, true);
     } catch {}
 
     let sheetEl = null;

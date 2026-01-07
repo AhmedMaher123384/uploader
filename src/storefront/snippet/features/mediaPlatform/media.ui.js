@@ -76,8 +76,12 @@ const createFab = () => {
   btn.type = "button";
   btn.setAttribute("aria-label", isArabic() ? "منصة الرفع" : "Upload platform");
   btn.style.position = "fixed";
-  btn.style.bottom = "10px";
-  btn.style.left = "12px";
+  btn.style.top = "calc(env(safe-area-inset-top, 0px) + 12px)";
+  if (typeof isRtl === "function" && isRtl()) {
+    btn.style.right = "12px";
+  } else {
+    btn.style.left = "12px";
+  }
   btn.style.zIndex = "100002";
   btn.style.border = "1px solid rgba(24,181,213,.55)";
   btn.style.cursor = "pointer";
@@ -92,9 +96,9 @@ const createFab = () => {
   btn.style.lineHeight = "1";
   btn.style.fontWeight = "900";
   btn.style.transition = "opacity .18s ease,transform .18s ease,filter .18s ease";
-  btn.style.opacity = "0";
-  btn.style.pointerEvents = "none";
-  btn.style.transform = "translateY(10px)";
+  btn.style.opacity = "1";
+  btn.style.pointerEvents = "auto";
+  btn.style.transform = "translateY(0)";
 
   btn.onmouseenter = () => {
     btn.style.filter = "brightness(1.05)";
@@ -604,4 +608,3 @@ const renderGrid = (items) => {
 };
 `
 ];
-
