@@ -8,12 +8,13 @@ module.exports = [
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
 const getMerchantContext = () => {
-  const ctx = { ok: false, reason: "", inIframe: false, host: "", ref: "", href: "" };
+  const ctx = { ok: false, reason: "", inIframe: false, host: "", ref: "", href: "", path: "" };
   try {
     if (!g || !g.location) return { ...ctx, reason: "missing_location" };
 
     ctx.host = String(g.location.hostname || "").toLowerCase();
     ctx.href = String(g.location.href || "");
+    ctx.path = String(g.location.pathname || "").toLowerCase();
 
     if (ctx.host === "localhost" || ctx.host === "127.0.0.1") return { ...ctx, ok: true, reason: "localhost" };
 
@@ -22,10 +23,21 @@ const getMerchantContext = () => {
       if (u.searchParams.get("bundle_app_merchant") === "1") return { ...ctx, ok: true, reason: "forced_param" };
     } catch {}
 
-    try {
-      const su = new URL(String(scriptSrc || ""));
-      if (su.searchParams.get("bundle_app_merchant") === "1") return { ...ctx, ok: true, reason: "forced_script_param" };
-    } catch {}
+    const isAdminHost =
+      ctx.host === "salla.sa" ||
+      ctx.host === "partners.salla.sa" ||
+      ctx.host === "accounts.salla.sa" ||
+      ctx.host === "admin.salla.sa" ||
+      ctx.host === "dashboard.salla.sa";
+
+    const isThemePath =
+      ctx.path.indexOf("theme") !== -1 ||
+      ctx.path.indexOf("twilight") !== -1 ||
+      ctx.path.indexOf("editor") !== -1 ||
+      ctx.path.indexOf("preview") !== -1 ||
+      ctx.path.indexOf("customize") !== -1;
+
+    if (isAdminHost && isThemePath) return { ...ctx, ok: true, reason: "admin_theme_path" };
 
     ctx.inIframe = (() => {
       try {
@@ -438,7 +450,6 @@ try {
     }
   };
   if (document && document.body) start();
-  else if (document && document.addEventListener) document.addEventListener("DOMContentLoaded", start, { once: true });
   else setTimeout(start, 0);
 } catch {}
 `,
