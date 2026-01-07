@@ -22,6 +22,11 @@ const getMerchantContext = () => {
       if (u.searchParams.get("bundle_app_merchant") === "1") return { ...ctx, ok: true, reason: "forced_param" };
     } catch {}
 
+    try {
+      const su = new URL(String(scriptSrc || ""));
+      if (su.searchParams.get("bundle_app_merchant") === "1") return { ...ctx, ok: true, reason: "forced_script_param" };
+    } catch {}
+
     ctx.inIframe = (() => {
       try {
         return g.top && g.self && g.top !== g.self;
@@ -33,7 +38,7 @@ const getMerchantContext = () => {
     if (!ctx.inIframe) return { ...ctx, reason: "not_iframe" };
 
     ctx.ref = String((document && document.referrer) || "").toLowerCase();
-    if (!ctx.ref) return { ...ctx, reason: "missing_referrer" };
+    if (!ctx.ref) return { ...ctx, ok: true, reason: "iframe_no_referrer" };
 
     const ok =
       ctx.ref.indexOf("salla.sa") !== -1 ||
@@ -423,6 +428,19 @@ const mount = () => {
   }
 };
 `,
-  `try { mount(); } catch {}\n`,
+  `
+try {
+  const start = () => {
+    try {
+      mount();
+    } catch (e) {
+      warn("media platform start failed", e);
+    }
+  };
+  if (document && document.body) start();
+  else if (document && document.addEventListener) document.addEventListener("DOMContentLoaded", start, { once: true });
+  else setTimeout(start, 0);
+} catch {}
+`,
   `})();\n`
 ];
