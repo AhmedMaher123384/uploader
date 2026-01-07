@@ -5,7 +5,6 @@ module.exports = [
   `const g = (() => { try { return globalThis; } catch { return window; } })() || window;\n`,
   `g.BundleApp = g.BundleApp || {};\n`,
   `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
-  `const fabMode = (() => { try { return String(new URL(scriptSrc).searchParams.get("fab") || "footer").toLowerCase(); } catch { return "footer"; } })();\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
 const getBackendOrigin = () => {
@@ -160,8 +159,7 @@ const mount = () => {
 
     const fab = createFab();
     try {
-      if (fabMode === "always") setFabVisible(fab, true);
-      else setupFabFooterReveal(fab);
+      setupFabFooterReveal(fab);
     } catch {}
 
     let sheetEl = null;
@@ -371,21 +369,6 @@ const mount = () => {
   }
 };
 `,
-  `
-try {
-  const start = () => {
-    try {
-      mount();
-    } catch {}
-  };
-  if (document && document.body) start();
-  else if (document && document.addEventListener) document.addEventListener("DOMContentLoaded", start, { once: true });
-  else setTimeout(start, 0);
-} catch {
-  try {
-    mount();
-  } catch {}
-}
-\n`,
+  `try { mount(); } catch {}\n`,
   `})();\n`
 ];
