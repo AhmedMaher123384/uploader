@@ -17,6 +17,23 @@ const isThemeEditor = () => {
       }
     })();
 
+    const isSallaThemeEditorAdminPage = (() => {
+      try {
+        const href = String((location && location.href) || "");
+        if (!href) return false;
+        const u = new URL(href);
+        const p = String(u.pathname || "").toLowerCase();
+        return p.includes("/themes/editor") || p.includes("/theme/editor");
+      } catch {
+        try {
+          const href = String((location && location.href) || "").toLowerCase();
+          return href.includes("/themes/editor") || href.includes("/theme/editor");
+        } catch {
+          return false;
+        }
+      }
+    })();
+
     const forcedByScriptQuery = (() => {
       try {
         const u = new URL(String(scriptSrc || ""));
@@ -84,6 +101,7 @@ const isThemeEditor = () => {
       }
     })();
 
+    if (isSallaThemeEditorAdminPage) return true;
     if (forcedByScriptQuery) return true;
     if (hasSallaSignedPreviewParams) return true;
     if (refLooksLikeSalla && inIframe) return true;
