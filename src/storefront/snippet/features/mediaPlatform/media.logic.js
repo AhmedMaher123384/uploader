@@ -7,73 +7,6 @@ module.exports = [
   `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
-const getMerchantContext = () => {
-  const ctx = { ok: false, reason: "", inIframe: false, host: "", ref: "", href: "", path: "" };
-  try {
-    if (!g || !g.location) return { ...ctx, reason: "missing_location" };
-
-    ctx.host = String(g.location.hostname || "").toLowerCase();
-    ctx.href = String(g.location.href || "");
-    ctx.path = String(g.location.pathname || "").toLowerCase();
-
-    if (ctx.host === "localhost" || ctx.host === "127.0.0.1") return { ...ctx, ok: true, reason: "localhost" };
-
-    try {
-      const u = new URL(ctx.href);
-      if (u.searchParams.get("bundle_app_merchant") === "1") return { ...ctx, ok: true, reason: "forced_param" };
-    } catch {}
-
-    const isAdminHost =
-      ctx.host === "salla.sa" ||
-      ctx.host === "partners.salla.sa" ||
-      ctx.host === "accounts.salla.sa" ||
-      ctx.host === "admin.salla.sa" ||
-      ctx.host === "dashboard.salla.sa";
-
-    const isThemePath =
-      ctx.path.indexOf("theme") !== -1 ||
-      ctx.path.indexOf("twilight") !== -1 ||
-      ctx.path.indexOf("editor") !== -1 ||
-      ctx.path.indexOf("preview") !== -1 ||
-      ctx.path.indexOf("customize") !== -1;
-
-    if (isAdminHost && isThemePath) return { ...ctx, ok: true, reason: "admin_theme_path" };
-
-    ctx.inIframe = (() => {
-      try {
-        return g.top && g.self && g.top !== g.self;
-      } catch {
-        return true;
-      }
-    })();
-
-    if (!ctx.inIframe) return { ...ctx, reason: "not_iframe" };
-
-    ctx.ref = String((document && document.referrer) || "").toLowerCase();
-    if (!ctx.ref) return { ...ctx, ok: true, reason: "iframe_no_referrer" };
-
-    const ok =
-      ctx.ref.indexOf("salla.sa") !== -1 ||
-      ctx.ref.indexOf("accounts.salla.sa") !== -1 ||
-      ctx.ref.indexOf("partners.salla.sa") !== -1 ||
-      ctx.ref.indexOf("salla.com") !== -1;
-    if (!ok) return { ...ctx, reason: "referrer_not_salla" };
-    return { ...ctx, ok: true, reason: "iframe_referrer_salla" };
-  } catch {
-    return { ...ctx, reason: "exception" };
-  }
-};
-
-const isMerchantContext = () => getMerchantContext().ok;
-const logMerchantContextSkip = () => {
-  try {
-    const ctx = getMerchantContext();
-    if (ctx.ok) return;
-    warn("media platform skipped", ctx);
-  } catch {}
-};
-`,
-  `
 const getBackendOrigin = () => {
   try {
     return new URL(scriptSrc).origin;
@@ -219,13 +152,7 @@ const uploadToCloudinary = async (file, sign) => {
   `
 const mount = () => {
   try {
-    if (!isMerchantContext()) {
-      logMerchantContextSkip();
-      return;
-    }
     if (!ensureOnce()) return;
-    const root = (document && (document.body || document.documentElement)) || null;
-    if (!root) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
@@ -248,7 +175,7 @@ const mount = () => {
         input.multiple = true;
         input.accept = "image/*,video/*";
         input.style.display = "none";
-        root.appendChild(input);
+        document.body.appendChild(input);
 
         const close = () => {
           try {
@@ -424,7 +351,7 @@ const mount = () => {
           } catch {}
         };
 
-        root.appendChild(sheet.overlay);
+        document.body.appendChild(sheet.overlay);
         render();
         fetchAndRender();
       } catch (e) {
@@ -436,7 +363,7 @@ const mount = () => {
       }
     };
 
-    root.appendChild(fab);
+    document.body.appendChild(fab);
   } catch (e) {
     warn("media platform mount failed", e);
   }
