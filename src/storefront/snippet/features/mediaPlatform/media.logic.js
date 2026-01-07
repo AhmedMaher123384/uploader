@@ -97,6 +97,7 @@ const isRtl = () => {
 const ensureOnce = () => {
   try {
     if (g.BundleApp && g.BundleApp.__mediaPlatformMounted) return false;
+    if (!(document && document.body)) return true;
     g.BundleApp.__mediaPlatformMounted = true;
     return true;
   } catch {
@@ -153,6 +154,7 @@ const uploadToCloudinary = async (file, sign) => {
 const mount = () => {
   try {
     if (!ensureOnce()) return;
+    if (!(document && document.body)) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
@@ -369,6 +371,26 @@ const mount = () => {
   }
 };
 `,
-  `try { mount(); } catch {}\n`,
+  `
+const mountWhenReady = () => {
+  const run = () => {
+    try {
+      mount();
+    } catch {}
+  };
+  try {
+    if (document && document.body) return run();
+    if (document && document.readyState && document.readyState !== "loading") return setTimeout(run, 0);
+    if (document && document.addEventListener) return document.addEventListener("DOMContentLoaded", run, { once: true });
+    return setTimeout(run, 0);
+  } catch {
+    try {
+      setTimeout(run, 0);
+    } catch {}
+  }
+};
+
+try { mountWhenReady(); } catch {}
+`,
   `})();\n`
 ];
