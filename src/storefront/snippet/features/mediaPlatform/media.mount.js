@@ -19,7 +19,6 @@ module.exports = function mountMediaPlatform(context) {
       parts.push(
         'if(!scriptSrc){try{const ss=document.getElementsByTagName("script");for(let si=0;si<ss.length;si+=1){const s=ss[si];const src=(s&&s.src)||"";if(!src)continue;if(src.indexOf("/api/storefront/snippet.js")!==-1&&src.indexOf("merchantId="+encodeURIComponent(merchantId))!==-1){scriptSrc=src;break}}}catch(e){}}'
       );
-      parts.push('try{if(typeof ensureStyles==="function")ensureStyles()}catch(e){}');
     }
     parts.push(mediaLogicParts[i]);
   }

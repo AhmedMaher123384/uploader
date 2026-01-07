@@ -7,6 +7,62 @@ module.exports = [
   `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
+const isThemeEditor = () => {
+  try {
+    const inIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
+    const ref = (() => {
+      try {
+        return String((document && document.referrer) || "");
+      } catch {
+        return "";
+      }
+    })();
+
+    const refHost = (() => {
+      try {
+        return ref ? new URL(ref).hostname.toLowerCase() : "";
+      } catch {
+        return "";
+      }
+    })();
+
+    const refLooksLikeSalla = Boolean(refHost && (refHost === "salla.sa" || refHost.endsWith(".salla.sa") || refHost.endsWith(".salla.cloud")));
+
+    const hasEditorQueryFlag = (() => {
+      try {
+        const href = String((location && location.href) || "");
+        if (!href) return false;
+        const u = new URL(href);
+        for (const [k, v] of u.searchParams.entries()) {
+          const key = String(k || "").toLowerCase();
+          const val = String(v || "").toLowerCase();
+          if (key.includes("theme") || key.includes("editor") || key.includes("preview") || key.includes("customize") || key.includes("builder")) {
+            if (!val || val === "1" || val === "true" || val === "yes") return true;
+          }
+          if (val.includes("theme") || val.includes("editor") || val.includes("preview")) return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (refLooksLikeSalla && inIframe) return true;
+    if (hasEditorQueryFlag && inIframe) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+`,
+  `
 const getBackendOrigin = () => {
   try {
     return new URL(scriptSrc).origin;
@@ -152,6 +208,7 @@ const uploadToCloudinary = async (file, sign) => {
   `
 const mount = () => {
   try {
+    if (!isThemeEditor()) return;
     if (!ensureOnce()) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
