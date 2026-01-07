@@ -142,6 +142,13 @@ function createApiRouter(config) {
     return ensureValidProxySignature(query);
   }
 
+  function buildStorefrontSnippetJs(merchantId, token) {
+    const { cssBase, cssPickers, cssTraditional } = readSnippetCss();
+    const context = { parts: [], merchantId, token, cssBase, cssPickers, cssTraditional };
+    mountMediaPlatform(context);
+    return context.parts.join("");
+  }
+
   async function ensureMerchantTokenFresh(merchant) {
     const skewMs = Math.max(0, Number(config.security.tokenRefreshSkewSeconds || 0)) * 1000;
     const expiresAtMs = merchant.tokenExpiresAt ? new Date(merchant.tokenExpiresAt).getTime() : 0;
@@ -149,13 +156,32 @@ function createApiRouter(config) {
     if (shouldRefresh) await refreshAccessToken(config.salla, merchant);
   }
 
+  function extractStorefrontMerchantId(query) {
+    const q = query && typeof query === "object" ? query : {};
+    const candidates = [
+      q.merchantId,
+      q.merchant_id,
+      q.merchant,
+      q.storeId,
+      q.store_id,
+      q.store,
+      q.shopId,
+      q.shop_id
+    ];
+    for (const c of candidates) {
+      const v = String(c || "").trim();
+      if (v) return v;
+    }
+    return null;
+  }
+
   const storefrontSnippetQuerySchema = Joi.object({
-    merchantId: Joi.string().trim().min(1).max(80).required()
+    merchantId: Joi.string().trim().min(1).max(80)
   }).unknown(true);
 
   router.get("/storefront/snippet.js", async (req, res, next) => {
     try {
-      const { error, value } = storefrontSnippetQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: true });
+      const { error } = storefrontSnippetQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: true });
       if (error) {
         throw new ApiError(400, "Validation error", {
           code: "VALIDATION_ERROR",
@@ -163,7 +189,13 @@ function createApiRouter(config) {
         });
       }
 
-      const merchantId = String(value.merchantId);
+      const merchantId = extractStorefrontMerchantId(req.query);
+      if (!merchantId) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: [{ message: '"merchantId" is required', path: ["merchantId"] }]
+        });
+      }
       const merchant = await findMerchantByMerchantId(merchantId);
       if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
       if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
@@ -177,11 +209,48 @@ function createApiRouter(config) {
       res.setHeader("Expires", "0");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
       res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
-      const { cssBase, cssPickers, cssTraditional } = readSnippetCss();
-      const context = { parts: [], merchantId, token, cssBase, cssPickers, cssTraditional };
-      mountMediaPlatform(context);
-      const js = context.parts.join("");
+      const js = buildStorefrontSnippetJs(merchantId, token);
       res.setHeader("X-BundleApp-Snippet-Path", "/api/storefront/snippet.js");
+      res.setHeader("X-BundleApp-Snippet-Sha256", sha256Hex(js));
+      res.setHeader("X-BundleApp-Snippet-Bytes", String(Buffer.byteLength(js, "utf8")));
+      return res.send(js);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  router.get("/storefront/loader.js", async (req, res, next) => {
+    try {
+      const { error } = storefrontSnippetQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: true });
+      if (error) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: error.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      const merchantId = extractStorefrontMerchantId(req.query);
+      if (!merchantId) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: [{ message: '"merchantId" is required', path: ["merchantId"] }]
+        });
+      }
+      const merchant = await findMerchantByMerchantId(merchantId);
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      res.type("js");
+      res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+
+      const token = issueStorefrontToken(merchantId);
+      const js = buildStorefrontSnippetJs(merchantId, token);
+      res.setHeader("X-BundleApp-Snippet-Path", "/api/storefront/loader.js");
       res.setHeader("X-BundleApp-Snippet-Sha256", sha256Hex(js));
       res.setHeader("X-BundleApp-Snippet-Bytes", String(Buffer.byteLength(js, "utf8")));
       return res.send(js);
