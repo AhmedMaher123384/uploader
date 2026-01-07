@@ -34,8 +34,7 @@ function createApp(config) {
           list: "GET /api/media/assets",
           uploadSignature: "POST /api/media/signature",
           remove: "DELETE /api/media/assets/:id",
-          storefrontSnippet: "GET /api/storefront/snippet.js",
-          storefrontLoader: "GET /api/storefront/loader.js"
+          storefrontSnippet: "GET /api/storefront/snippet.js"
         },
         publicMedia: {
           listStores: "GET /api/public/media/stores",

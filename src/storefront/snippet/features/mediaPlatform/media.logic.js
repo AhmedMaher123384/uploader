@@ -5,6 +5,7 @@ module.exports = [
   `const g = (() => { try { return globalThis; } catch { return window; } })() || window;\n`,
   `g.BundleApp = g.BundleApp || {};\n`,
   `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
+  `const fabMode = (() => { try { return String(new URL(scriptSrc).searchParams.get("fab") || "footer").toLowerCase(); } catch { return "footer"; } })();\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
 const getBackendOrigin = () => {
@@ -97,7 +98,6 @@ const isRtl = () => {
 const ensureOnce = () => {
   try {
     if (g.BundleApp && g.BundleApp.__mediaPlatformMounted) return false;
-    if (!(document && document.body)) return true;
     g.BundleApp.__mediaPlatformMounted = true;
     return true;
   } catch {
@@ -154,14 +154,14 @@ const uploadToCloudinary = async (file, sign) => {
 const mount = () => {
   try {
     if (!ensureOnce()) return;
-    if (!(document && document.body)) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
 
     const fab = createFab();
     try {
-      setupFabFooterReveal(fab);
+      if (fabMode === "always") setFabVisible(fab, true);
+      else setupFabFooterReveal(fab);
     } catch {}
 
     let sheetEl = null;
@@ -372,25 +372,20 @@ const mount = () => {
 };
 `,
   `
-const mountWhenReady = () => {
-  const run = () => {
+try {
+  const start = () => {
     try {
       mount();
     } catch {}
   };
+  if (document && document.body) start();
+  else if (document && document.addEventListener) document.addEventListener("DOMContentLoaded", start, { once: true });
+  else setTimeout(start, 0);
+} catch {
   try {
-    if (document && document.body) return run();
-    if (document && document.readyState && document.readyState !== "loading") return setTimeout(run, 0);
-    if (document && document.addEventListener) return document.addEventListener("DOMContentLoaded", run, { once: true });
-    return setTimeout(run, 0);
-  } catch {
-    try {
-      setTimeout(run, 0);
-    } catch {}
-  }
-};
-
-try { mountWhenReady(); } catch {}
-`,
+    mount();
+  } catch {}
+}
+\n`,
   `})();\n`
 ];
