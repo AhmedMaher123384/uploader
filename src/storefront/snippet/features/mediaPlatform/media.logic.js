@@ -7,112 +7,6 @@ module.exports = [
   `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
-const isThemeEditor = () => {
-  try {
-    const inIframe = (() => {
-      try {
-        return window.self !== window.top;
-      } catch {
-        return true;
-      }
-    })();
-
-    const isSallaThemeEditorAdminPage = (() => {
-      try {
-        const href = String((location && location.href) || "");
-        if (!href) return false;
-        const u = new URL(href);
-        const p = String(u.pathname || "").toLowerCase();
-        return p.includes("/themes/editor") || p.includes("/theme/editor");
-      } catch {
-        try {
-          const href = String((location && location.href) || "").toLowerCase();
-          return href.includes("/themes/editor") || href.includes("/theme/editor");
-        } catch {
-          return false;
-        }
-      }
-    })();
-
-    const forcedByScriptQuery = (() => {
-      try {
-        const u = new URL(String(scriptSrc || ""));
-        const v = String(u.searchParams.get("mode") || u.searchParams.get("editor") || "").toLowerCase();
-        return v === "theme" || v === "editor" || v === "1" || v === "true" || v === "yes";
-      } catch {
-        return false;
-      }
-    })();
-
-    const href = (() => {
-      try {
-        return String((location && location.href) || "");
-      } catch {
-        return "";
-      }
-    })();
-
-    const hasSallaSignedPreviewParams = (() => {
-      try {
-        if (!href) return false;
-        const u = new URL(href);
-        const hasSig = u.searchParams.has("signature");
-        const hasExp = u.searchParams.has("expires");
-        const hasId = u.searchParams.has("identifier");
-        return Boolean(hasSig && hasExp && hasId);
-      } catch {
-        return false;
-      }
-    })();
-
-    const ref = (() => {
-      try {
-        return String((document && document.referrer) || "");
-      } catch {
-        return "";
-      }
-    })();
-
-    const refHost = (() => {
-      try {
-        return ref ? new URL(ref).hostname.toLowerCase() : "";
-      } catch {
-        return "";
-      }
-    })();
-
-    const refLooksLikeSalla = Boolean(refHost && (refHost === "salla.sa" || refHost.endsWith(".salla.sa") || refHost.endsWith(".salla.cloud")));
-
-    const hasEditorQueryFlag = (() => {
-      try {
-        if (!href) return false;
-        const u = new URL(href);
-        for (const [k, v] of u.searchParams.entries()) {
-          const key = String(k || "").toLowerCase();
-          const val = String(v || "").toLowerCase();
-          if (key.includes("theme") || key.includes("editor") || key.includes("preview") || key.includes("customize") || key.includes("builder")) {
-            if (!val || val === "1" || val === "true" || val === "yes") return true;
-          }
-          if (val.includes("theme") || val.includes("editor") || val.includes("preview")) return true;
-        }
-        return false;
-      } catch {
-        return false;
-      }
-    })();
-
-    if (isSallaThemeEditorAdminPage) return true;
-    if (forcedByScriptQuery) return true;
-    if (hasSallaSignedPreviewParams) return true;
-    if (refLooksLikeSalla && inIframe) return true;
-    if (hasEditorQueryFlag && inIframe) return true;
-    return false;
-  } catch {
-    return false;
-  }
-};
-`,
-  `
 const getBackendOrigin = () => {
   try {
     return new URL(scriptSrc).origin;
@@ -258,7 +152,6 @@ const uploadToCloudinary = async (file, sign) => {
   `
 const mount = () => {
   try {
-    if (!isThemeEditor()) return;
     if (!ensureOnce()) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
@@ -266,7 +159,7 @@ const mount = () => {
 
     const fab = createFab();
     try {
-      setFabVisible(fab, true);
+      setupFabFooterReveal(fab);
     } catch {}
 
     let sheetEl = null;
