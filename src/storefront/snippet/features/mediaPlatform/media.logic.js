@@ -224,6 +224,8 @@ const mount = () => {
       return;
     }
     if (!ensureOnce()) return;
+    const root = (document && (document.body || document.documentElement)) || null;
+    if (!root) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
@@ -246,7 +248,7 @@ const mount = () => {
         input.multiple = true;
         input.accept = "image/*,video/*";
         input.style.display = "none";
-        document.body.appendChild(input);
+        root.appendChild(input);
 
         const close = () => {
           try {
@@ -422,7 +424,7 @@ const mount = () => {
           } catch {}
         };
 
-        document.body.appendChild(sheet.overlay);
+        root.appendChild(sheet.overlay);
         render();
         fetchAndRender();
       } catch (e) {
@@ -434,24 +436,12 @@ const mount = () => {
       }
     };
 
-    document.body.appendChild(fab);
+    root.appendChild(fab);
   } catch (e) {
     warn("media platform mount failed", e);
   }
 };
 `,
-  `
-try {
-  const start = () => {
-    try {
-      mount();
-    } catch (e) {
-      warn("media platform start failed", e);
-    }
-  };
-  if (document && document.body) start();
-  else setTimeout(start, 0);
-} catch {}
-`,
+  `try { mount(); } catch {}\n`,
   `})();\n`
 ];
