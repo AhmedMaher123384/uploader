@@ -17,6 +17,37 @@ const isThemeEditor = () => {
       }
     })();
 
+    const forcedByScriptQuery = (() => {
+      try {
+        const u = new URL(String(scriptSrc || ""));
+        const v = String(u.searchParams.get("mode") || u.searchParams.get("editor") || "").toLowerCase();
+        return v === "theme" || v === "editor" || v === "1" || v === "true" || v === "yes";
+      } catch {
+        return false;
+      }
+    })();
+
+    const href = (() => {
+      try {
+        return String((location && location.href) || "");
+      } catch {
+        return "";
+      }
+    })();
+
+    const hasSallaSignedPreviewParams = (() => {
+      try {
+        if (!href) return false;
+        const u = new URL(href);
+        const hasSig = u.searchParams.has("signature");
+        const hasExp = u.searchParams.has("expires");
+        const hasId = u.searchParams.has("identifier");
+        return Boolean(hasSig && hasExp && hasId);
+      } catch {
+        return false;
+      }
+    })();
+
     const ref = (() => {
       try {
         return String((document && document.referrer) || "");
@@ -37,7 +68,6 @@ const isThemeEditor = () => {
 
     const hasEditorQueryFlag = (() => {
       try {
-        const href = String((location && location.href) || "");
         if (!href) return false;
         const u = new URL(href);
         for (const [k, v] of u.searchParams.entries()) {
@@ -54,6 +84,8 @@ const isThemeEditor = () => {
       }
     })();
 
+    if (forcedByScriptQuery) return true;
+    if (hasSallaSignedPreviewParams) return true;
     if (refLooksLikeSalla && inIframe) return true;
     if (hasEditorQueryFlag && inIframe) return true;
     return false;
@@ -216,7 +248,7 @@ const mount = () => {
 
     const fab = createFab();
     try {
-      setupFabFooterReveal(fab);
+      setFabVisible(fab, true);
     } catch {}
 
     let sheetEl = null;
