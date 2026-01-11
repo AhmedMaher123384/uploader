@@ -242,6 +242,13 @@ const loadAssets = async (resourceType, page, limit) => {
 };
 `,
   `
+const loadDashboard = async () => {
+  const url = buildUrl("/api/proxy/media/dashboard", {});
+  if (!url) throw new Error("Missing backend origin");
+  return await fetchJson(url);
+};
+`,
+  `
 const getSignature = async (resourceType, file) => {
   const url = buildUrl("/api/proxy/media/signature", {});
   if (!url) throw new Error("Missing backend origin");
@@ -402,6 +409,7 @@ const mount = () => {
         });
 
         const state = {
+          view: "upload",
           type: "",
           page: 1,
           limit: 12,
@@ -409,8 +417,28 @@ const mount = () => {
           items: [],
           total: 0,
           error: "",
+          dashLoading: false,
+          dashError: "",
+          dash: null,
           uploads: [],
           uploading: false
+        };
+
+        const refreshDashboard = async () => {
+          if (state.dashLoading) return;
+          state.dashLoading = true;
+          state.dashError = "";
+          render();
+          try {
+            const d = await loadDashboard();
+            state.dash = d && typeof d === "object" ? d : null;
+            state.dashLoading = false;
+            render();
+          } catch (e) {
+            state.dashLoading = false;
+            state.dashError = String((e && e.message) || e || "");
+            render();
+          }
         };
 
         const render = () => {
@@ -421,14 +449,73 @@ const mount = () => {
             sheet.content.innerHTML = "";
 
             const labels = isArabic()
-              ? { all: "الكل", img: "صور", vid: "فيديو", up: "رفع ملفات", ref: "تحديث" }
-              : { all: "All", img: "Images", vid: "Videos", up: "Upload", ref: "Refresh" };
+              ? { upload: "مركز الرفع", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              : { upload: "Upload Center", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
+
+            const uploadTab = pill(labels.upload, state.view === "upload");
+            const filesTab = pill(labels.files, state.view === "files");
+
+            const setView = (v) => {
+              const next = String(v || "");
+              if (!next || next === state.view) return;
+              state.view = next;
+              state.error = "";
+              render();
+              if (state.view === "files") fetchAndRender();
+              if (state.view === "upload") refreshDashboard();
+            };
+
+            uploadTab.onclick = () => setView("upload");
+            filesTab.onclick = () => setView("files");
+            sheet.tabs.appendChild(uploadTab);
+            sheet.tabs.appendChild(filesTab);
+
+            const refreshBtn = btnGhost(labels.ref);
+            refreshBtn.onclick = () => {
+              try {
+                refreshDashboard();
+              } catch {}
+              try {
+                if (state.view === "files") fetchAndRender();
+              } catch {}
+            };
+            sheet.actions.appendChild(refreshBtn);
+
+            if (state.view === "upload" && state.uploads.length) {
+              sheet.uploads.style.display = "flex";
+              for (let i = 0; i < state.uploads.length; i += 1) {
+                sheet.uploads.appendChild(renderUploadRow(state.uploads[i]));
+              }
+            } else {
+              sheet.uploads.style.display = "none";
+            }
+
+            if (state.view === "upload") {
+              if (state.dashLoading) sheet.content.appendChild(renderLoading());
+              if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
+              if (!state.dashLoading && !state.dashError) {
+                sheet.content.appendChild(renderUploadHero(state.dash));
+                sheet.content.appendChild(renderSmartStats(state.dash));
+                sheet.content.appendChild(
+                  renderDropzone({
+                    disabled: state.uploading,
+                    onPick: () => {
+                      try {
+                        input.click();
+                      } catch {}
+                    },
+                    onFiles: (fs) => runUploads(fs)
+                  })
+                );
+              }
+              return;
+            }
 
             const allBtn = pill(labels.all, state.type === "");
             const imgBtn = pill(labels.img, state.type === "image");
             const vidBtn = pill(labels.vid, state.type === "video");
 
-            const setTab = (t) => {
+            const setType = (t) => {
               state.type = t || "";
               state.page = 1;
               state.items = [];
@@ -438,32 +525,18 @@ const mount = () => {
               fetchAndRender();
             };
 
-            allBtn.onclick = () => setTab("");
-            imgBtn.onclick = () => setTab("image");
-            vidBtn.onclick = () => setTab("video");
-            sheet.tabs.appendChild(allBtn);
-            sheet.tabs.appendChild(imgBtn);
-            sheet.tabs.appendChild(vidBtn);
+            allBtn.onclick = () => setType("");
+            imgBtn.onclick = () => setType("image");
+            vidBtn.onclick = () => setType("video");
 
-            const uploadBtn = btnPrimary(labels.up);
-            uploadBtn.onclick = () => {
-              try {
-                input.click();
-              } catch {}
-            };
-            const refreshBtn = btnGhost(labels.ref);
-            refreshBtn.onclick = () => fetchAndRender();
-            sheet.actions.appendChild(uploadBtn);
-            sheet.actions.appendChild(refreshBtn);
-
-            if (state.uploads.length) {
-              sheet.uploads.style.display = "flex";
-              for (let i = 0; i < state.uploads.length; i += 1) {
-                sheet.uploads.appendChild(renderUploadRow(state.uploads[i]));
-              }
-            } else {
-              sheet.uploads.style.display = "none";
-            }
+            const typeRow = document.createElement("div");
+            typeRow.style.display = "flex";
+            typeRow.style.gap = "8px";
+            typeRow.style.flexWrap = "wrap";
+            typeRow.appendChild(allBtn);
+            typeRow.appendChild(imgBtn);
+            typeRow.appendChild(vidBtn);
+            sheet.content.appendChild(typeRow);
 
             if (state.loading) sheet.content.appendChild(renderLoading());
             if (state.error) sheet.content.appendChild(renderError(state.error));
@@ -577,7 +650,7 @@ const mount = () => {
 
         document.body.appendChild(sheet.overlay);
         render();
-        fetchAndRender();
+        refreshDashboard();
       } catch (e) {
         warn("media platform open failed", e);
         try {

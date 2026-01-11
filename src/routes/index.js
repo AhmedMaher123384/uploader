@@ -1659,6 +1659,77 @@ function createApiRouter(config) {
     .or("signature", "hmac", "token")
     .unknown(true);
 
+  const proxyMediaDashboardQuerySchema = Joi.object({
+    merchantId: Joi.string().trim().min(1).max(80).required(),
+    token: Joi.string().trim().min(10),
+    signature: Joi.string().trim().min(8),
+    hmac: Joi.string().trim().min(8)
+  })
+    .or("signature", "hmac", "token")
+    .unknown(true);
+
+  router.get("/proxy/media/dashboard", async (req, res, next) => {
+    try {
+      const { error, value } = proxyMediaDashboardQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: false });
+      if (error) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: error.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      ensureValidProxyAuth(value, value.merchantId);
+
+      const merchant = await findMerchantByMerchantId(String(value.merchantId));
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      const storeId = String(value.merchantId);
+      const baseStoreFilter = { storeId, deletedAt: null };
+
+      const summaryPipeline = [
+        { $match: baseStoreFilter },
+        {
+          $group: {
+            _id: "$storeId",
+            total: { $sum: 1 },
+            totalBytes: { $sum: { $ifNull: ["$bytes", 0] } },
+            images: { $sum: { $cond: [{ $eq: ["$resourceType", "image"] }, 1, 0] } },
+            videos: { $sum: { $cond: [{ $eq: ["$resourceType", "video"] }, 1, 0] } },
+            raws: { $sum: { $cond: [{ $eq: ["$resourceType", "raw"] }, 1, 0] } },
+            lastCloudinaryCreatedAt: { $max: "$cloudinaryCreatedAt" },
+            lastCreatedAt: { $max: "$createdAt" }
+          }
+        },
+        { $addFields: { lastAt: { $ifNull: ["$lastCloudinaryCreatedAt", "$lastCreatedAt"] } } }
+      ];
+
+      const [storeInfo, summaryAgg] = await Promise.all([getPublicStoreInfo(storeId), MediaAsset.aggregate(summaryPipeline, { allowDiskUse: true })]);
+
+      const summaryRoot = Array.isArray(summaryAgg) && summaryAgg.length ? summaryAgg[0] : null;
+      const summary = summaryRoot
+        ? {
+            total: Number(summaryRoot.total || 0) || 0,
+            totalBytes: Number(summaryRoot.totalBytes || 0) || 0,
+            images: Number(summaryRoot.images || 0) || 0,
+            videos: Number(summaryRoot.videos || 0) || 0,
+            raws: Number(summaryRoot.raws || 0) || 0,
+            lastAt: summaryRoot.lastAt ? new Date(summaryRoot.lastAt).toISOString() : null
+          }
+        : { total: 0, totalBytes: 0, images: 0, videos: 0, raws: 0, lastAt: null };
+
+      return res.json({
+        ok: true,
+        merchantId: storeId,
+        planKey: String(merchant.planKey || "basic"),
+        store: storeInfo || null,
+        summary
+      });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.get("/proxy/media/assets", async (req, res, next) => {
     try {
       const { error, value } = proxyMediaAssetsQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: false });
