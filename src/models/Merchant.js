@@ -24,7 +24,10 @@ const MerchantSchema = new mongoose.Schema(
       enum: ["installed", "uninstalled", "suspended"],
       default: "installed",
       index: true
-    }
+    },
+    storeDomain: { type: String, default: null, index: true },
+    storeUrl: { type: String, default: null },
+    storeName: { type: String, default: null }
   },
   { timestamps: true, collection: "merchants" }
 );

@@ -549,8 +549,12 @@ function createApiRouter(config) {
 
       if (!allowByToken) {
         const storeInfo = await getPublicStoreInfo(storeId);
-        const domain = storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "";
-        const storeUrlHost = storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "";
+        const domain =
+          (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") ||
+          (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
+        const storeUrlHost =
+          (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") ||
+          (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
 
         const originHost = pickHostFromUrlLike(req.headers.origin);
         const refererHost = pickHostFromUrlLike(req.headers.referer);
@@ -669,6 +673,21 @@ function createApiRouter(config) {
       await ensureMerchantTokenFresh(merchant);
       const raw = await getStoreInfo(config.salla, merchant.accessToken);
       const normalized = normalizeSallaStoreInfo(raw);
+      if (normalized && typeof normalized === "object") {
+        const nextName = normalized.name != null ? String(normalized.name).trim() || null : null;
+        const nextDomain = normalized.domain != null ? String(normalized.domain).trim() || null : null;
+        const nextUrl = normalized.url != null ? String(normalized.url).trim() || null : null;
+        const changed =
+          (nextName && nextName !== merchant.storeName) ||
+          (nextDomain && nextDomain !== merchant.storeDomain) ||
+          (nextUrl && nextUrl !== merchant.storeUrl);
+        if (changed) {
+          merchant.storeName = nextName || merchant.storeName || null;
+          merchant.storeDomain = nextDomain || merchant.storeDomain || null;
+          merchant.storeUrl = nextUrl || merchant.storeUrl || null;
+          await merchant.save();
+        }
+      }
       cacheSet(cacheKey, normalized || "__NULL__", 6 * 60 * 60 * 1000);
       return normalized || null;
     } catch {

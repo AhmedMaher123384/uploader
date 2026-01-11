@@ -533,7 +533,8 @@ const mount = () => {
               const sign = await getSignature(rt, file);
               const uploaded = await uploadToCloudinary(file, sign);
               await recordAsset(uploaded);
-              rec.url = String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
+              const delivery = buildDeliveryUrlFromItem({ storeId: merchantId, publicId: uploaded && uploaded.public_id });
+              rec.url = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
               rec.status = "done";
               render();
             } catch (e) {
