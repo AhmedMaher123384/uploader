@@ -536,34 +536,30 @@ function createApiRouter(config) {
         return res.send(placeholderSvg(storeId));
       }
 
-      let allowByToken = false;
       const token = String(req.query?.token || "").trim();
-      if (token) {
-        try {
-          ensureValidStorefrontToken(token, storeId);
-          allowByToken = true;
-        } catch {
-          allowByToken = false;
-        }
+      if (storeId === "sandbox" && token === "sandbox") {
+        void token;
+      } else {
+        if (!token) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+        ensureValidStorefrontToken(token, storeId);
       }
 
-      if (!allowByToken) {
-        const storeInfo = await getPublicStoreInfo(storeId);
-        const domain =
-          (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") ||
-          (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
-        const storeUrlHost =
-          (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") ||
-          (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
+      const storeInfo = await getPublicStoreInfo(storeId);
+      const domain =
+        (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") ||
+        (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
+      const storeUrlHost =
+        (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") ||
+        (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
 
-        const originHost = pickHostFromUrlLike(req.headers.origin);
-        const refererHost = pickHostFromUrlLike(req.headers.referer);
-        const h = originHost || refererHost;
+      const originHost = pickHostFromUrlLike(req.headers.origin);
+      const refererHost = pickHostFromUrlLike(req.headers.referer);
+      const h = originHost || refererHost;
+      if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
-        const allowedHosts = [domain, storeUrlHost, "localhost", "127.0.0.1"].filter(Boolean);
-        const ok = allowedHosts.some((a) => hostMatches(h, a));
-        if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-      }
+      const allowedHosts = [domain, storeUrlHost, "localhost", "127.0.0.1"].filter(Boolean);
+      const ok = allowedHosts.some((a) => hostMatches(h, a));
+      if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
       const { folderPrefix } = requireCloudinaryConfig();
       const folder = mediaFolderForMerchant(folderPrefix, storeId);
@@ -584,8 +580,37 @@ function createApiRouter(config) {
         nextUrl = cloudinaryUrlWithTransform(baseUrl, wm);
       }
 
+      const range = String(req.headers.range || "").trim();
+      const upstreamHeaders = {};
+      if (range) upstreamHeaders.Range = range;
+
+      let upstream = null;
+      try {
+        upstream = await axios.get(nextUrl, {
+          responseType: "stream",
+          timeout: 15000,
+          maxRedirects: 3,
+          headers: upstreamHeaders,
+          validateStatus: () => true
+        });
+      } catch (e) {
+        throw new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY", details: { message: String(e?.message || e) } });
+      }
+
+      const status = Number(upstream?.status || 502);
+      if (status >= 400) {
+        throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+      }
+
+      const passHeaders = ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"];
+      for (const k of passHeaders) {
+        const v = upstream.headers ? upstream.headers[k] : null;
+        if (v != null) res.setHeader(k, v);
+      }
       res.setHeader("Cache-Control", "public, max-age=300");
-      return res.redirect(302, nextUrl);
+      res.status(status);
+      upstream.data.pipe(res);
+      return;
     } catch (err) {
       return next(err);
     }
