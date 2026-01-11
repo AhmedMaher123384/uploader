@@ -267,4 +267,59 @@ describe("GET /api/m/:storeId/:leaf", () => {
     expect(res.headers["content-type"]).toBe("image/png");
     expect(res.body.toString("utf8")).toBe("abc");
   });
+
+  it("ميقبلش أي متجر تاني على نفس دومين سلة العام (salla.sa)", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "installed",
+      updatedAt: new Date(),
+      storeDomain: "salla.sa",
+      storeUrl: "https://shop123.salla.sa",
+      accessToken: "tok",
+      tokenExpiresAt: new Date(Date.now() + 60_000),
+      save: jest.fn()
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+    getStoreInfo.mockResolvedValue({ data: { store: { id: 123, domain: "salla.sa", url: "https://shop123.salla.sa" } } });
+
+    const leaf = "abcdef";
+    const asset = {
+      storeId: "123",
+      publicId: `bundle_app/123/${leaf}`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+    };
+
+    MediaAsset.findOne.mockImplementation(() => ({
+      lean: jest.fn().mockResolvedValue(asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "3" },
+      data: Readable.from(Buffer.from("abc"))
+    });
+
+    const app = createApp(makeConfig());
+    const js = await request(app).get("/api/storefront/snippet.js?merchantId=123");
+    const m = String(js.text || "").match(/let token=("([^"\\\\]|\\\\.)*"|'([^'\\\\]|\\\\.)*');/);
+    const token = JSON.parse(m[1]);
+
+    const resBad = await request(app).get(`/api/m/123/${leaf}?token=${encodeURIComponent(token)}`).set("referer", "https://shop999.salla.sa/p/1");
+    expect(resBad.status).toBe(403);
+    expect(resBad.body).toEqual(expect.objectContaining({ message: "Forbidden", code: "FORBIDDEN" }));
+
+    const resOk = await request(app)
+      .get(`/api/m/123/${leaf}?token=${encodeURIComponent(token)}`)
+      .set("referer", "https://shop123.salla.sa/p/1")
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(resOk.status).toBe(200);
+    expect(resOk.headers.location).toBeUndefined();
+    expect(resOk.headers["content-type"]).toBe("image/png");
+    expect(resOk.body.toString("utf8")).toBe("abc");
+  });
 });

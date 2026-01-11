@@ -485,12 +485,37 @@ function createApiRouter(config) {
     return String(withoutPort || "").trim();
   }
 
-  function hostMatches(needleHost, allowedHost) {
-    const n = String(needleHost || "").trim().toLowerCase();
-    const a = String(allowedHost || "").trim().toLowerCase();
+  function hostEquals(needleHost, allowedHost) {
+    const n = normalizeHostLike(needleHost);
+    const a = normalizeHostLike(allowedHost);
     if (!n || !a) return false;
     if (n === a) return true;
-    return n.endsWith(`.${a}`);
+    if (n === `www.${a}`) return true;
+    if (a === `www.${n}`) return true;
+    return false;
+  }
+
+  function buildAllowedHosts({ domainHost, urlHost }) {
+    const domain = normalizeHostLike(domainHost);
+    const url = normalizeHostLike(urlHost);
+
+    const out = [];
+    if (url) out.push(url);
+
+    if (domain && domain !== url) {
+      const domainParts = domain.split(".").filter(Boolean);
+      const shouldDropDomain = url && url.endsWith(`.${domain}`) && domainParts.length <= 2;
+      if (!shouldDropDomain) out.push(domain);
+    }
+
+    const withWww = [];
+    for (const h of out) {
+      withWww.push(h);
+      if (h.startsWith("www.")) withWww.push(h.slice(4));
+      else withWww.push(`www.${h}`);
+    }
+
+    return Array.from(new Set(withWww.concat(["localhost", "127.0.0.1"]).filter(Boolean)));
   }
 
   const mediaDeliveryParamsSchema = Joi.object({
@@ -567,9 +592,9 @@ function createApiRouter(config) {
       const refererHost = pickHostFromUrlLike(req.headers.referer);
       const h = originHost || refererHost;
 
-      const allowedHosts = [normalizeHostLike(domain), normalizeHostLike(storeUrlHost), "localhost", "127.0.0.1"].filter(Boolean);
+      const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
       if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-      const ok = allowedHosts.some((a) => hostMatches(h, a));
+      const ok = allowedHosts.some((a) => hostEquals(h, a));
       if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
       const { folderPrefix } = requireCloudinaryConfig();
@@ -618,7 +643,8 @@ function createApiRouter(config) {
         const v = upstream.headers ? upstream.headers[k] : null;
         if (v != null) res.setHeader(k, v);
       }
-      res.setHeader("Cache-Control", "public, max-age=300");
+      res.setHeader("Cache-Control", "private, no-store, max-age=0");
+      res.setHeader("Vary", "Origin, Referer");
       res.status(status);
       upstream.data.pipe(res);
       return;
