@@ -303,7 +303,7 @@ const recordAsset = async (cloud) => {
 const uploadToCloudinary = async (file, sign) => {
   if (isSandbox) throw new Error("Sandbox mode: upload disabled");
   const c = sign && sign.cloudinary ? sign.cloudinary : null;
-  if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder) throw new Error("Invalid signature");
+  if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder || !c.publicId) throw new Error("Invalid signature");
 
   const fd = new FormData();
   fd.append("file", file);
@@ -311,6 +311,7 @@ const uploadToCloudinary = async (file, sign) => {
   fd.append("timestamp", String(c.timestamp));
   fd.append("signature", String(c.signature));
   fd.append("folder", String(c.folder));
+  fd.append("public_id", String(c.publicId));
   if (c.tags) fd.append("tags", String(c.tags));
   if (c.context) fd.append("context", String(c.context));
 
