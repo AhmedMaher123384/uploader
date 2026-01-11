@@ -10,6 +10,8 @@ module.exports = [
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
 const isSandbox = MODE === "sandbox";
+const isModal = MODE === "modal";
+const isModalMount = isSandbox || isModal;
 if (isSandbox) {
   try {
     merchantId = "sandbox";
@@ -281,7 +283,7 @@ const uploadToCloudinary = async (file, sign) => {
 const mount = () => {
   try {
     let mountRoot = null;
-    if (isSandbox) {
+    if (isModalMount) {
       mountRoot = getSandboxTarget();
       if (!mountRoot) {
         startSandboxObserver(mount);
@@ -298,7 +300,7 @@ const mount = () => {
     } catch {}
 
     const fab = createFab();
-    if (isSandbox) {
+    if (isModalMount) {
       try {
         fab.style.position = "relative";
         fab.style.top = "auto";
@@ -519,7 +521,7 @@ const mount = () => {
     };
 
     try {
-      if (isSandbox) mountRoot.__mounted = true;
+      if (isModalMount) mountRoot.__mounted = true;
     } catch {}
     mountRoot.appendChild(fab);
   } catch (e) {

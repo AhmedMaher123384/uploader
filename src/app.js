@@ -105,6 +105,18 @@ function createApp(config) {
       .btn-primary { background: rgba(24,181,213,.16); border-color: rgba(24,181,213,.45); }
       .btn-ghost { background: transparent; }
       .hint { color: var(--muted); font-size: 13px; font-weight: 800; line-height: 1.6; margin-top: 10px; }
+      .input {
+        width: min(420px, 100%);
+        height: 40px;
+        padding: 0 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(2,6,23,.35);
+        color: var(--text);
+        font-weight: 850;
+        outline: none;
+      }
+      .input::placeholder { color: rgba(229,231,235,.55); font-weight: 800; }
 
       .angel-cc_modal {
         position: fixed;
@@ -176,10 +188,16 @@ function createApp(config) {
         <div class="row">
           <button type="button" class="btn btn-primary" data-open-modal>فتح المودال</button>
           <button type="button" class="btn btn-ghost" data-close-modal>إغلاق</button>
-          <span class="angel-cc_badge">window.__APP_MODE__ = 'sandbox'</span>
+          <span class="angel-cc_badge" data-badge></span>
+        </div>
+        <div class="row" style="margin-top: 10px">
+          <input class="input" data-merchant-id placeholder="merchantId (مثال: 123456) أو اتركها sandbox" />
+          <button type="button" class="btn" data-set-mode="sandbox">Sandbox</button>
+          <button type="button" class="btn btn-primary" data-set-mode="live">Live</button>
+          <button type="button" class="btn btn-primary" data-apply>تطبيق</button>
         </div>
         <div class="hint">
-          استخدم الأزرار لتبديل الـ Views قبل/بعد فتح المودال. الهدف: ظهور APP MOUNTED SUCCESSFULLY داخل upload بدون تكرار.
+          Sandbox: بدون API calls. Live: داتا حقيقية (merchantId لازم يكون متجر متسطّب عليه التطبيق).
         </div>
         <div class="row" style="margin-top: 12px">
           <button type="button" class="btn" data-set-view="announcements">announcements</button>
@@ -217,9 +235,33 @@ function createApp(config) {
     </div>
 
     <script>
-      window.__APP_MODE__ = "sandbox";
-
       (function () {
+        var params = new URLSearchParams(window.location.search || "");
+        var mode = String(params.get("mode") || "sandbox").trim().toLowerCase();
+        var merchantId = String(params.get("merchantId") || "").trim();
+        var isLive = mode === "live";
+        if (!merchantId) merchantId = isLive ? "" : "sandbox";
+
+        window.__APP_MODE__ = isLive ? "modal" : "sandbox";
+
+        var badge = document.querySelector("[data-badge]");
+        if (badge) badge.textContent = "window.__APP_MODE__ = '" + String(window.__APP_MODE__) + "'";
+
+        var input = document.querySelector("[data-merchant-id]");
+        if (input) input.value = merchantId;
+
+        var selectedMode = isLive ? "live" : "sandbox";
+        window.__SANDBOX_SELECTED_MODE__ = selectedMode;
+
+        var injectSnippet = function () {
+          var mid = String((input && input.value) || merchantId || "").trim();
+          if (!mid) return;
+          var s = document.createElement("script");
+          s.src = "/api/storefront/snippet.js?merchantId=" + encodeURIComponent(mid);
+          document.body.appendChild(s);
+        };
+        injectSnippet();
+
         var modal = document.querySelector(".angel-cc_modal");
         var views = Array.prototype.slice.call(document.querySelectorAll(".angel-cc_view"));
 
@@ -266,8 +308,36 @@ function createApp(config) {
         setView("announcements");
       })();
     </script>
+    <script>
+      (function () {
+        var input = document.querySelector("[data-merchant-id]");
+        var params = new URLSearchParams(window.location.search || "");
+        var mode = String(params.get("mode") || "sandbox").trim().toLowerCase();
+        var isLive = mode === "live";
 
-    <script src="/api/storefront/snippet.js?merchantId=sandbox"></script>
+        function apply(nextMode) {
+          var mid = String((input && input.value) || "").trim();
+          var p = new URLSearchParams(window.location.search || "");
+          p.set("mode", nextMode);
+          if (mid) p.set("merchantId", mid);
+          else p.delete("merchantId");
+          window.location.search = p.toString();
+        }
+
+        document.addEventListener("click", function (e) {
+          var t = e && e.target ? e.target : null;
+          if (!t) return;
+          if (t && t.hasAttribute && t.hasAttribute("data-set-mode")) {
+            var m = String(t.getAttribute("data-set-mode") || "").trim().toLowerCase();
+            window.__SANDBOX_SELECTED_MODE__ = m === "live" ? "live" : "sandbox";
+            return;
+          }
+          if (t && t.hasAttribute && t.hasAttribute("data-apply")) {
+            apply(window.__SANDBOX_SELECTED_MODE__ === "live" ? "live" : "sandbox");
+          }
+        });
+      })();
+    </script>
   </body>
 </html>`);
   });
