@@ -325,11 +325,6 @@ const fmtDateTime = (iso) => {
   `
 const planLabel = (k) => {
   const key = String(k || "").trim().toLowerCase();
-  if (isArabic()) {
-    if (key === "business") return "بيزنس";
-    if (key === "pro") return "برو";
-    return "بيسك";
-  }
   if (key === "business") return "Business";
   if (key === "pro") return "Pro";
   return "Basic";
@@ -339,6 +334,24 @@ const planLabel = (k) => {
 const renderUploadHero = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const store = d.store && typeof d.store === "object" ? d.store : {};
+
+  const sanitizeHttpUrl = (raw) => {
+    const s0 = String(raw || "").trim();
+    if (!s0) return "";
+    const s1 = s0.replace(/[\\u0060"'<>]/g, "").trim();
+    if (!s1) return "";
+    const withProto = s1.indexOf("://") === -1 ? "https://" + s1 : s1;
+    let u = null;
+    try {
+      u = new URL(withProto);
+    } catch {
+      u = null;
+    }
+    if (!u) return "";
+    const proto = String(u.protocol || "").toLowerCase();
+    if (proto !== "http:" && proto !== "https:") return "";
+    return u.toString();
+  };
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
@@ -422,7 +435,6 @@ const renderUploadHero = (dash) => {
 
   meta.appendChild(hello);
   meta.appendChild(name);
-  if (domain.textContent) meta.appendChild(domain);
 
   left.appendChild(avatar);
   left.appendChild(meta);
@@ -445,7 +457,8 @@ const renderUploadHero = (dash) => {
   plan.textContent = (isArabic() ? "الباقة: " : "Plan: ") + planLabel(d.planKey);
 
   const visit = document.createElement("a");
-  const url = String(store.url || d.storeUrl || "").trim();
+  const rawUrl = String(store.url || d.storeUrl || store.domain || "").trim();
+  const url = sanitizeHttpUrl(rawUrl);
   visit.href = url || "#";
   visit.target = "_blank";
   visit.rel = "noopener";
@@ -463,6 +476,14 @@ const renderUploadHero = (dash) => {
   visit.style.textDecoration = "none";
   visit.style.pointerEvents = url ? "auto" : "none";
   visit.style.opacity = url ? "1" : "0.6";
+  visit.onclick = (e) => {
+    try {
+      if (!url) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    } catch {}
+  };
 
   right.appendChild(plan);
   right.appendChild(visit);
