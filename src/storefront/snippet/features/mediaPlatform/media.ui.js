@@ -916,11 +916,18 @@ const renderUploadRow = (rec) => {
   sub.style.fontSize = "12px";
   sub.style.fontWeight = "900";
   sub.style.color = rec.status === "error" ? "#ef4444" : "rgba(24,181,213,.9)";
+  const pct = (() => {
+    try {
+      const p = Number(rec && rec.progress);
+      if (!Number.isFinite(p)) return 0;
+      return Math.max(0, Math.min(100, Math.round(p)));
+    } catch {
+      return 0;
+    }
+  })();
   sub.textContent =
     rec.status === "uploading"
-      ? isArabic()
-        ? "جاري الرفع..."
-        : "Uploading..."
+      ? (isArabic() ? "جاري الرفع " : "Uploading ") + String(pct) + "%"
       : rec.status === "done"
         ? isArabic()
           ? "تم الرفع"
@@ -944,12 +951,34 @@ const renderUploadRow = (rec) => {
   meta.style.fontSize = "12px";
   meta.style.fontWeight = "900";
   meta.style.color = "rgba(24,181,213,.8)";
-  meta.textContent = rec.size ? fmtBytes(rec.size) : "";
+  meta.style.textAlign = "right";
+  meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
   right.appendChild(meta);
 
   row.appendChild(left);
   row.appendChild(right);
   wrap.appendChild(row);
+
+  if (rec.status === "uploading") {
+    const bar = document.createElement("div");
+    bar.style.height = "10px";
+    bar.style.borderRadius = "999px";
+    bar.style.background = "rgba(255,255,255,.08)";
+    bar.style.border = "1px solid rgba(255,255,255,.10)";
+    bar.style.overflow = "hidden";
+    bar.style.position = "relative";
+
+    const fill = document.createElement("div");
+    fill.style.height = "100%";
+    fill.style.width = String(pct) + "%";
+    fill.style.borderRadius = "999px";
+    fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.35) 0%, rgba(24,181,213,.95) 50%, rgba(255,255,255,.55) 100%)";
+    fill.style.boxShadow = "0 12px 22px rgba(24,181,213,.18)";
+    fill.style.transition = "width .12s ease";
+
+    bar.appendChild(fill);
+    wrap.appendChild(bar);
+  }
 
   const url = String((rec && rec.url) || "");
   if (url && rec.status === "done") {
@@ -1214,7 +1243,15 @@ const renderGrid = (items) => {
     badge.style.border = "1px solid rgba(24,181,213,.35)";
     badge.style.background = "rgba(24,181,213,.10)";
     badge.style.color = "#18b5d5";
-    badge.textContent = (fmt || ext || (String(it.resourceType || "") || "FILE")).toUpperCase();
+    badge.textContent = (() => {
+      const rtKey = String(rt || "").trim().toLowerCase();
+      if (fmt) return fmt;
+      if (ext) return ext;
+      if (rtKey === "image") return "IMG";
+      if (rtKey === "video") return "VID";
+      if (rtKey === "raw") return "FILE";
+      return "FILE";
+    })();
 
     top.appendChild(name);
     top.appendChild(badge);
@@ -1222,40 +1259,42 @@ const renderGrid = (items) => {
 
     if (src) {
       const info = document.createElement("div");
-      info.style.fontSize = "12px";
-      info.style.fontWeight = "900";
-      info.style.color = "rgba(255,255,255,.72)";
-      info.style.overflow = "hidden";
-      info.style.textOverflow = "ellipsis";
-      info.style.whiteSpace = "nowrap";
+      info.style.display = "flex";
+      info.style.alignItems = "center";
+      info.style.justifyContent = "space-between";
+      info.style.gap = "8px";
+      info.style.flexWrap = "wrap";
 
-      const rtLabel =
-        rt === "video"
-          ? isArabic()
-            ? "فيديو"
-            : "Video"
-          : rt === "raw"
-            ? isArabic()
-              ? "ملف"
-              : "File"
-            : isArabic()
-              ? "صورة"
-              : "Image";
+      const chip = (text) => {
+        const c = document.createElement("div");
+        c.style.display = "inline-flex";
+        c.style.alignItems = "center";
+        c.style.justifyContent = "center";
+        c.style.padding = "4px 7px";
+        c.style.borderRadius = "999px";
+        c.style.border = "1px solid rgba(255,255,255,.10)";
+        c.style.background = "rgba(255,255,255,.05)";
+        c.style.color = "rgba(255,255,255,.72)";
+        c.style.fontSize = "10px";
+        c.style.fontWeight = "900";
+        c.style.lineHeight = "1";
+        c.style.letterSpacing = ".2px";
+        c.textContent = String(text || "");
+        return c;
+      };
 
-      const parts = [];
-      parts.push(rtLabel);
       if (it.bytes != null) {
         try {
-          parts.push(fmtBytes(it.bytes));
+          const b = fmtBytes(it.bytes);
+          if (b) info.appendChild(chip(b));
         } catch {}
       }
-      if (it.width && it.height) parts.push(String(it.width) + "×" + String(it.height));
       if (it.createdAt) {
         try {
-          parts.push(fmtDateTime(it.createdAt));
+          const d = fmtDateTime(it.createdAt);
+          if (d) info.appendChild(chip(d));
         } catch {}
       }
-      info.textContent = parts.join(" • ");
 
       meta.appendChild(info);
 

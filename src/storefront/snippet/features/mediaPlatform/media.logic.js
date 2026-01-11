@@ -380,7 +380,7 @@ const recordAsset = async (cloud) => {
 };
 `,
   `
-const uploadToCloudinary = async (file, sign) => {
+const uploadToCloudinary = async (file, sign, onProgress) => {
   if (isSandbox) throw new Error("Sandbox mode: upload disabled");
   const c = sign && sign.cloudinary ? sign.cloudinary : null;
   if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder || !c.publicId) throw new Error("Invalid signature");
@@ -395,13 +395,100 @@ const uploadToCloudinary = async (file, sign) => {
   if (c.tags) fd.append("tags", String(c.tags));
   if (c.context) fd.append("context", String(c.context));
 
-  const r = await fetch(String(c.uploadUrl), { method: "POST", body: fd });
-  const j = await r.json().catch(() => null);
-  if (!r.ok) {
-    const msg = (j && j.error && j.error.message) || "Upload failed";
-    throw new Error(msg);
-  }
-  return j;
+  const url = String(c.uploadUrl);
+  if (!url) throw new Error("Invalid upload url");
+
+  return await new Promise((resolve, reject) => {
+    let xhr = null;
+    try {
+      xhr = new XMLHttpRequest();
+    } catch {
+      xhr = null;
+    }
+    if (!xhr) {
+      reject(new Error("Upload not supported"));
+      return;
+    }
+
+    try {
+      xhr.open("POST", url, true);
+      try {
+        xhr.responseType = "json";
+      } catch {}
+    } catch {
+      reject(new Error("Upload failed"));
+      return;
+    }
+
+    let lastAt = 0;
+    const emit = (pct, loaded, total) => {
+      try {
+        if (typeof onProgress !== "function") return;
+        const now = Date.now();
+        if (pct === 100 || now - lastAt > 80) {
+          lastAt = now;
+          onProgress(pct, loaded, total);
+        }
+      } catch {}
+    };
+
+    try {
+      if (xhr.upload) {
+        xhr.upload.onprogress = (ev) => {
+          try {
+            const loaded = Number(ev && ev.loaded) || 0;
+            const total = Number(ev && ev.total) || 0;
+            if (ev && ev.lengthComputable && total > 0) {
+              const pct = Math.max(0, Math.min(100, Math.round((loaded / total) * 100)));
+              emit(pct, loaded, total);
+              return;
+            }
+            emit(0, loaded, total);
+          } catch {}
+        };
+      }
+    } catch {}
+
+    xhr.onerror = () => {
+      reject(new Error("Upload failed"));
+    };
+    xhr.onabort = () => {
+      reject(new Error("Upload aborted"));
+    };
+    xhr.onload = () => {
+      try {
+        emit(100, 0, 0);
+      } catch {}
+
+      const status = Number(xhr.status || 0) || 0;
+      let body = null;
+      try {
+        body = xhr.response;
+      } catch {
+        body = null;
+      }
+      if (!body) {
+        try {
+          const t = String(xhr.responseText || "");
+          body = t ? JSON.parse(t) : null;
+        } catch {
+          body = null;
+        }
+      }
+      if (status < 200 || status >= 300) {
+        const msg = (body && body.error && body.error.message) || "Upload failed";
+        reject(new Error(msg));
+        return;
+      }
+      resolve(body);
+    };
+
+    try {
+      xhr.send(fd);
+    } catch {
+      reject(new Error("Upload failed"));
+    }
+  });
 };
 `,
   `
@@ -713,7 +800,16 @@ const mount = () => {
           for (let i = 0; i < files.length; i += 1) {
             const f = files[i];
             if (!f) continue;
-            state.uploads.push({ name: String(f.name || ""), size: Number(f.size || 0) || 0, status: "queued", error: "", url: "" });
+            state.uploads.push({
+              name: String(f.name || ""),
+              size: Number(f.size || 0) || 0,
+              status: "queued",
+              error: "",
+              url: "",
+              progress: 0,
+              loaded: 0,
+              total: Number(f.size || 0) || 0
+            });
           }
 
           render();
@@ -726,10 +822,20 @@ const mount = () => {
               rec.status = "uploading";
               rec.error = "";
               rec.url = "";
+              rec.progress = 0;
+              rec.loaded = 0;
+              rec.total = Number(file.size || rec.size || 0) || 0;
               render();
               const rt = guessResourceType(file);
               const sign = await getSignature(rt, file);
-              const uploaded = await uploadToCloudinary(file, sign);
+              const uploaded = await uploadToCloudinary(file, sign, (pct, loaded, total) => {
+                try {
+                  rec.progress = Number.isFinite(pct) ? pct : rec.progress;
+                  rec.loaded = Number.isFinite(loaded) ? loaded : rec.loaded;
+                  rec.total = Number.isFinite(total) ? total : rec.total;
+                  render();
+                } catch {}
+              });
               await recordAsset(uploaded);
               try {
                 clearMediaApiCache();
