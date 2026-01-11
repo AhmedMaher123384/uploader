@@ -235,17 +235,88 @@ const ensureOnce = () => {
 `,
   ...uiParts,
   `
-const loadAssets = async (resourceType, page, limit) => {
+const ensureMediaApiCache = () => {
+  try {
+    if (!g.__bundleAppMediaApiCache) g.__bundleAppMediaApiCache = new Map();
+    if (!g.__bundleAppMediaApiInFlight) g.__bundleAppMediaApiInFlight = new Map();
+  } catch {}
+};
+
+const mediaApiPeek = (url, ttlMs) => {
+  const u = String(url || "");
+  const ttl = Math.max(0, Number(ttlMs || 0) || 0);
+  if (!u) return null;
+  ensureMediaApiCache();
+  const cache = g.__bundleAppMediaApiCache;
+  if (!cache || !cache.get) return null;
+  const rec = cache.get(u);
+  if (!rec || typeof rec !== "object") return null;
+  const at = Number(rec.at || 0) || 0;
+  if (ttl && at && Date.now() - at > ttl) return null;
+  return "data" in rec ? rec.data : null;
+};
+
+const mediaApiGet = async (url, ttlMs, force) => {
+  const u = String(url || "");
+  if (!u) throw new Error("Missing url");
+  ensureMediaApiCache();
+
+  if (!force) {
+    const hit = mediaApiPeek(u, ttlMs);
+    if (hit !== null) return hit;
+  }
+
+  const inFlight = g.__bundleAppMediaApiInFlight;
+  try {
+    if (inFlight && inFlight.has && inFlight.has(u)) return await inFlight.get(u);
+  } catch {}
+
+  const p = (async () => {
+    const j = await fetchJson(u);
+    try {
+      const cache = g.__bundleAppMediaApiCache;
+      if (cache && cache.set) cache.set(u, { at: Date.now(), data: j });
+    } catch {}
+    return j;
+  })();
+
+  try {
+    if (inFlight && inFlight.set) inFlight.set(u, p);
+  } catch {}
+
+  try {
+    return await p;
+  } finally {
+    try {
+      if (inFlight && inFlight.delete) inFlight.delete(u);
+    } catch {}
+  }
+};
+
+const clearMediaApiCache = () => {
+  try {
+    if (g.__bundleAppMediaApiCache && g.__bundleAppMediaApiCache.clear) g.__bundleAppMediaApiCache.clear();
+  } catch {}
+  try {
+    if (g.__bundleAppMediaApiInFlight && g.__bundleAppMediaApiInFlight.clear) g.__bundleAppMediaApiInFlight.clear();
+  } catch {}
+};
+
+const DASH_TTL_MS = 60 * 1000;
+const ASSETS_TTL_MS = 60 * 1000;
+`,
+  `
+const loadAssets = async (resourceType, page, limit, force) => {
   const url = buildUrl("/api/proxy/media/assets", { resourceType: resourceType || "", page: page || 1, limit: limit || 24 });
   if (!url) throw new Error("Missing backend origin");
-  return await fetchJson(url);
+  return await mediaApiGet(url, ASSETS_TTL_MS, Boolean(force));
 };
 `,
   `
-const loadDashboard = async () => {
+const loadDashboard = async (force) => {
   const url = buildUrl("/api/proxy/media/dashboard", {});
   if (!url) throw new Error("Missing backend origin");
-  return await fetchJson(url);
+  return await mediaApiGet(url, DASH_TTL_MS, Boolean(force));
 };
 `,
   `
@@ -424,13 +495,26 @@ const mount = () => {
           uploading: false
         };
 
-        const refreshDashboard = async () => {
+        const refreshDashboard = async (force) => {
           if (state.dashLoading) return;
+          try {
+            if (!force) {
+              const url = buildUrl("/api/proxy/media/dashboard", {});
+              const hit = url ? mediaApiPeek(url, DASH_TTL_MS) : null;
+              if (hit) {
+                state.dash = hit && typeof hit === "object" ? hit : null;
+                state.dashLoading = false;
+                state.dashError = "";
+                render();
+                return;
+              }
+            }
+          } catch {}
           state.dashLoading = true;
           state.dashError = "";
           render();
           try {
-            const d = await loadDashboard();
+            const d = await loadDashboard(force);
             state.dash = d && typeof d === "object" ? d : null;
             state.dashLoading = false;
             render();
@@ -473,10 +557,13 @@ const mount = () => {
             const refreshBtn = btnGhost(labels.ref);
             refreshBtn.onclick = () => {
               try {
-                refreshDashboard();
+                clearMediaApiCache();
               } catch {}
               try {
-                if (state.view === "files") fetchAndRender();
+                refreshDashboard(true);
+              } catch {}
+              try {
+                if (state.view === "files") fetchAndRender(true);
               } catch {}
             };
             sheet.actions.appendChild(refreshBtn);
@@ -565,12 +652,39 @@ const mount = () => {
           } catch {}
         };
 
-        const fetchAndRender = async () => {
+        const fetchAndRender = async (force) => {
           if (state.loading) return;
+          try {
+            if (!force) {
+              const url = buildUrl("/api/proxy/media/assets", {
+                resourceType: state.type || "",
+                page: state.page || 1,
+                limit: state.limit || 24
+              });
+              const hit = url ? mediaApiPeek(url, ASSETS_TTL_MS) : null;
+              if (hit && typeof hit === "object") {
+                const itemsHit = Array.isArray(hit.items) ? hit.items : [];
+                for (let i = 0; i < itemsHit.length; i += 1) {
+                  const it = itemsHit[i];
+                  if (!it || typeof it !== "object") continue;
+                  if (!it.deliveryUrl) {
+                    const u = buildDeliveryUrlFromItem(it);
+                    if (u) it.deliveryUrl = u;
+                  }
+                }
+                state.total = Number(hit.total || 0) || 0;
+                state.items = itemsHit;
+                state.loading = false;
+                state.error = "";
+                render();
+                return;
+              }
+            }
+          } catch {}
           state.loading = true;
           render();
           try {
-            const data = await loadAssets(state.type, state.page, state.limit);
+            const data = await loadAssets(state.type, state.page, state.limit, force);
             const items = Array.isArray(data && data.items) ? data.items : [];
             for (let i = 0; i < items.length; i += 1) {
               const it = items[i];
@@ -617,6 +731,9 @@ const mount = () => {
               const sign = await getSignature(rt, file);
               const uploaded = await uploadToCloudinary(file, sign);
               await recordAsset(uploaded);
+              try {
+                clearMediaApiCache();
+              } catch {}
               const delivery = buildDeliveryUrlFromItem({ storeId: merchantId, publicId: uploaded && uploaded.public_id });
               rec.url = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
               rec.status = "done";
@@ -636,6 +753,9 @@ const mount = () => {
           state.total = 0;
           state.error = "";
           render();
+          try {
+            refreshDashboard();
+          } catch {}
           fetchAndRender();
         };
 
