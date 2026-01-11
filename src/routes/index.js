@@ -568,7 +568,11 @@ function createApiRouter(config) {
       const { folderPrefix } = requireCloudinaryConfig();
       const folder = mediaFolderForMerchant(folderPrefix, storeId);
       const publicId = `${folder}/${leaf}`;
-      const asset = await MediaAsset.findOne({ storeId, publicId, deletedAt: null }).lean();
+      let asset = await MediaAsset.findOne({ storeId, publicId, deletedAt: null }).lean();
+      if (!asset) {
+        const escapedLeaf = String(leaf).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        asset = await MediaAsset.findOne({ storeId, deletedAt: null, publicId: new RegExp(`/${escapedLeaf}$`) }).lean();
+      }
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
       const baseUrl = String(asset.secureUrl || asset.url || "").trim();
@@ -724,7 +728,7 @@ function createApiRouter(config) {
 
       const policy = await validateUploadPolicyOrThrow({ merchant: req.merchant, file: value.file, resourceTypeHint: value.resourceType });
       const leaf = randomLeaf(policy.limits.linkLeafLength);
-      const publicId = `${folder}/${leaf}`;
+      const publicId = leaf;
 
       const context = value.context && typeof value.context === "object" ? value.context : {};
       const contextParts = [];
@@ -1678,7 +1682,7 @@ function createApiRouter(config) {
 
       const policy = await validateUploadPolicyOrThrow({ merchant, file: bValue.file, resourceTypeHint: bValue.resourceType });
       const leaf = randomLeaf(policy.limits.linkLeafLength);
-      const publicId = `${folder}/${leaf}`;
+      const publicId = leaf;
 
       const context = bValue.context && typeof bValue.context === "object" ? bValue.context : {};
       const contextParts = [];
