@@ -601,7 +601,17 @@ const revokeMediaObjectUrls = () => {
 const renderGrid = (items) => {
   const grid = document.createElement("div");
   grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(2,minmax(0,1fr))";
+  const cols = (() => {
+    try {
+      const w = Number(window.innerWidth || 0) || 0;
+      if (w && w < 460) return 2;
+      if (w && w < 760) return 3;
+      return 4;
+    } catch {
+      return 4;
+    }
+  })();
+  grid.style.gridTemplateColumns = "repeat(" + String(cols) + ",minmax(0,1fr))";
   grid.style.gap = "10px";
   grid.style.alignItems = "stretch";
   grid.style.marginTop = "4px";
@@ -751,6 +761,97 @@ const renderGrid = (items) => {
   }
 
   return grid;
+};
+
+const renderPager = ({ page, total, limit, onPage, loading }) => {
+  const p = Math.max(1, Number(page || 1) || 1);
+  const l = Math.max(1, Number(limit || 12) || 12);
+  const t = Math.max(0, Number(total || 0) || 0);
+  const totalPages = Math.max(1, Math.ceil(t / l));
+  if (totalPages <= 1) return null;
+
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+  wrap.style.gap = "8px";
+  wrap.style.flexWrap = "wrap";
+  wrap.style.paddingTop = "6px";
+
+  const mk = (label, active, disabled) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = String(label || "");
+    b.disabled = Boolean(disabled);
+    b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.10)";
+    b.style.background = active ? "rgba(24,181,213,.18)" : "#292929";
+    b.style.color = active ? "#18b5d5" : "#fff";
+    b.style.padding = "8px 10px";
+    b.style.borderRadius = "12px";
+    b.style.fontSize = "12px";
+    b.style.fontWeight = "950";
+    b.style.cursor = disabled ? "not-allowed" : "pointer";
+    b.style.opacity = disabled ? "0.6" : "1";
+    b.style.boxShadow = active ? "0 14px 30px rgba(24,181,213,.18)" : "0 10px 24px rgba(0,0,0,.2)";
+    return b;
+  };
+
+  const go = (next) => {
+    try {
+      if (loading) return;
+      const n = Math.max(1, Math.min(totalPages, Number(next || 1) || 1));
+      if (n === p) return;
+      if (typeof onPage === "function") onPage(n);
+    } catch {}
+  };
+
+  const prev = mk(isArabic() ? "السابق" : "Prev", false, loading || p <= 1);
+  prev.onclick = () => go(p - 1);
+  wrap.appendChild(prev);
+
+  const maxBtns = 5;
+  const half = Math.floor(maxBtns / 2);
+  let start = Math.max(1, p - half);
+  let end = Math.min(totalPages, start + maxBtns - 1);
+  start = Math.max(1, end - maxBtns + 1);
+
+  if (start > 1) {
+    const first = mk("1", p === 1, loading);
+    first.onclick = () => go(1);
+    wrap.appendChild(first);
+    if (start > 2) {
+      const dots = document.createElement("div");
+      dots.textContent = "…";
+      dots.style.color = "rgba(255,255,255,.55)";
+      dots.style.fontWeight = "900";
+      wrap.appendChild(dots);
+    }
+  }
+
+  for (let i = start; i <= end; i += 1) {
+    const b = mk(String(i), i === p, loading);
+    b.onclick = () => go(i);
+    wrap.appendChild(b);
+  }
+
+  if (end < totalPages) {
+    if (end < totalPages - 1) {
+      const dots = document.createElement("div");
+      dots.textContent = "…";
+      dots.style.color = "rgba(255,255,255,.55)";
+      dots.style.fontWeight = "900";
+      wrap.appendChild(dots);
+    }
+    const last = mk(String(totalPages), p === totalPages, loading);
+    last.onclick = () => go(totalPages);
+    wrap.appendChild(last);
+  }
+
+  const next = mk(isArabic() ? "التالي" : "Next", false, loading || p >= totalPages);
+  next.onclick = () => go(p + 1);
+  wrap.appendChild(next);
+
+  return wrap;
 };
 `
 ];

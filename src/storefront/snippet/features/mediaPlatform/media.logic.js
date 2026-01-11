@@ -404,7 +404,7 @@ const mount = () => {
         const state = {
           type: "",
           page: 1,
-          limit: 24,
+          limit: 12,
           loading: false,
           items: [],
           total: 0,
@@ -465,21 +465,29 @@ const mount = () => {
               sheet.uploads.style.display = "none";
             }
 
-            if (state.loading && state.page === 1) sheet.content.appendChild(renderLoading());
+            if (state.loading) sheet.content.appendChild(renderLoading());
             if (state.error) sheet.content.appendChild(renderError(state.error));
 
             if (!state.loading && !state.error) {
               if (!state.items.length) sheet.content.appendChild(renderEmpty());
               else sheet.content.appendChild(renderGrid(state.items));
 
-              if (state.total > state.items.length) {
-                const more = btnPrimary(isArabic() ? "تحميل المزيد" : "Load more");
-                more.onclick = () => {
-                  state.page += 1;
-                  fetchAndRender();
-                };
-                sheet.content.appendChild(more);
-              }
+              const pager = renderPager({
+                page: state.page,
+                total: state.total,
+                limit: state.limit,
+                loading: state.loading,
+                onPage: (p) => {
+                  try {
+                    if (state.loading) return;
+                    state.page = Number(p || 1) || 1;
+                    state.error = "";
+                    render();
+                    fetchAndRender();
+                  } catch {}
+                }
+              });
+              if (pager) sheet.content.appendChild(pager);
             }
           } catch {}
         };
@@ -500,7 +508,7 @@ const mount = () => {
               }
             }
             state.total = Number((data && data.total) || 0) || 0;
-            state.items = state.page === 1 ? items : state.items.concat(items);
+            state.items = items;
             state.loading = false;
             render();
           } catch (err) {
