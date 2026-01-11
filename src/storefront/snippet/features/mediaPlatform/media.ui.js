@@ -389,7 +389,7 @@ const renderLinkBlock = (url) => {
   const a = document.createElement("a");
   a.href = u;
   a.target = "_blank";
-  a.rel = "noopener noreferrer";
+  a.rel = "noopener";
   a.textContent = u;
   a.style.flex = "1 1 auto";
   a.style.minWidth = "0";
@@ -659,7 +659,7 @@ const renderGrid = (items) => {
       const open = document.createElement("a");
       open.href = src || "#";
       open.target = "_blank";
-      open.rel = "noopener noreferrer";
+      open.rel = "noopener";
       open.textContent = isArabic() ? "فتح الملف" : "Open file";
       open.style.display = "inline-flex";
       open.style.alignItems = "center";

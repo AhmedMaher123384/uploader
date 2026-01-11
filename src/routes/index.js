@@ -474,6 +474,17 @@ function createApiRouter(config) {
     }
   }
 
+  function normalizeHostLike(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const viaUrl = raw.includes("://") ? pickHostFromUrlLike(raw) : "";
+    const base = viaUrl || raw.split("/")[0] || "";
+    const host = String(base).trim().toLowerCase();
+    if (!host) return "";
+    const withoutPort = host.includes(":") ? host.split(":")[0] : host;
+    return String(withoutPort || "").trim();
+  }
+
   function hostMatches(needleHost, allowedHost) {
     const n = String(needleHost || "").trim().toLowerCase();
     const a = String(allowedHost || "").trim().toLowerCase();
@@ -556,7 +567,7 @@ function createApiRouter(config) {
       const refererHost = pickHostFromUrlLike(req.headers.referer);
       const h = originHost || refererHost;
 
-      const allowedHosts = [domain, storeUrlHost, "localhost", "127.0.0.1"].filter(Boolean);
+      const allowedHosts = [normalizeHostLike(domain), normalizeHostLike(storeUrlHost), "localhost", "127.0.0.1"].filter(Boolean);
       if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       const ok = allowedHosts.some((a) => hostMatches(h, a));
       if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
