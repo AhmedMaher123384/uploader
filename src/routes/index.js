@@ -312,7 +312,7 @@ function createApiRouter(config) {
 
   function getAllowedExtForPlan(planKey) {
     const k = String(planKey || "").trim().toLowerCase();
-    const base = new Set(["gif", "git", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
+    const base = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
     if (k === "pro") {
       const proOnly = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
       for (const x of proOnly) base.add(x);
@@ -366,7 +366,11 @@ function createApiRouter(config) {
       throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
     }
 
-    const ext = normalizeFilenameExt(fileName);
+    let ext = normalizeFilenameExt(fileName);
+    if (!ext) {
+      const t = String(fileType || "").trim().toLowerCase();
+      if (t === "image/png") ext = "png";
+    }
     if (ext && bannedExt.has(ext)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
 
     const allowed = getAllowedExtForPlan(planKey);
@@ -785,7 +789,11 @@ function createApiRouter(config) {
       const planKey = getPlanKey(req.merchant);
       const limits = getPlanLimits(planKey);
       const allowed = getAllowedExtForPlan(planKey);
-      const fileExt = normalizeFilenameExt(c.original_filename);
+      let fileExt = normalizeFilenameExt(c.original_filename);
+      if (!fileExt) {
+        const fmt = String(c.format || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+        if (fmt) fileExt = fmt;
+      }
       if (fileExt && bannedExt.has(fileExt)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
       if (allowed && fileExt && !allowed.has(fileExt)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
       if ((planKey !== "pro" && planKey !== "business") && String(c.format || "").toLowerCase() === "svg") {
@@ -1730,7 +1738,11 @@ function createApiRouter(config) {
       const planKey = getPlanKey(merchant);
       const limits = getPlanLimits(planKey);
       const allowed = getAllowedExtForPlan(planKey);
-      const fileExt = normalizeFilenameExt(c.original_filename);
+      let fileExt = normalizeFilenameExt(c.original_filename);
+      if (!fileExt) {
+        const fmt = String(c.format || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+        if (fmt) fileExt = fmt;
+      }
       if (fileExt && bannedExt.has(fileExt)) {
         await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
         throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
