@@ -296,7 +296,8 @@ function createApiRouter(config) {
     if (!s) return "";
     const lastDot = s.lastIndexOf(".");
     if (lastDot <= 0 || lastDot === s.length - 1) return "";
-    return s.slice(lastDot + 1).trim().toLowerCase();
+    const raw = s.slice(lastDot + 1).trim().toLowerCase();
+    return raw.replace(/[^a-z0-9]+/g, "");
   }
 
   function normalizeResourceTypeFromFile(fileType, ext) {
