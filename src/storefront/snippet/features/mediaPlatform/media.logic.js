@@ -4,8 +4,69 @@ module.exports = [
   `(function(){\n`,
   `const g = (() => { try { return globalThis; } catch { return window; } })() || window;\n`,
   `g.BundleApp = g.BundleApp || {};\n`,
-  `const debug = (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
+  `const MODE = (() => {\n  try {\n    const m = String((g && g.__APP_MODE__) || "").trim();\n    if (m) return m;\n  } catch {}\n  try {\n    if (String(merchantId || "").trim() === "sandbox") return "sandbox";\n  } catch {}\n  return "storefront";\n})();\n`,
+  `const debug = MODE === "sandbox" ? true : (() => { try { return new URL(scriptSrc).searchParams.get("debug") === "1"; } catch { return false; } })();\n`,
+  `const log = (...args) => { if (!debug) return; try { console.log(...args); } catch {} };\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
+  `
+if (MODE === "sandbox") {
+  try {
+    merchantId = "sandbox";
+  } catch {}
+  try {
+    token = "sandbox";
+  } catch {}
+
+  const selector = '.angel-cc_modal.is-open [data-view="upload"]';
+
+  const mountSandbox = () => {
+    try {
+      const view = document.querySelector(selector);
+      if (!view) return false;
+      if (view.__mounted) return true;
+      view.__mounted = true;
+      const el = document.createElement("div");
+      el.style.border = "2px dashed rgba(24,181,213,.75)";
+      el.style.borderRadius = "12px";
+      el.style.padding = "14px";
+      el.style.background = "rgba(24,181,213,.06)";
+      el.style.color = "#18b5d5";
+      el.style.fontWeight = "900";
+      el.style.fontSize = "14px";
+      el.textContent = "APP MOUNTED SUCCESSFULLY";
+      view.appendChild(el);
+      log("[BundleApp][sandbox] mounted");
+      return true;
+    } catch (e) {
+      warn("[BundleApp][sandbox] mount failed", e);
+      return false;
+    }
+  };
+
+  const startSandboxObserver = () => {
+    mountSandbox();
+    const root = document.documentElement || document.body;
+    if (!root || !window.MutationObserver) return;
+    const mo = new MutationObserver(() => {
+      mountSandbox();
+    });
+    mo.observe(root, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "data-view", "style"]
+    });
+  };
+
+  try {
+    startSandboxObserver();
+  } catch (e) {
+    warn("[BundleApp][sandbox] observer failed", e);
+  }
+
+  return;
+}
+`,
   `
 const getBackendOrigin = () => {
   try {

@@ -164,11 +164,14 @@ function createApiRouter(config) {
       }
 
       const merchantId = String(value.merchantId);
-      const merchant = await findMerchantByMerchantId(merchantId);
-      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
-      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+      const isSandboxMerchant = merchantId === "sandbox";
+      if (!isSandboxMerchant) {
+        const merchant = await findMerchantByMerchantId(merchantId);
+        if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+        if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+      }
 
-      const token = issueStorefrontToken(merchantId);
+      const token = isSandboxMerchant ? "sandbox" : issueStorefrontToken(merchantId);
 
       res.type("js");
       res.setHeader("Content-Type", "application/javascript; charset=utf-8");
