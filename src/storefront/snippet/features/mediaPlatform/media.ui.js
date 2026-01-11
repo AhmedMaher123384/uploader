@@ -526,7 +526,7 @@ const renderGrid = (items) => {
 
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
-    const src = String(it.secureUrl || it.url || "");
+    const src = String(it.deliveryUrl || it.secureUrl || it.url || "");
 
     const card = document.createElement("div");
     card.style.border = "1px solid rgba(24,181,213,.20)";
@@ -544,7 +544,8 @@ const renderGrid = (items) => {
     media.style.justifyContent = "center";
     media.style.overflow = "hidden";
 
-    if (String(it.resourceType) === "video") {
+    const rt = String(it.resourceType || "");
+    if (rt === "video") {
       const v = document.createElement("video");
       v.controls = true;
       v.playsInline = true;
@@ -554,12 +555,51 @@ const renderGrid = (items) => {
       v.style.height = "100%";
       v.style.objectFit = "cover";
       media.appendChild(v);
+    } else if (rt === "raw") {
+      const box = document.createElement("div");
+      box.style.width = "100%";
+      box.style.height = "100%";
+      box.style.display = "flex";
+      box.style.flexDirection = "column";
+      box.style.alignItems = "center";
+      box.style.justifyContent = "center";
+      box.style.gap = "10px";
+      box.style.padding = "18px";
+
+      const label = document.createElement("div");
+      label.style.fontSize = "14px";
+      label.style.fontWeight = "950";
+      label.style.color = "#fff";
+      label.style.textAlign = "center";
+      label.style.wordBreak = "break-word";
+      label.textContent = String(it.originalFilename || it.publicId || "FILE");
+
+      const open = document.createElement("a");
+      open.href = src || "#";
+      open.target = "_blank";
+      open.rel = "noopener noreferrer";
+      open.textContent = isArabic() ? "فتح الملف" : "Open file";
+      open.style.display = "inline-flex";
+      open.style.alignItems = "center";
+      open.style.justifyContent = "center";
+      open.style.padding = "10px 12px";
+      open.style.borderRadius = "12px";
+      open.style.border = "1px solid rgba(24,181,213,.35)";
+      open.style.background = "rgba(24,181,213,.10)";
+      open.style.color = "#18b5d5";
+      open.style.fontWeight = "950";
+      open.style.textDecoration = "none";
+      open.style.pointerEvents = src ? "auto" : "none";
+      open.style.opacity = src ? "1" : "0.6";
+
+      box.appendChild(label);
+      box.appendChild(open);
+      media.appendChild(box);
     } else {
       const img = document.createElement("img");
       img.alt = "";
       img.loading = "lazy";
       img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
       img.src = src;
       img.style.width = "100%";
       img.style.height = "100%";

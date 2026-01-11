@@ -9,6 +9,15 @@ const MerchantSchema = new mongoose.Schema(
     accessTokenHashPrevious: { type: String, index: true },
     refreshToken: { type: String, required: true, select: false },
     tokenExpiresAt: { type: Date, required: true, index: true },
+    planKey: {
+      type: String,
+      required: true,
+      enum: ["basic", "pro", "business"],
+      default: "basic",
+      index: true
+    },
+    planUpdatedAt: { type: Date, default: null, index: true },
+    planMeta: { type: Object, default: null },
     appStatus: {
       type: String,
       required: true,

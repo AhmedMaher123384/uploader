@@ -10,15 +10,18 @@ const { fetchVariantsSnapshotReport } = require("../services/sallaCatalog.servic
 const { findMerchantByMerchantId } = require("../services/merchant.service");
 const { hmacSha256, sha256Hex } = require("../utils/hash");
 const { Buffer } = require("buffer");
+const { URL } = require("url");
 const crypto = require("crypto");
 const axios = require("axios");
 const { readSnippetCss } = require("../storefront/snippet/styles");
 const mountMediaPlatform = require("../storefront/snippet/features/mediaPlatform/media.mount");
 const MediaAsset = require("../models/MediaAsset");
+const Merchant = require("../models/Merchant");
 
 function createApiRouter(config) {
   const router = express.Router();
   const publicCache = new Map();
+  const mediaPolicyCache = new Map();
 
   function cacheGet(key) {
     const hit = publicCache.get(key);
@@ -249,6 +252,350 @@ function createApiRouter(config) {
     };
   }
 
+  function getPlanKey(merchant) {
+    const v = String(merchant?.planKey || "").trim().toLowerCase();
+    if (v === "pro" || v === "business") return v;
+    return "basic";
+  }
+
+  function bytesFromMb(mb) {
+    return Math.floor(Math.max(0, Number(mb || 0)) * 1024 * 1024);
+  }
+
+  function bytesFromGb(gb) {
+    return Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
+  }
+
+  function getPlanLimits(planKey) {
+    const k = String(planKey || "").trim().toLowerCase();
+    if (k === "pro") {
+      return {
+        maxFileBytes: bytesFromMb(30),
+        maxStorageBytes: bytesFromGb(20),
+        linkLeafLength: 16
+      };
+    }
+    if (k === "business") {
+      return {
+        maxFileBytes: bytesFromMb(50),
+        maxStorageBytes: bytesFromGb(50),
+        linkLeafLength: 9
+      };
+    }
+    return {
+      maxFileBytes: bytesFromMb(10),
+      maxStorageBytes: bytesFromGb(5),
+      linkLeafLength: 24
+    };
+  }
+
+  const bannedExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "htm", "sh", "bat", "cmd", "ps1", "jar", "com", "scr", "msi"]);
+
+  function normalizeFilenameExt(name) {
+    const s = String(name || "").trim();
+    if (!s) return "";
+    const lastDot = s.lastIndexOf(".");
+    if (lastDot <= 0 || lastDot === s.length - 1) return "";
+    return s.slice(lastDot + 1).trim().toLowerCase();
+  }
+
+  function normalizeResourceTypeFromFile(fileType, ext) {
+    const t = String(fileType || "").trim().toLowerCase();
+    const e = String(ext || "").trim().toLowerCase();
+    if (t.startsWith("video/")) return "video";
+    if (t.startsWith("image/")) return "image";
+    if (["mp4", "webm"].includes(e)) return "video";
+    if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].includes(e)) return "image";
+    return "raw";
+  }
+
+  function getAllowedExtForPlan(planKey) {
+    const k = String(planKey || "").trim().toLowerCase();
+    const base = new Set(["gif", "git", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
+    if (k === "pro") {
+      const proOnly = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
+      for (const x of proOnly) base.add(x);
+      return base;
+    }
+    if (k === "business") {
+      return null;
+    }
+    return base;
+  }
+
+  function randomLeaf(length) {
+    const len = Math.max(6, Math.min(64, Number(length || 0) || 0));
+    const out = [];
+    while (out.join("").length < len) {
+      const chunk = crypto.randomBytes(24).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      out.push(chunk);
+    }
+    return out.join("").slice(0, len);
+  }
+
+  async function getStoreUsedBytesCached(storeId) {
+    const key = `used:${String(storeId || "").trim()}`;
+    const hit = mediaPolicyCache.get(key);
+    if (hit && hit.expiresAt > Date.now()) return Number(hit.value || 0) || 0;
+
+    const agg = await MediaAsset.aggregate(
+      [
+        { $match: { storeId: String(storeId), deletedAt: null } },
+        { $group: { _id: null, total: { $sum: { $ifNull: ["$bytes", 0] } } } }
+      ],
+      { allowDiskUse: true }
+    );
+    const used = Number(agg?.[0]?.total || 0) || 0;
+    mediaPolicyCache.set(key, { value: used, expiresAt: Date.now() + 5000 });
+    return used;
+  }
+
+  async function validateUploadPolicyOrThrow({ merchant, file, resourceTypeHint }) {
+    const planKey = getPlanKey(merchant);
+    const limits = getPlanLimits(planKey);
+
+    const fileName = String(file?.name || "").trim();
+    const fileSize = Number(file?.size || 0) || 0;
+    const fileType = String(file?.type || "").trim();
+
+    if (!fileName) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+    if (!Number.isFinite(fileSize) || fileSize <= 0) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+
+    if (fileSize > limits.maxFileBytes) {
+      throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
+    }
+
+    const ext = normalizeFilenameExt(fileName);
+    if (ext && bannedExt.has(ext)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+
+    const allowed = getAllowedExtForPlan(planKey);
+    if (allowed && ext && !allowed.has(ext)) {
+      throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+    }
+
+    if (planKey !== "pro" && planKey !== "business" && ext === "svg") {
+      throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+    }
+
+    const resourceType = normalizeResourceTypeFromFile(fileType, ext);
+    if (resourceTypeHint) {
+      const hinted = String(resourceTypeHint).trim();
+      if (hinted && hinted !== resourceType) {
+        void hinted;
+      }
+    }
+
+    const storeId = String(merchant?.merchantId || "").trim();
+    const used = await getStoreUsedBytesCached(storeId);
+    if (used + fileSize > limits.maxStorageBytes) {
+      throw new ApiError(403, "Storage limit exceeded", {
+        code: "STORAGE_LIMIT_EXCEEDED",
+        details: { maxBytes: limits.maxStorageBytes, usedBytes: used }
+      });
+    }
+
+    return { planKey, limits, ext, resourceType };
+  }
+
+  function svgLooksSafe(text) {
+    const s = String(text || "");
+    if (!s) return false;
+    if (/<script\b/i.test(s)) return false;
+    if (/<foreignObject\b/i.test(s)) return false;
+    if (/\bon\w+\s*=/i.test(s)) return false;
+    if (/\bhref\s*=\s*["']\s*javascript:/i.test(s)) return false;
+    if (/\bxlink:href\s*=\s*["']\s*javascript:/i.test(s)) return false;
+    if (/\bhref\s*=\s*["']\s*(https?:|data:|\/\/)/i.test(s)) return false;
+    if (/\bxlink:href\s*=\s*["']\s*(https?:|data:|\/\/)/i.test(s)) return false;
+    return true;
+  }
+
+  async function ensureSvgSafeOrThrow(url) {
+    const u = String(url || "").trim();
+    if (!u) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
+    let resp = null;
+    try {
+      resp = await axios.get(u, {
+        timeout: 12000,
+        responseType: "text",
+        maxContentLength: 512 * 1024,
+        maxBodyLength: 512 * 1024,
+        headers: { "Accept": "image/svg+xml,text/plain,*/*" }
+      });
+    } catch (e) {
+      throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID", details: { message: String(e?.message || e) } });
+    }
+    const body = typeof resp?.data === "string" ? resp.data : "";
+      if (!svgLooksSafe(body)) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
+  }
+
+  function cloudinaryUrlWithTransform(url, transform) {
+    const u = String(url || "").trim();
+    const t = String(transform || "").trim();
+    if (!u || !t) return u;
+    const idx = u.indexOf("/upload/");
+    if (idx < 0) return u;
+    const before = u.slice(0, idx + "/upload/".length);
+    const after = u.slice(idx + "/upload/".length);
+    if (after.startsWith(t + "/")) return u;
+    return `${before}${t}/${after}`;
+  }
+
+  function placeholderSvg(storeId) {
+    const sid = String(storeId || "").trim();
+    const label = sid ? `Store ${sid}` : "Store";
+    const now = new Date().toISOString();
+    return (
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/>' +
+      "</linearGradient></defs>" +
+      '<rect width="100%" height="100%" fill="url(#g)"/>' +
+      '<rect x="40" y="40" width="1120" height="550" rx="28" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)"/>' +
+      '<text x="80" y="150" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="54" font-weight="900" fill="#ffffff">BundleApp</text>' +
+      `<text x="80" y="230" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="28" font-weight="800" fill="rgba(255,255,255,0.92)">${label}</text>` +
+      `<text x="80" y="540" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="18" font-weight="700" fill="rgba(255,255,255,0.8)">${now}</text>` +
+      "</svg>"
+    );
+  }
+
+  function pickHostFromUrlLike(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+      return new URL(raw).hostname || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function hostMatches(needleHost, allowedHost) {
+    const n = String(needleHost || "").trim().toLowerCase();
+    const a = String(allowedHost || "").trim().toLowerCase();
+    if (!n || !a) return false;
+    if (n === a) return true;
+    return n.endsWith(`.${a}`);
+  }
+
+  const mediaDeliveryParamsSchema = Joi.object({
+    storeId: Joi.string().trim().min(1).max(80).required(),
+    leaf: Joi.string().trim().min(6).max(64).required()
+  });
+
+  const mediaDeliveryBuckets = new Map();
+  function rateLimitMediaDeliveryOrThrow(req, storeId) {
+    const windowMs = Math.max(1000, Number(config?.security?.rateLimitWindowMs || 60_000));
+    const maxRequests = Math.max(1, Number(config?.security?.rateLimitMaxRequests || 120));
+    const ip = req.ip || req.connection?.remoteAddress || "unknown";
+    const key = `m:${String(storeId || "").trim()}:${String(ip)}`;
+    const now = Date.now();
+    const existing = mediaDeliveryBuckets.get(key);
+    if (!existing || existing.resetAt <= now) {
+      mediaDeliveryBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      return;
+    }
+    existing.count += 1;
+    if (existing.count > maxRequests) throw new ApiError(429, "Too many requests", { code: "RATE_LIMITED" });
+  }
+
+  router.get("/m/:storeId/:leaf", validate(mediaDeliveryParamsSchema, "params"), async (req, res, next) => {
+    try {
+      const storeId = String(req.params.storeId);
+      const leaf = String(req.params.leaf);
+
+      rateLimitMediaDeliveryOrThrow(req, storeId);
+
+      const merchant = await findMerchantByMerchantId(storeId);
+      if (!merchant) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      let stage = "normal";
+      if (merchant.appStatus !== "installed") {
+        const startMs = merchant.updatedAt ? new Date(merchant.updatedAt).getTime() : Date.now();
+        const elapsed = Math.max(0, Date.now() - (Number.isFinite(startMs) ? startMs : Date.now()));
+        const d14 = 14 * 24 * 60 * 60 * 1000;
+        const d30 = 30 * 24 * 60 * 60 * 1000;
+        const d45 = 45 * 24 * 60 * 60 * 1000;
+        if (elapsed < d14) stage = "normal";
+        else if (elapsed < d14 + d30) stage = "watermark";
+        else if (elapsed < d14 + d30 + d45) stage = "placeholder";
+        else stage = "blocked";
+      }
+
+      if (stage === "blocked") {
+        return res.status(410).type("text/plain; charset=utf-8").send("Gone");
+      }
+      if (stage === "placeholder") {
+        res.status(200);
+        res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=60");
+        return res.send(placeholderSvg(storeId));
+      }
+
+      let allowByToken = false;
+      const token = String(req.query?.token || "").trim();
+      if (token) {
+        try {
+          ensureValidStorefrontToken(token, storeId);
+          allowByToken = true;
+        } catch {
+          allowByToken = false;
+        }
+      }
+
+      if (!allowByToken) {
+        const storeInfo = await getPublicStoreInfo(storeId);
+        const domain = storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "";
+        const storeUrlHost = storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "";
+
+        const originHost = pickHostFromUrlLike(req.headers.origin);
+        const refererHost = pickHostFromUrlLike(req.headers.referer);
+        const h = originHost || refererHost;
+
+        const allowedHosts = [domain, storeUrlHost, "localhost", "127.0.0.1"].filter(Boolean);
+        const ok = allowedHosts.some((a) => hostMatches(h, a));
+        if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      }
+
+      const { folderPrefix } = requireCloudinaryConfig();
+      const folder = mediaFolderForMerchant(folderPrefix, storeId);
+      const publicId = `${folder}/${leaf}`;
+      const asset = await MediaAsset.findOne({ storeId, publicId, deletedAt: null }).lean();
+      if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const baseUrl = String(asset.secureUrl || asset.url || "").trim();
+      if (!baseUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      let nextUrl = baseUrl;
+      if (stage === "watermark" && String(asset.resourceType) === "image") {
+        const wm = "l_text:arial_48:BundleApp,g_south_east,x_18,y_18,co_white,o_70,bo_2px_solid_black";
+        nextUrl = cloudinaryUrlWithTransform(baseUrl, wm);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return res.redirect(302, nextUrl);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  async function cloudinaryDestroyByPublicId({ resourceType, publicId }) {
+    const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = cloudinarySign({ public_id: String(publicId), timestamp }, apiSecret);
+
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(resourceType)}/destroy`;
+    const body = new URLSearchParams();
+    body.set("public_id", String(publicId));
+    body.set("api_key", apiKey);
+    body.set("timestamp", String(timestamp));
+    body.set("signature", signature);
+
+    await axios.post(url, body.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      timeout: 15000
+    });
+  }
+
   function normalizeSallaStoreInfo(raw) {
     if (!raw || typeof raw !== "object") return null;
     const data = raw && typeof raw === "object" ? (raw.data && typeof raw.data === "object" ? raw.data : raw) : null;
@@ -328,7 +675,12 @@ function createApiRouter(config) {
   const mediaSignatureBodySchema = Joi.object({
     resourceType: Joi.string().valid("image", "video", "raw").default("image"),
     tags: Joi.array().items(Joi.string().trim().min(1).max(50)).max(20).default([]),
-    context: Joi.object().unknown(true).default({})
+    context: Joi.object().unknown(true).default({}),
+    file: Joi.object({
+      name: Joi.string().trim().min(1).max(200).required(),
+      size: Joi.number().integer().min(1).required(),
+      type: Joi.string().trim().max(150).allow("").default("")
+    }).required()
   }).required();
 
   router.post("/media/signature", merchantAuth(config), async (req, res, next) => {
@@ -346,6 +698,10 @@ function createApiRouter(config) {
       const folder = mediaFolderForMerchant(folderPrefix, merchantId);
       const timestamp = Math.floor(Date.now() / 1000);
 
+      const policy = await validateUploadPolicyOrThrow({ merchant: req.merchant, file: value.file, resourceTypeHint: value.resourceType });
+      const leaf = randomLeaf(policy.limits.linkLeafLength);
+      const publicId = `${folder}/${leaf}`;
+
       const context = value.context && typeof value.context === "object" ? value.context : {};
       const contextParts = [];
       for (const [k, v] of Object.entries(context)) {
@@ -360,7 +716,13 @@ function createApiRouter(config) {
       const tags = Array.isArray(value.tags) ? value.tags.map((t) => String(t).trim()).filter(Boolean) : [];
       const tagsStr = tags.length ? tags.join(",") : null;
 
-      const paramsToSign = { folder, timestamp, ...(contextStr ? { context: contextStr } : {}), ...(tagsStr ? { tags: tagsStr } : {}) };
+      const paramsToSign = {
+        folder,
+        timestamp,
+        public_id: publicId,
+        ...(contextStr ? { context: contextStr } : {}),
+        ...(tagsStr ? { tags: tagsStr } : {})
+      };
       const signature = cloudinarySign(paramsToSign, apiSecret);
 
       return res.json({
@@ -368,9 +730,10 @@ function createApiRouter(config) {
         cloudinary: {
           cloudName,
           apiKey,
-          resourceType: value.resourceType,
-          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${value.resourceType}/upload`,
+          resourceType: policy.resourceType,
+          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${policy.resourceType}/upload`,
           folder,
+          publicId,
           timestamp,
           signature,
           ...(contextStr ? { context: contextStr } : {}),
@@ -417,6 +780,28 @@ function createApiRouter(config) {
       const merchantId = String(req.merchant?.merchantId || "").trim();
       const storeId = merchantId;
       const c = value.cloudinary || {};
+
+      const planKey = getPlanKey(req.merchant);
+      const limits = getPlanLimits(planKey);
+      const allowed = getAllowedExtForPlan(planKey);
+      const fileExt = normalizeFilenameExt(c.original_filename);
+      if (fileExt && bannedExt.has(fileExt)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      if (allowed && fileExt && !allowed.has(fileExt)) throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      if ((planKey !== "pro" && planKey !== "business") && String(c.format || "").toLowerCase() === "svg") {
+        throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      }
+
+      const prev = await MediaAsset.findOne({ storeId, publicId: String(c.public_id), deletedAt: null }).lean();
+      const used = await getStoreUsedBytesCached(storeId);
+      const prevBytes = Number(prev?.bytes || 0) || 0;
+      const nextBytes = Number(c.bytes || 0) || 0;
+      if (nextBytes > limits.maxFileBytes) throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED" });
+      if (used - prevBytes + nextBytes > limits.maxStorageBytes) throw new ApiError(403, "Storage limit exceeded", { code: "STORAGE_LIMIT_EXCEEDED" });
+
+      if (String(c.format || "").toLowerCase() === "svg") {
+        const urlToCheck = String(c.secure_url || c.url || "").trim();
+        await ensureSvgSafeOrThrow(urlToCheck);
+      }
 
       const createdAt = c.created_at ? new Date(String(c.created_at)) : null;
       const cloudinaryCreatedAt = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : null;
@@ -681,6 +1066,47 @@ function createApiRouter(config) {
     if (!provided) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
     if (!timingSafeEqualString(provided, configured)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
   }
+
+  const adminSetMerchantPlanParamsSchema = Joi.object({
+    merchantId: Joi.string().trim().min(1).max(80).required()
+  });
+
+  const adminSetMerchantPlanBodySchema = Joi.object({
+    planKey: Joi.string().trim().valid("basic", "pro", "business").required()
+  }).required();
+
+  router.post(
+    "/public/admin/merchants/:merchantId/plan",
+    validate(adminSetMerchantPlanParamsSchema, "params"),
+    validate(adminSetMerchantPlanBodySchema, "body"),
+    async (req, res, next) => {
+      try {
+        requireMediaAdminKey(req);
+
+        const merchantId = String(req.params.merchantId);
+        const planKey = String(req.body.planKey);
+
+        const merchant = await Merchant.findOne({ merchantId }).select("+accessToken +refreshToken");
+        if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+
+        merchant.planKey = planKey;
+        merchant.planUpdatedAt = new Date();
+        await merchant.save();
+
+        return res.json({
+          ok: true,
+          merchant: {
+            merchantId: merchant.merchantId,
+            planKey: merchant.planKey,
+            planUpdatedAt: merchant.planUpdatedAt ? new Date(merchant.planUpdatedAt).toISOString() : null,
+            appStatus: merchant.appStatus
+          }
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
 
   router.delete("/public/media/assets/:id", validate(mediaDeleteParamsSchema, "params"), async (req, res, next) => {
     try {
@@ -1222,6 +1648,10 @@ function createApiRouter(config) {
       const folder = mediaFolderForMerchant(folderPrefix, merchantId);
       const timestamp = Math.floor(Date.now() / 1000);
 
+      const policy = await validateUploadPolicyOrThrow({ merchant, file: bValue.file, resourceTypeHint: bValue.resourceType });
+      const leaf = randomLeaf(policy.limits.linkLeafLength);
+      const publicId = `${folder}/${leaf}`;
+
       const context = bValue.context && typeof bValue.context === "object" ? bValue.context : {};
       const contextParts = [];
       for (const [k, v] of Object.entries(context)) {
@@ -1236,7 +1666,13 @@ function createApiRouter(config) {
       const tags = Array.isArray(bValue.tags) ? bValue.tags.map((t) => String(t).trim()).filter(Boolean) : [];
       const tagsStr = tags.length ? tags.join(",") : null;
 
-      const paramsToSign = { folder, timestamp, ...(contextStr ? { context: contextStr } : {}), ...(tagsStr ? { tags: tagsStr } : {}) };
+      const paramsToSign = {
+        folder,
+        timestamp,
+        public_id: publicId,
+        ...(contextStr ? { context: contextStr } : {}),
+        ...(tagsStr ? { tags: tagsStr } : {})
+      };
       const signature = cloudinarySign(paramsToSign, apiSecret);
 
       return res.json({
@@ -1244,9 +1680,10 @@ function createApiRouter(config) {
         cloudinary: {
           cloudName,
           apiKey,
-          resourceType: bValue.resourceType,
-          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${bValue.resourceType}/upload`,
+          resourceType: policy.resourceType,
+          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${policy.resourceType}/upload`,
           folder,
+          publicId,
           timestamp,
           signature,
           ...(contextStr ? { context: contextStr } : {}),
@@ -1288,6 +1725,52 @@ function createApiRouter(config) {
       const merchantId = String(qValue.merchantId);
       const storeId = merchantId;
       const c = bValue.cloudinary || {};
+
+      const planKey = getPlanKey(merchant);
+      const limits = getPlanLimits(planKey);
+      const allowed = getAllowedExtForPlan(planKey);
+      const fileExt = normalizeFilenameExt(c.original_filename);
+      if (fileExt && bannedExt.has(fileExt)) {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      }
+      if (allowed && fileExt && !allowed.has(fileExt)) {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      }
+      if ((planKey !== "pro" && planKey !== "business") && String(c.format || "").toLowerCase() === "svg") {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "File type is not allowed", { code: "FILE_TYPE_NOT_ALLOWED" });
+      }
+
+      const prev = await MediaAsset.findOne({ storeId, publicId: String(c.public_id), deletedAt: null }).lean();
+      const used = await getStoreUsedBytesCached(storeId);
+      const prevBytes = Number(prev?.bytes || 0) || 0;
+      const nextBytes = Number(c.bytes || 0) || 0;
+      if (nextBytes > limits.maxFileBytes) {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED" });
+      }
+      if (used - prevBytes + nextBytes > limits.maxStorageBytes) {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "Storage limit exceeded", { code: "STORAGE_LIMIT_EXCEEDED" });
+      }
+
+      const expectedPrefix = `${String(config?.cloudinary?.folderPrefix || "bundle_app").trim().replace(/\/+$/g, "")}/${storeId}/`;
+      if (!String(c.public_id || "").startsWith(expectedPrefix)) {
+        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+        throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      }
+
+      if (String(c.format || "").toLowerCase() === "svg") {
+        const urlToCheck = String(c.secure_url || c.url || "").trim();
+        try {
+          await ensureSvgSafeOrThrow(urlToCheck);
+        } catch (e) {
+          await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) }).catch(() => undefined);
+          throw e;
+        }
+      }
 
       const createdAt = c.created_at ? new Date(String(c.created_at)) : null;
       const cloudinaryCreatedAt = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : null;

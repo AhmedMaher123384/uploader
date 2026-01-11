@@ -242,10 +242,54 @@ const loadAssets = async (resourceType, page, limit) => {
 };
 `,
   `
-const getSignature = async (resourceType) => {
+const getSignature = async (resourceType, file) => {
   const url = buildUrl("/api/proxy/media/signature", {});
   if (!url) throw new Error("Missing backend origin");
-  return await postJson(url, { resourceType: resourceType || "image" });
+  const rt = String(resourceType || "image");
+  return await postJson(url, {
+    resourceType: rt,
+    file: {
+      name: String((file && file.name) || ""),
+      size: Number((file && file.size) || 0) || 0,
+      type: String((file && file.type) || "")
+    }
+  });
+};
+`,
+  `
+const getExt = (name) => {
+  const s = String(name || "").trim();
+  const i = s.lastIndexOf(".");
+  if (i <= 0 || i === s.length - 1) return "";
+  return s.slice(i + 1).trim().toLowerCase();
+};
+`,
+  `
+const guessResourceType = (file) => {
+  const t = String((file && file.type) || "").toLowerCase();
+  if (t.indexOf("video/") === 0) return "video";
+  if (t.indexOf("image/") === 0) return "image";
+  const ext = getExt(file && file.name);
+  if (ext === "mp4" || ext === "webm") return "video";
+  if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
+  return "raw";
+};
+`,
+  `
+const buildDeliveryUrlFromItem = (it) => {
+  try {
+    const origin = getBackendOrigin();
+    if (!origin) return "";
+    const storeId = String((it && (it.storeId || it.merchantId)) || "").trim();
+    const publicId = String((it && it.publicId) || "").trim();
+    if (!storeId || !publicId) return "";
+    const parts = publicId.split("/").filter(Boolean);
+    const leaf = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
+    if (!leaf) return "";
+    return origin + "/api/m/" + encodeURIComponent(storeId) + "/" + encodeURIComponent(leaf);
+  } catch {
+    return "";
+  }
 };
 `,
   `
@@ -330,7 +374,7 @@ const mount = () => {
         const input = document.createElement("input");
         input.type = "file";
         input.multiple = true;
-        input.accept = "image/*,video/*";
+        input.accept = "*/*";
         input.style.display = "none";
         document.body.appendChild(input);
 
@@ -441,6 +485,14 @@ const mount = () => {
           try {
             const data = await loadAssets(state.type, state.page, state.limit);
             const items = Array.isArray(data && data.items) ? data.items : [];
+            for (let i = 0; i < items.length; i += 1) {
+              const it = items[i];
+              if (!it || typeof it !== "object") continue;
+              if (!it.deliveryUrl) {
+                const u = buildDeliveryUrlFromItem(it);
+                if (u) it.deliveryUrl = u;
+              }
+            }
             state.total = Number((data && data.total) || 0) || 0;
             state.items = state.page === 1 ? items : state.items.concat(items);
             state.loading = false;
@@ -474,8 +526,8 @@ const mount = () => {
               rec.error = "";
               rec.url = "";
               render();
-              const rt = String(file.type || "").indexOf("video") === 0 ? "video" : "image";
-              const sign = await getSignature(rt);
+              const rt = guessResourceType(file);
+              const sign = await getSignature(rt, file);
               const uploaded = await uploadToCloudinary(file, sign);
               await recordAsset(uploaded);
               rec.url = String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
