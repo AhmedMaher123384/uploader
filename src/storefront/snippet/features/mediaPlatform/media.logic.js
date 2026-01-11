@@ -383,6 +383,9 @@ const mount = () => {
 
         const close = () => {
           try {
+            if (typeof revokeMediaObjectUrls === "function") revokeMediaObjectUrls();
+          } catch {}
+          try {
             if (sheetEl) sheetEl.remove();
           } catch {}
           try {

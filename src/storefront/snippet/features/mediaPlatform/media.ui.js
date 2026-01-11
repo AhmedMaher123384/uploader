@@ -516,6 +516,88 @@ const renderUploadRow = (rec) => {
 };
 `,
   `
+const BLANK_IMG =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+const fetchMediaObjectUrl = async (src) => {
+  const u = String(src || "");
+  if (!u) return "";
+  try {
+    if (!window.fetch || !window.URL || !URL.createObjectURL) return "";
+  } catch {
+    return "";
+  }
+
+  try {
+    if (!window.__bundleAppMediaBlobCache) window.__bundleAppMediaBlobCache = new Map();
+    if (!window.__bundleAppMediaBlobInFlight) window.__bundleAppMediaBlobInFlight = new Map();
+    if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
+  } catch {}
+
+  const cache = window.__bundleAppMediaBlobCache;
+  const inFlight = window.__bundleAppMediaBlobInFlight;
+
+  try {
+    if (cache && cache.has(u)) return String(cache.get(u) || "");
+  } catch {}
+
+  try {
+    if (inFlight && inFlight.has(u)) return await inFlight.get(u);
+  } catch {}
+
+  const p = (async () => {
+    const r = await fetch(u, { method: "GET", mode: "cors", credentials: "omit", cache: "no-store" });
+    const b = await r.blob().catch(() => null);
+    if (!r.ok) {
+      throw new Error((b && b.type && b.type.indexOf("application/json") === 0) ? "Forbidden" : "HTTP " + String(r.status));
+    }
+    if (!b) throw new Error("Empty response");
+    const obj = URL.createObjectURL(b);
+    try {
+      if (cache) cache.set(u, obj);
+    } catch {}
+    try {
+      if (window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls.add(obj);
+    } catch {}
+    return obj;
+  })();
+
+  try {
+    if (inFlight) inFlight.set(u, p);
+  } catch {}
+
+  try {
+    return await p;
+  } finally {
+    try {
+      if (inFlight) inFlight.delete(u);
+    } catch {}
+  }
+};
+
+const revokeMediaObjectUrls = () => {
+  try {
+    const urls = window.__bundleAppMediaBlobUrls;
+    if (urls && urls.forEach) {
+      urls.forEach((u) => {
+        try {
+          URL.revokeObjectURL(u);
+        } catch {}
+      });
+    }
+  } catch {}
+  try {
+    if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.clear) window.__bundleAppMediaBlobUrls.clear();
+  } catch {}
+  try {
+    if (window.__bundleAppMediaBlobCache && window.__bundleAppMediaBlobCache.clear) window.__bundleAppMediaBlobCache.clear();
+  } catch {}
+  try {
+    if (window.__bundleAppMediaBlobInFlight && window.__bundleAppMediaBlobInFlight.clear) window.__bundleAppMediaBlobInFlight.clear();
+  } catch {}
+};
+`,
+  `
 const renderGrid = (items) => {
   const grid = document.createElement("div");
   grid.style.display = "grid";
@@ -600,11 +682,24 @@ const renderGrid = (items) => {
       img.alt = "";
       img.loading = "lazy";
       img.decoding = "async";
-      img.src = src;
+      img.src = BLANK_IMG;
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = "cover";
       media.appendChild(img);
+      if (src) {
+        fetchMediaObjectUrl(src)
+          .then((obj) => {
+            try {
+              if (obj) img.src = obj;
+            } catch {}
+          })
+          .catch(() => {
+            try {
+              img.src = src;
+            } catch {}
+          });
+      }
     }
 
     const meta = document.createElement("div");
