@@ -555,11 +555,12 @@ function createApiRouter(config) {
       const originHost = pickHostFromUrlLike(req.headers.origin);
       const refererHost = pickHostFromUrlLike(req.headers.referer);
       const h = originHost || refererHost;
-      if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
       const allowedHosts = [domain, storeUrlHost, "localhost", "127.0.0.1"].filter(Boolean);
-      const ok = allowedHosts.some((a) => hostMatches(h, a));
-      if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      if (h) {
+        const ok = allowedHosts.some((a) => hostMatches(h, a));
+        if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      }
 
       const { folderPrefix } = requireCloudinaryConfig();
       const folder = mediaFolderForMerchant(folderPrefix, storeId);
