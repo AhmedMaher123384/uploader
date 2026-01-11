@@ -9,63 +9,128 @@ module.exports = [
   `const log = (...args) => { if (!debug) return; try { console.log(...args); } catch {} };\n`,
   `const warn = (...args) => { if (!debug) return; try { console.warn(...args); } catch {} };\n`,
   `
-if (MODE === "sandbox") {
+const isSandbox = MODE === "sandbox";
+if (isSandbox) {
   try {
     merchantId = "sandbox";
   } catch {}
   try {
     token = "sandbox";
   } catch {}
+}
 
-  const selector = '.angel-cc_modal.is-open [data-view="upload"]';
+const sandboxSelector = '.angel-cc_modal.is-open [data-view="upload"]';
 
-  const mountSandbox = () => {
-    try {
-      const view = document.querySelector(selector);
-      if (!view) return false;
-      if (view.__mounted) return true;
-      view.__mounted = true;
-      const el = document.createElement("div");
-      el.style.border = "2px dashed rgba(24,181,213,.75)";
-      el.style.borderRadius = "12px";
-      el.style.padding = "14px";
-      el.style.background = "rgba(24,181,213,.06)";
-      el.style.color = "#18b5d5";
-      el.style.fontWeight = "900";
-      el.style.fontSize = "14px";
-      el.textContent = "APP MOUNTED SUCCESSFULLY";
-      view.appendChild(el);
-      log("[BundleApp][sandbox] mounted");
-      return true;
-    } catch (e) {
-      warn("[BundleApp][sandbox] mount failed", e);
-      return false;
-    }
-  };
+const getSandboxTarget = () => {
+  try {
+    return document.querySelector(sandboxSelector);
+  } catch {
+    return null;
+  }
+};
 
-  const startSandboxObserver = () => {
-    mountSandbox();
+const startSandboxObserver = (fn) => {
+  try {
+    if (g.BundleApp && g.BundleApp.__sandboxObserverStarted) return;
+    g.BundleApp.__sandboxObserverStarted = true;
+  } catch {}
+
+  try {
     const root = document.documentElement || document.body;
     if (!root || !window.MutationObserver) return;
     const mo = new MutationObserver(() => {
-      mountSandbox();
+      try {
+        fn();
+      } catch {}
     });
-    mo.observe(root, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      attributeFilter: ["class", "data-view", "style"]
-    });
-  };
+    try {
+      g.BundleApp.__sandboxMo = mo;
+    } catch {}
+    mo.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-view", "style"] });
+  } catch {}
+};
 
+const sandboxFetchJson = async (url, opts = {}) => {
+  const method = String((opts && opts.method) || "GET").toUpperCase();
+  if (method !== "GET") throw new Error("Sandbox mode: API calls disabled");
+
+  let u = null;
   try {
-    startSandboxObserver();
-  } catch (e) {
-    warn("[BundleApp][sandbox] observer failed", e);
+    u = new URL(String(url || ""), window.location.href);
+  } catch {}
+
+  const path = String((u && u.pathname) || "");
+  if (path.indexOf("/api/") !== 0) throw new Error("Sandbox mode: API calls disabled");
+
+  if (path === "/api/proxy/media/assets") {
+    const rt = String((u && u.searchParams && u.searchParams.get("resourceType")) || "").trim();
+    const now = new Date().toISOString();
+    const svg = (label) =>
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><rect x="40" y="40" width="880" height="560" rx="28" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)"/><text x="80" y="140" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="44" font-weight="900" fill="#ffffff">BundleApp Sandbox</text><text x="80" y="210" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="28" font-weight="800" fill="rgba(255,255,255,0.92)">' +
+          String(label || "") +
+          '</text><text x="80" y="520" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="18" font-weight="700" fill="rgba(255,255,255,0.8)">' +
+          now +
+          "</text></svg>"
+      );
+
+    if (rt === "video") return { ok: true, total: 0, items: [] };
+
+    const items = [
+      {
+        id: "sandbox_1",
+        merchantId: "sandbox",
+        storeId: "sandbox",
+        resourceType: "image",
+        publicId: "sandbox/sample_1",
+        assetId: "sandbox_1",
+        folder: "sandbox",
+        originalFilename: "sample_1.svg",
+        format: "svg",
+        bytes: 1320,
+        width: 960,
+        height: 640,
+        duration: null,
+        url: svg("Sample Asset #1"),
+        secureUrl: svg("Sample Asset #1"),
+        thumbnailUrl: svg("Sample Asset #1"),
+        tags: ["sandbox"],
+        context: null,
+        cloudinaryCreatedAt: now,
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: "sandbox_2",
+        merchantId: "sandbox",
+        storeId: "sandbox",
+        resourceType: "image",
+        publicId: "sandbox/sample_2",
+        assetId: "sandbox_2",
+        folder: "sandbox",
+        originalFilename: "sample_2.svg",
+        format: "svg",
+        bytes: 1450,
+        width: 960,
+        height: 640,
+        duration: null,
+        url: svg("Sample Asset #2"),
+        secureUrl: svg("Sample Asset #2"),
+        thumbnailUrl: svg("Sample Asset #2"),
+        tags: ["sandbox"],
+        context: null,
+        cloudinaryCreatedAt: now,
+        createdAt: now,
+        updatedAt: now
+      }
+    ];
+
+    return { ok: true, total: items.length, items };
   }
 
-  return;
-}
+  throw new Error("Sandbox mode: API calls disabled");
+};
 `,
   `
 const getBackendOrigin = () => {
@@ -92,6 +157,7 @@ const buildUrl = (path, params = {}) => {
 `,
   `
 const fetchJson = async (url, opts = {}) => {
+  if (isSandbox) return await sandboxFetchJson(url, opts);
   const r = await fetch(url, opts || {});
   const t = await r.text();
   let j = null;
@@ -189,6 +255,7 @@ const recordAsset = async (cloud) => {
 `,
   `
 const uploadToCloudinary = async (file, sign) => {
+  if (isSandbox) throw new Error("Sandbox mode: upload disabled");
   const c = sign && sign.cloudinary ? sign.cloudinary : null;
   if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder) throw new Error("Invalid signature");
 
@@ -213,12 +280,39 @@ const uploadToCloudinary = async (file, sign) => {
   `
 const mount = () => {
   try {
+    let mountRoot = null;
+    if (isSandbox) {
+      mountRoot = getSandboxTarget();
+      if (!mountRoot) {
+        startSandboxObserver(mount);
+        return;
+      }
+      if (mountRoot.__mounted) return;
+    } else {
+      mountRoot = document.body;
+    }
+
     if (!ensureOnce()) return;
     try {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
 
     const fab = createFab();
+    if (isSandbox) {
+      try {
+        fab.style.position = "relative";
+        fab.style.top = "auto";
+        fab.style.left = "auto";
+        fab.style.right = "auto";
+        fab.style.zIndex = "1";
+        fab.style.width = "100%";
+        fab.style.borderRadius = "14px";
+        fab.style.padding = "12px 14px";
+        fab.style.display = "flex";
+        fab.style.justifyContent = "center";
+        fab.style.gap = "10px";
+      } catch {}
+    }
     try {
       setFabVisible(fab, true);
     } catch {}
@@ -424,7 +518,10 @@ const mount = () => {
       }
     };
 
-    document.body.appendChild(fab);
+    try {
+      if (isSandbox) mountRoot.__mounted = true;
+    } catch {}
+    mountRoot.appendChild(fab);
   } catch (e) {
     warn("media platform mount failed", e);
   }
