@@ -70,9 +70,9 @@ const sandboxFetchJson = async (url, opts = {}) => {
     const svg = (label) =>
       "data:image/svg+xml;charset=utf-8," +
       encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><rect x="40" y="40" width="880" height="560" rx="28" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)"/><text x="80" y="140" font-family="PingARLT" font-size="44" font-weight="900" fill="#ffffff">BundleApp Sandbox</text><text x="80" y="210" font-family="PingARLT" font-size="28" font-weight="800" fill="rgba(255,255,255,0.92)">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><rect x="40" y="40" width="880" height="560" rx="28" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)"/><text x="80" y="140" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="44" font-weight="900" fill="#ffffff">BundleApp Sandbox</text><text x="80" y="210" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="28" font-weight="800" fill="rgba(255,255,255,0.92)">' +
           String(label || "") +
-          '</text><text x="80" y="520" font-family="PingARLT" font-size="18" font-weight="700" fill="rgba(255,255,255,0.8)">' +
+          '</text><text x="80" y="520" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="18" font-weight="700" fill="rgba(255,255,255,0.8)">' +
           now +
           "</text></svg>"
       );
@@ -181,6 +181,9 @@ const fetchJson = async (url, opts = {}) => {
   `
 const postJson = (url, body) =>
   fetchJson(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+`,
+  `
+const deleteJson = (url) => fetchJson(url, { method: "DELETE" });
 `,
   `
 const pageLang = () => {
@@ -380,11 +383,21 @@ const recordAsset = async (cloud) => {
 };
 `,
   `
+const deleteAssetById = async (id) => {
+  const assetId = String(id || "").trim();
+  if (!assetId) throw new Error("Invalid asset id");
+  const url = buildUrl("/api/proxy/media/assets/" + encodeURIComponent(assetId), {});
+  if (!url) throw new Error("Missing backend origin");
+  return await deleteJson(url);
+};
+`,
+  `
 const uploadToCloudinary = async (file, sign, onProgress) => {
   if (isSandbox) throw new Error("Sandbox mode: upload disabled");
   const c = sign && sign.cloudinary ? sign.cloudinary : null;
   if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder || !c.publicId) throw new Error("Invalid signature");
 
+  const fileSize = Number((file && file.size) || 0) || 0;
   const fd = new FormData();
   fd.append("file", file);
   fd.append("api_key", String(c.apiKey));
@@ -437,15 +450,21 @@ const uploadToCloudinary = async (file, sign, onProgress) => {
         xhr.upload.onprogress = (ev) => {
           try {
             const loaded = Number(ev && ev.loaded) || 0;
-            const total = Number(ev && ev.total) || 0;
-            if (ev && ev.lengthComputable && total > 0) {
-              const pct = Math.max(0, Math.min(100, Math.round((loaded / total) * 100)));
-              emit(pct, loaded, total);
+            const evTotal = Number(ev && ev.total) || 0;
+            const denom = evTotal > 0 ? evTotal : fileSize > 0 ? fileSize : 0;
+            if (denom > 0) {
+              const pct = Math.max(0, Math.min(100, Math.round((loaded / denom) * 100)));
+              emit(pct, loaded, denom);
               return;
             }
-            emit(0, loaded, total);
+            emit(0, loaded, evTotal);
           } catch {}
         };
+        try {
+          xhr.upload.onloadstart = () => {
+            emit(0, 0, fileSize);
+          };
+        } catch {}
       }
     } catch {}
 
@@ -457,7 +476,7 @@ const uploadToCloudinary = async (file, sign, onProgress) => {
     };
     xhr.onload = () => {
       try {
-        emit(100, 0, 0);
+        emit(100, fileSize, fileSize);
       } catch {}
 
       const status = Number(xhr.status || 0) || 0;
@@ -579,7 +598,8 @@ const mount = () => {
           dashError: "",
           dash: null,
           uploads: [],
-          uploading: false
+          uploading: false,
+          deletingId: ""
         };
 
         const refreshDashboard = async (force) => {
@@ -608,6 +628,39 @@ const mount = () => {
           } catch (e) {
             state.dashLoading = false;
             state.dashError = String((e && e.message) || e || "");
+            render();
+          }
+        };
+
+        const onDeleteItem = async (it) => {
+          const id = String((it && it.id) || "").trim();
+          if (!id) return;
+          if (state.deletingId) return;
+          try {
+            const name = String((it && (it.originalFilename || it.publicId)) || "").trim();
+            const msg = isArabic()
+              ? "تأكيد حذف الملف" + (name ? ": " + name : "") + "؟ سيتم مسحه نهائيًا."
+              : "Delete this file" + (name ? ": " + name : "") + "? This will remove it permanently.";
+            if (!window.confirm(msg)) return;
+          } catch {}
+
+          state.deletingId = id;
+          state.error = "";
+          render();
+          try {
+            await deleteAssetById(id);
+            try {
+              clearMediaApiCache();
+            } catch {}
+            state.deletingId = "";
+            render();
+            try {
+              refreshDashboard(true);
+            } catch {}
+            fetchAndRender(true);
+          } catch (e) {
+            state.deletingId = "";
+            state.error = String((e && e.message) || e || "");
             render();
           }
         };
@@ -717,7 +770,7 @@ const mount = () => {
 
             if (!state.loading && !state.error) {
               if (!state.items.length) sheet.content.appendChild(renderEmpty());
-              else sheet.content.appendChild(renderGrid(state.items));
+              else sheet.content.appendChild(renderGrid(state.items, { deletingId: state.deletingId, onDeleteItem }));
 
               const pager = renderPager({
                 page: state.page,

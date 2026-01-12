@@ -1772,6 +1772,72 @@ function createApiRouter(config) {
     }
   });
 
+  router.delete("/proxy/media/assets/:id", async (req, res, next) => {
+    try {
+      const { error: qErr, value: qValue } = Joi.object({
+        merchantId: Joi.string().trim().min(1).max(80).required(),
+        token: Joi.string().trim().min(10),
+        signature: Joi.string().trim().min(8),
+        hmac: Joi.string().trim().min(8)
+      })
+        .or("signature", "hmac", "token")
+        .unknown(true)
+        .validate(req.query, { abortEarly: false, stripUnknown: false });
+      if (qErr) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: qErr.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      const { error: pErr, value: pValue } = Joi.object({ id: Joi.string().trim().min(10).required() }).validate(req.params, {
+        abortEarly: false,
+        stripUnknown: true
+      });
+      if (pErr) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: pErr.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      ensureValidProxyAuth(qValue, qValue.merchantId);
+
+      const merchant = await findMerchantByMerchantId(String(qValue.merchantId));
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      const storeId = String(qValue.merchantId);
+      const asset = await MediaAsset.findOne({ _id: String(pValue.id), storeId, deletedAt: null });
+      if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const expectedPrefix = `${String(config?.cloudinary?.folderPrefix || "bundle_app").trim().replace(/\/+$/g, "")}/${storeId}/`;
+      if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
+        throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      }
+
+      try {
+        await cloudinaryDestroyByPublicId({ resourceType: String(asset.resourceType), publicId: String(asset.publicId) });
+      } catch (e) {
+        const msg = String(e?.response?.data?.error?.message || e?.message || e);
+        throw new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY", details: { message: msg } });
+      }
+
+      asset.deletedAt = new Date();
+      await asset.save();
+
+      mediaPolicyCache.delete(`used:${storeId}`);
+
+      for (const key of publicCache.keys()) {
+        if (String(key || "").startsWith("public:media:")) publicCache.delete(key);
+      }
+
+      return res.json({ ok: true });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   const proxyMediaSignatureQuerySchema = Joi.object({
     merchantId: Joi.string().trim().min(1).max(80).required(),
     token: Joi.string().trim().min(10),
