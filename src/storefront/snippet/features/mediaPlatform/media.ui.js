@@ -849,12 +849,63 @@ const renderThumbActions = (opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
-  wrap.style.justifyContent = "flex-start";
-  wrap.style.gap = "8px";
+  wrap.style.justifyContent = "center";
+  wrap.style.gap = "6px";
+  wrap.style.rowGap = "6px";
+  wrap.style.flexWrap = "wrap";
+  wrap.style.width = "100%";
 
-  const mkSallaIcon = (iconClass) => {
+  const getSallaIconClass = (key, candidates) => {
+    try {
+      if (!window.__bundleAppSallaIconCache) window.__bundleAppSallaIconCache = new Map();
+    } catch {}
+    const cache = (() => {
+      try {
+        return window.__bundleAppSallaIconCache;
+      } catch {
+        return null;
+      }
+    })();
+    const k = String(key || "").trim();
+    if (cache && k && cache.has(k)) return String(cache.get(k) || "").trim();
+
+    const list = Array.isArray(candidates) ? candidates : [];
+    const fallback = list.length ? String(list[0] || "").trim() : "";
+    let chosen = fallback;
+
+    try {
+      if (!window.getComputedStyle) throw new Error("no getComputedStyle");
+      const probe = document.createElement("i");
+      probe.style.position = "fixed";
+      probe.style.left = "-9999px";
+      probe.style.top = "-9999px";
+      probe.style.visibility = "hidden";
+      document.body.appendChild(probe);
+      for (let i = 0; i < list.length; i += 1) {
+        const cls = String(list[i] || "").trim();
+        if (!cls) continue;
+        probe.className = cls;
+        const c = window.getComputedStyle(probe, "::before").content;
+        const s = String(c || "").trim();
+        if (s && s !== "none" && s !== '""' && s !== "''") {
+          chosen = cls;
+          break;
+        }
+      }
+      try {
+        probe.remove();
+      } catch {}
+    } catch {}
+
+    try {
+      if (cache && k) cache.set(k, chosen);
+    } catch {}
+    return chosen;
+  };
+
+  const mkSallaIcon = (key, candidates) => {
     const i = document.createElement("i");
-    i.className = String(iconClass || "").trim();
+    i.className = getSallaIconClass(key, candidates);
     i.setAttribute("aria-hidden", "true");
     i.style.display = "block";
     i.style.fontSize = "18px";
@@ -864,34 +915,69 @@ const renderThumbActions = (opts) => {
   };
 
   const mkBtnBase = (el, label, tone) => {
+    const vw = (() => {
+      try {
+        return Number(window.innerWidth || 0) || 0;
+      } catch {
+        return 0;
+      }
+    })();
+    const size = vw && vw < 520 ? 32 : 36;
     el.title = String(label || "");
     el.style.display = "inline-flex";
     el.style.alignItems = "center";
     el.style.justifyContent = "center";
-    el.style.width = "36px";
-    el.style.height = "36px";
-    el.style.borderRadius = "10px";
+    el.style.width = String(size) + "px";
+    el.style.height = String(size) + "px";
+    el.style.borderRadius = "12px";
     el.style.cursor = "pointer";
-    el.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+    el.style.boxShadow = "0 12px 26px rgba(0,0,0,.22)";
     el.style.flex = "0 0 auto";
     el.style.padding = "0";
     el.style.fontSize = "18px";
     el.style.lineHeight = "1";
+    el.style.transition = "transform .12s ease, box-shadow .12s ease, background .12s ease, opacity .12s ease";
     if (tone === "brand") {
-      el.style.border = "1px solid rgba(24,181,213,.35)";
-      el.style.background = "rgba(24,181,213,.12)";
-      el.style.color = "#18b5d5";
+      el.style.border = "1px solid rgba(24,181,213,.45)";
+      el.style.background = "#18b5d5";
+      el.style.color = "#0b1220";
       return;
     }
     if (tone === "danger") {
-      el.style.border = "1px solid rgba(239,68,68,.35)";
-      el.style.background = "rgba(239,68,68,.12)";
-      el.style.color = "#fecaca";
+      el.style.border = "1px solid rgba(239,68,68,.55)";
+      el.style.background = "#ef4444";
+      el.style.color = "#0b1220";
       return;
     }
     el.style.border = "1px solid rgba(255,255,255,.14)";
     el.style.background = "rgba(255,255,255,.06)";
     el.style.color = "#fff";
+  };
+
+  const wireHover = (el) => {
+    try {
+      el.onmouseenter = () => {
+        try {
+          if (el.disabled) return;
+          el.style.transform = "translateY(-1px)";
+          el.style.boxShadow = "0 16px 34px rgba(0,0,0,.28)";
+          el.style.opacity = "1";
+        } catch {}
+      };
+      el.onmouseleave = () => {
+        try {
+          el.style.transform = "translateY(0)";
+          el.style.boxShadow = "0 12px 26px rgba(0,0,0,.22)";
+          el.style.opacity = el.disabled ? "0.55" : "1";
+        } catch {}
+      };
+      el.onmousedown = () => {
+        try {
+          if (el.disabled) return;
+          el.style.transform = "translateY(0)";
+        } catch {}
+      };
+    } catch {}
   };
 
   const open = document.createElement("a");
@@ -900,18 +986,20 @@ const renderThumbActions = (opts) => {
   open.rel = "noopener";
   open.style.textDecoration = "none";
   mkBtnBase(open, isArabic() ? "فتح" : "Open", "neutral");
-  open.appendChild(mkSallaIcon("sicon-external-link"));
+  open.appendChild(mkSallaIcon("open", ["sicon-external-link", "sicon-link", "sicon-eye", "sicon-view"]));
+  wireHover(open);
 
   const copy = document.createElement("button");
   copy.type = "button";
   copy.style.border = "0";
   mkBtnBase(copy, isArabic() ? "نسخ" : "Copy", "brand");
-  copy.appendChild(mkSallaIcon("sicon-copy"));
+  copy.appendChild(mkSallaIcon("copy", ["sicon-copy", "sicon-files", "sicon-duplicate", "sicon-copy-1"]));
+  wireHover(copy);
   copy.onclick = () => {
     try {
       copyText(u, () => {});
       const prevBg = copy.style.background;
-      copy.style.background = "rgba(24,181,213,.22)";
+      copy.style.background = "rgba(24,181,213,.78)";
       setTimeout(() => {
         try {
           copy.style.background = prevBg;
@@ -940,7 +1028,8 @@ const renderThumbActions = (opts) => {
   download.type = "button";
   download.style.border = "0";
   mkBtnBase(download, isArabic() ? "تحميل" : "Download", "neutral");
-  download.appendChild(mkSallaIcon("sicon-download"));
+  download.appendChild(mkSallaIcon("download", ["sicon-download", "sicon-download-cloud", "sicon-download-alt", "sicon-arrow-down"]));
+  wireHover(download);
   download.onclick = async () => {
     try {
       if (download.disabled) return;
@@ -985,7 +1074,7 @@ const renderThumbActions = (opts) => {
     del.type = "button";
     del.style.border = "0";
     mkBtnBase(del, isArabic() ? "حذف" : "Delete", "danger");
-    del.appendChild(mkSallaIcon("sicon-trash"));
+    del.appendChild(mkSallaIcon("trash", ["sicon-trash", "sicon-delete", "sicon-bin", "sicon-remove"]));
     del.disabled = Boolean(opts && opts.deleting);
     del.style.opacity = del.disabled ? "0.55" : "1";
     del.onclick = () => {
@@ -994,6 +1083,7 @@ const renderThumbActions = (opts) => {
         onDelete();
       } catch {}
     };
+    wireHover(del);
   }
 
   wrap.appendChild(open);
@@ -1199,18 +1289,18 @@ const revokeMediaObjectUrls = () => {
 const renderGrid = (items, opts) => {
   const grid = document.createElement("div");
   grid.style.display = "grid";
-  const cols = (() => {
+  const minCol = (() => {
     try {
       const w = Number(window.innerWidth || 0) || 0;
-      if (w && w < 460) return 2;
-      if (w && w < 760) return 3;
-      return 4;
+      if (w && w < 420) return 150;
+      if (w && w < 760) return 170;
+      return 190;
     } catch {
-      return 4;
+      return 170;
     }
   })();
-  grid.style.gridTemplateColumns = "repeat(" + String(cols) + ",minmax(0,1fr))";
-  grid.style.gap = "10px";
+  grid.style.gridTemplateColumns = "repeat(auto-fit,minmax(" + String(minCol) + "px,1fr))";
+  grid.style.gap = "12px";
   grid.style.alignItems = "stretch";
   grid.style.marginTop = "4px";
 
@@ -1229,16 +1319,31 @@ const renderGrid = (items, opts) => {
     const isDeleting = deletingId && deletingId === String(it.id || "");
 
     const card = document.createElement("div");
-    card.style.border = "1px solid rgba(24,181,213,.20)";
-    card.style.borderRadius = "14px";
+    card.style.border = "1px solid rgba(255,255,255,.10)";
+    card.style.borderRadius = "16px";
     card.style.overflow = "hidden";
     card.style.background = "#292929";
-    card.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+    card.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
+    card.style.transition = "transform .14s ease, box-shadow .14s ease, border-color .14s ease";
+    card.onmouseenter = () => {
+      try {
+        card.style.transform = "translateY(-2px)";
+        card.style.boxShadow = "0 22px 62px rgba(0,0,0,.28)";
+        card.style.borderColor = "rgba(24,181,213,.30)";
+      } catch {}
+    };
+    card.onmouseleave = () => {
+      try {
+        card.style.transform = "translateY(0)";
+        card.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
+        card.style.borderColor = "rgba(255,255,255,.10)";
+      } catch {}
+    };
 
     const media = document.createElement("div");
     media.style.width = "100%";
-    media.style.aspectRatio = "16 / 10";
-    media.style.background = "rgba(24,181,213,.08)";
+    media.style.aspectRatio = "4 / 3";
+    media.style.background = "rgba(255,255,255,.04)";
     media.style.display = "flex";
     media.style.alignItems = "center";
     media.style.justifyContent = "center";
@@ -1253,7 +1358,8 @@ const renderGrid = (items, opts) => {
       v.src = src;
       v.style.width = "100%";
       v.style.height = "100%";
-      v.style.objectFit = "cover";
+      v.style.objectFit = "contain";
+      v.style.background = "#0b1220";
       media.appendChild(v);
     } else if (rt === "raw") {
       const box = document.createElement("div");
@@ -1303,7 +1409,9 @@ const renderGrid = (items, opts) => {
       img.src = BLANK_IMG;
       img.style.width = "100%";
       img.style.height = "100%";
-      img.style.objectFit = "cover";
+      img.style.objectFit = "contain";
+      img.style.padding = "8px";
+      img.style.boxSizing = "border-box";
       media.appendChild(img);
       if (src) {
         fetchMediaObjectUrl(src)

@@ -632,17 +632,140 @@ const mount = () => {
           }
         };
 
+        const confirmMini = async (title, message) => {
+          return await new Promise((resolve) => {
+            let overlay = null;
+            let panel = null;
+            const done = (val) => {
+              try {
+                if (overlay && overlay.remove) overlay.remove();
+              } catch {}
+              overlay = null;
+              panel = null;
+              resolve(Boolean(val));
+            };
+
+            try {
+              overlay = document.createElement("div");
+              overlay.style.position = "fixed";
+              overlay.style.inset = "0";
+              overlay.style.zIndex = "100006";
+              overlay.style.display = "flex";
+              overlay.style.alignItems = "center";
+              overlay.style.justifyContent = "center";
+              overlay.style.padding = "14px";
+              overlay.style.background = "rgba(0,0,0,.55)";
+              overlay.onclick = (ev) => {
+                try {
+                  if (ev.target === overlay) done(false);
+                } catch {}
+              };
+
+              panel = document.createElement("div");
+              panel.style.width = "min(340px,100%)";
+              panel.style.borderRadius = "16px";
+              panel.style.border = "1px solid rgba(255,255,255,.14)";
+              panel.style.background = "#292929";
+              panel.style.boxShadow = "0 18px 60px rgba(0,0,0,.45)";
+              panel.style.padding = "12px";
+              panel.style.display = "flex";
+              panel.style.flexDirection = "column";
+              panel.style.gap = "10px";
+              panel.onclick = (e) => {
+                try {
+                  e.stopPropagation();
+                } catch {}
+              };
+
+              const h = document.createElement("div");
+              h.style.fontSize = "13px";
+              h.style.fontWeight = "950";
+              h.style.color = "#fff";
+              h.textContent = String(title || "");
+
+              const b = document.createElement("div");
+              b.style.fontSize = "12px";
+              b.style.fontWeight = "850";
+              b.style.color = "rgba(255,255,255,.82)";
+              b.style.lineHeight = "1.4";
+              b.textContent = String(message || "");
+
+              const row = document.createElement("div");
+              row.style.display = "flex";
+              row.style.gap = "10px";
+              row.style.justifyContent = "flex-end";
+              row.style.alignItems = "center";
+
+              const cancel = document.createElement("button");
+              cancel.type = "button";
+              cancel.textContent = isArabic() ? "إلغاء" : "Cancel";
+              cancel.style.border = "1px solid rgba(255,255,255,.12)";
+              cancel.style.background = "rgba(255,255,255,.06)";
+              cancel.style.color = "#fff";
+              cancel.style.padding = "10px 12px";
+              cancel.style.borderRadius = "12px";
+              cancel.style.fontSize = "12px";
+              cancel.style.fontWeight = "950";
+              cancel.style.cursor = "pointer";
+              cancel.onclick = () => done(false);
+
+              const ok = document.createElement("button");
+              ok.type = "button";
+              ok.textContent = isArabic() ? "حذف" : "Delete";
+              ok.style.border = "1px solid rgba(239,68,68,.35)";
+              ok.style.background = "rgba(239,68,68,.18)";
+              ok.style.color = "#fecaca";
+              ok.style.padding = "10px 12px";
+              ok.style.borderRadius = "12px";
+              ok.style.fontSize = "12px";
+              ok.style.fontWeight = "950";
+              ok.style.cursor = "pointer";
+              ok.onclick = () => done(true);
+
+              row.appendChild(cancel);
+              row.appendChild(ok);
+
+              if (title) panel.appendChild(h);
+              if (message) panel.appendChild(b);
+              panel.appendChild(row);
+              overlay.appendChild(panel);
+
+              document.body.appendChild(overlay);
+
+              try {
+                ok.focus();
+              } catch {}
+            } catch {
+              done(false);
+            }
+
+            try {
+              const onKey = (ev) => {
+                try {
+                  const k = String(ev && ev.key) || "";
+                  if (k === "Escape") done(false);
+                } catch {}
+              };
+              window.addEventListener("keydown", onKey, { passive: true, once: true });
+            } catch {}
+          });
+        };
+
         const onDeleteItem = async (it) => {
           const id = String((it && it.id) || "").trim();
           if (!id) return;
           if (state.deletingId) return;
           try {
             const name = String((it && (it.originalFilename || it.publicId)) || "").trim();
+            const title = isArabic() ? "تأكيد الحذف" : "Confirm delete";
             const msg = isArabic()
-              ? "تأكيد حذف الملف" + (name ? ": " + name : "") + "؟ سيتم مسحه نهائيًا."
-              : "Delete this file" + (name ? ": " + name : "") + "? This will remove it permanently.";
-            if (!window.confirm(msg)) return;
-          } catch {}
+              ? "هل أنت متأكد من حذف الملف" + (name ? ": " + name : "") + "؟ سيتم مسحه نهائيًا."
+              : "Are you sure you want to delete this file" + (name ? ": " + name : "") + "? This will remove it permanently.";
+            const ok = await confirmMini(title, msg);
+            if (!ok) return;
+          } catch {
+            return;
+          }
 
           state.deletingId = id;
           state.error = "";
