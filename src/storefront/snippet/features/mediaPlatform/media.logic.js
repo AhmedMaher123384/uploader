@@ -399,11 +399,118 @@ const deleteAssetById = async (id) => {
 const uploadToCloudinary = async (file, sign, onProgress) => {
   if (isSandbox) throw new Error("Sandbox mode: upload disabled");
   const c = sign && sign.cloudinary ? sign.cloudinary : null;
-  if (!c || !c.uploadUrl || !c.apiKey || !c.signature || !c.timestamp || !c.folder || !c.publicId) throw new Error("Invalid signature");
+  if (!c || !c.uploadUrl || !c.folder || !c.publicId) throw new Error("Invalid signature");
 
   const fileSize = Number((file && file.size) || 0) || 0;
+  const provider = String(c.provider || "").trim().toLowerCase();
+  const method = String(c.uploadMethod || (provider === "r2" ? "PUT" : "POST")).trim().toUpperCase();
+  const url = String(c.uploadUrl);
+  if (!url) throw new Error("Invalid upload url");
+
+  if (method === "PUT") {
+    return await new Promise((resolve, reject) => {
+      let xhr = null;
+      try {
+        xhr = new XMLHttpRequest();
+      } catch {
+        xhr = null;
+      }
+      if (!xhr) {
+        reject(new Error("Upload not supported"));
+        return;
+      }
+
+      try {
+        xhr.open("PUT", url, true);
+        const ct = String(c.contentType || (file && file.type) || "").trim();
+        if (ct) xhr.setRequestHeader("Content-Type", ct);
+      } catch {
+        reject(new Error("Upload failed"));
+        return;
+      }
+
+      let lastAt = 0;
+      const emit = (pct, loaded, total) => {
+        try {
+          if (typeof onProgress !== "function") return;
+          const now = Date.now();
+          if (pct === 100 || now - lastAt > 80) {
+            lastAt = now;
+            onProgress(pct, loaded, total);
+          }
+        } catch {}
+      };
+
+      try {
+        if (xhr.upload) {
+          xhr.upload.onprogress = (ev) => {
+            try {
+              const loaded = Number(ev && ev.loaded) || 0;
+              const evTotal = Number(ev && ev.total) || 0;
+              const denom = evTotal > 0 ? evTotal : fileSize > 0 ? fileSize : 0;
+              if (denom > 0) {
+                const pct = Math.max(0, Math.min(100, Math.round((loaded / denom) * 100)));
+                emit(pct, loaded, denom);
+                return;
+              }
+              emit(0, loaded, evTotal);
+            } catch {}
+          };
+          try {
+            xhr.upload.onloadstart = () => {
+              emit(0, 0, fileSize);
+            };
+          } catch {}
+        }
+      } catch {}
+
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.onabort = () => reject(new Error("Upload aborted"));
+      xhr.onload = () => {
+        try {
+          emit(100, fileSize, fileSize);
+        } catch {}
+
+        const status = Number(xhr.status || 0) || 0;
+        if (status < 200 || status >= 300) {
+          reject(new Error("Upload failed"));
+          return;
+        }
+
+        const key = String(c.key || (String(c.folder || "") + "/" + String(c.publicId || ""))).trim();
+        const ext = getExt(file && file.name);
+        resolve({
+          __provider: "r2",
+          r2_key: key,
+          public_id: key,
+          asset_id: null,
+          resource_type: String(c.resourceType || guessResourceType(file) || "raw"),
+          secure_url: null,
+          url: null,
+          bytes: fileSize || null,
+          format: ext || null,
+          width: null,
+          height: null,
+          duration: null,
+          original_filename: String((file && file.name) || "") || null,
+          folder: String(c.folder || "") || null,
+          tags: [],
+          context: null,
+          created_at: new Date().toISOString()
+        });
+      };
+
+      try {
+        xhr.send(file);
+      } catch {
+        reject(new Error("Upload failed"));
+      }
+    });
+  }
+
   const fd = new FormData();
   fd.append("file", file);
+  if (!c.apiKey || !c.signature || !c.timestamp) throw new Error("Invalid signature");
   fd.append("api_key", String(c.apiKey));
   fd.append("timestamp", String(c.timestamp));
   fd.append("signature", String(c.signature));
@@ -411,9 +518,6 @@ const uploadToCloudinary = async (file, sign, onProgress) => {
   fd.append("public_id", String(c.publicId));
   if (c.tags) fd.append("tags", String(c.tags));
   if (c.context) fd.append("context", String(c.context));
-
-  const url = String(c.uploadUrl);
-  if (!url) throw new Error("Invalid upload url");
 
   return await new Promise((resolve, reject) => {
     let xhr = null;

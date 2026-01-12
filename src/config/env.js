@@ -17,6 +17,12 @@ function loadConfig() {
       apiSecret: process.env.CLOUDINARY_API_SECRET,
       folderPrefix: process.env.CLOUDINARY_FOLDER_PREFIX || "bundle_app"
     },
+    r2: {
+      endpoint: process.env.R2_ENDPOINT,
+      bucket: process.env.R2_BUCKET,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+    },
     salla: {
       apiBaseUrl: process.env.SALLA_API_BASE_URL || "https://api.salla.dev",
       oauthAuthorizeUrl: process.env.SALLA_OAUTH_AUTHORIZE_URL || "https://accounts.salla.sa/oauth2/authorize",

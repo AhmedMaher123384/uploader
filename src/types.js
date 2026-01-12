@@ -10,6 +10,12 @@
  *   folderPrefix: string
  * }} cloudinary
  * @property {{
+ *   endpoint: string|undefined,
+ *   bucket: string|undefined,
+ *   accessKeyId: string|undefined,
+ *   secretAccessKey: string|undefined
+ * }} r2
+ * @property {{
  *   apiBaseUrl: string,
  *   oauthAuthorizeUrl: string,
  *   oauthTokenUrl: string,
