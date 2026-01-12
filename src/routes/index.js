@@ -139,6 +139,77 @@ function createApiRouter(config) {
     if (expected && merchantId !== expected) throw new ApiError(401, "Invalid proxy signature", { code: "PROXY_SIGNATURE_INVALID" });
   }
 
+  const MEDIA_SESSION_COOKIE = "__bundleapp_msid";
+
+  function parseCookies(header) {
+    const h = String(header || "");
+    if (!h) return {};
+    const out = {};
+    const parts = h.split(";");
+    for (let i = 0; i < parts.length; i += 1) {
+      const p = String(parts[i] || "");
+      const eq = p.indexOf("=");
+      if (eq <= 0) continue;
+      const k = p.slice(0, eq).trim();
+      if (!k) continue;
+      const v = p.slice(eq + 1).trim();
+      out[k] = v;
+    }
+    return out;
+  }
+
+  function issueMediaSessionToken({ storeId, userAgent }) {
+    const secret = config?.salla?.clientSecret || config?.salla?.webhookSecret;
+    if (!secret) throw new ApiError(500, "Proxy secret is not configured", { code: "PROXY_SECRET_MISSING" });
+    const ua = String(userAgent || "");
+    const uaHash = ua ? sha256Hex(ua).slice(0, 16) : "";
+    const payload = JSON.stringify({
+      storeId: String(storeId || "").trim(),
+      uaHash,
+      iat: Date.now(),
+      nonce: sha256Hex(`${Date.now()}:${Math.random()}`).slice(0, 12)
+    });
+    const payloadB64 = base64UrlEncodeUtf8(payload);
+    const sig = hmacSha256(secret, payloadB64, "hex");
+    return `${payloadB64}.${sig}`;
+  }
+
+  function ensureValidMediaSessionToken(token, expectedStoreId, userAgent) {
+    const secret = config?.salla?.clientSecret || config?.salla?.webhookSecret;
+    if (!secret) throw new ApiError(500, "Proxy secret is not configured", { code: "PROXY_SECRET_MISSING" });
+
+    const raw = String(token || "").trim();
+    const [payloadB64, sig] = raw.split(".");
+    if (!payloadB64 || !sig) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+
+    const computed = hmacSha256(secret, String(payloadB64), "hex");
+    if (!timingSafeEqualString(String(sig), String(computed))) {
+      throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+    }
+
+    let payload = null;
+    try {
+      payload = JSON.parse(base64UrlDecodeUtf8(payloadB64));
+    } catch {
+      throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+    }
+
+    const sid = String(payload?.storeId || "").trim();
+    const iat = Number(payload?.iat || 0);
+    if (!sid || !Number.isFinite(iat) || iat <= 0) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+
+    const expected = String(expectedStoreId || "").trim();
+    if (!expected || sid !== expected) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+
+    const maxAgeMs = 12 * 60 * 60 * 1000;
+    if (iat < Date.now() - maxAgeMs) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+
+    const ua = String(userAgent || "");
+    const expectedUaHash = ua ? sha256Hex(ua).slice(0, 16) : "";
+    const uaHash = String(payload?.uaHash || "");
+    if (expectedUaHash && uaHash && uaHash !== expectedUaHash) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
+  }
+
   function ensureValidProxyAuth(query, expectedMerchantId) {
     const token = String(query?.token || "").trim();
     if (token) return ensureValidStorefrontToken(token, expectedMerchantId);
@@ -585,15 +656,40 @@ function createApiRouter(config) {
       const h = originHost || refererHost;
 
       const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
-      if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-      const ok = allowedHosts.some((a) => hostEquals(h, a));
-      if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+
+      const cookies = parseCookies(req.headers.cookie);
+      const sessionToken = String(cookies[MEDIA_SESSION_COOKIE] || "").trim();
+      let sessionOk = false;
+      if (sessionToken) {
+        try {
+          ensureValidMediaSessionToken(sessionToken, storeId, req.headers["user-agent"]);
+          sessionOk = true;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      if (!allowedHostOk && !sessionOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
       const token = String(req.query?.token || "").trim();
       if (storeId === "sandbox" && token === "sandbox") {
         void token;
       } else if (token) {
         ensureValidStorefrontToken(token, storeId);
+      }
+
+      let setSessionCookie = null;
+      if (allowedHostOk && !sessionOk) {
+        try {
+          const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
+          const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
+          const secure = Boolean(req.secure) || xf.indexOf("https") >= 0;
+          const base = `${MEDIA_SESSION_COOKIE}=${t}; Path=/api/m; Max-Age=${12 * 60 * 60}; HttpOnly; SameSite=Lax`;
+          setSessionCookie = secure ? `${base}; Secure` : base;
+        } catch (e) {
+          void e;
+        }
       }
 
       const { folderPrefix } = requireCloudinaryConfig();
@@ -642,8 +738,9 @@ function createApiRouter(config) {
         const v = upstream.headers ? upstream.headers[k] : null;
         if (v != null) res.setHeader(k, v);
       }
+      if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
       res.setHeader("Cache-Control", "private, no-store, max-age=0");
-      res.setHeader("Vary", "Origin, Referer");
+      res.setHeader("Vary", "Origin, Referer, Cookie");
       res.status(status);
       upstream.data.pipe(res);
       return;
