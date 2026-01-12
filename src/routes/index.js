@@ -14,6 +14,7 @@ const { URL } = require("url");
 const crypto = require("crypto");
 const axios = require("axios");
 const sharp = require("sharp");
+const { spawn } = require("child_process");
 const { readSnippetCss } = require("../storefront/snippet/styles");
 const mountMediaPlatform = require("../storefront/snippet/features/mediaPlatform/media.mount");
 const MediaAsset = require("../models/MediaAsset");
@@ -1880,6 +1881,11 @@ function createApiRouter(config) {
     format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
     quality: Joi.number().integer().min(1).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
+    preset: Joi.string().trim().valid("", "original", "square", "story", "banner", "thumb").default(""),
+    width: Joi.number().integer().min(1).max(6000),
+    height: Joi.number().integer().min(1).max(6000),
+    mode: Joi.string().trim().valid("fit", "cover").default("fit"),
+    position: Joi.string().trim().valid("center", "attention", "entropy").default("center"),
     name: Joi.string().trim().min(1).max(180).allow("")
   })
     .or("signature", "hmac", "token")
@@ -1956,12 +1962,48 @@ function createApiRouter(config) {
               : 82;
 
       let img = base.rotate();
-      const targetPixels = planKey === "business" ? 18_000_000 : 12_000_000;
-      if (srcPixels && srcPixels > targetPixels && srcW > 0 && srcH > 0) {
-        const scale = Math.sqrt(targetPixels / srcPixels);
-        const w = Math.max(1, Math.floor(srcW * scale));
-        const hh = Math.max(1, Math.floor(srcH * scale));
-        img = img.resize({ width: w, height: hh, fit: "inside", withoutEnlargement: true });
+      const presetKey = String(qValue.preset || "").trim().toLowerCase();
+      const preset =
+        presetKey === "square"
+          ? { width: 1080, height: 1080 }
+          : presetKey === "story"
+            ? { width: 1080, height: 1920 }
+            : presetKey === "banner"
+              ? { width: 1920, height: 1080 }
+              : presetKey === "thumb"
+                ? { width: 512, height: 512 }
+                : null;
+
+      const wReqRaw = qValue.width != null ? Number(qValue.width) : null;
+      const hReqRaw = qValue.height != null ? Number(qValue.height) : null;
+      const wReq = wReqRaw && Number.isFinite(wReqRaw) ? Math.max(1, Math.min(6000, Math.round(wReqRaw))) : null;
+      const hReq = hReqRaw && Number.isFinite(hReqRaw) ? Math.max(1, Math.min(6000, Math.round(hReqRaw))) : null;
+
+      const targetW = preset ? preset.width : wReq;
+      const targetH = preset ? preset.height : hReq;
+
+      const resizeMode = String(qValue.mode || "fit").trim().toLowerCase();
+      const position = String(qValue.position || "center").trim().toLowerCase();
+      const wantResize = Boolean(targetW || targetH) && presetKey !== "original";
+
+      if (wantResize) {
+        const fit = resizeMode === "cover" && targetW && targetH ? "cover" : "inside";
+        const pos = position === "attention" ? "attention" : position === "entropy" ? "entropy" : "center";
+        img = img.resize({
+          width: targetW || undefined,
+          height: targetH || undefined,
+          fit,
+          position: fit === "cover" ? pos : undefined,
+          withoutEnlargement: true
+        });
+      } else {
+        const targetPixels = planKey === "business" ? 18_000_000 : 12_000_000;
+        if (srcPixels && srcPixels > targetPixels && srcW > 0 && srcH > 0) {
+          const scale = Math.sqrt(targetPixels / srcPixels);
+          const w = Math.max(1, Math.floor(srcW * scale));
+          const hh = Math.max(1, Math.floor(srcH * scale));
+          img = img.resize({ width: w, height: hh, fit: "inside", withoutEnlargement: true });
+        }
       }
 
       let out = null;
@@ -2018,6 +2060,236 @@ function createApiRouter(config) {
       res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
       res.setHeader("X-Converted-Format", ext);
       return res.send(out);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  const proxyToolsConvertVideoQuerySchema = Joi.object({
+    merchantId: Joi.string().trim().min(1).max(80).required(),
+    token: Joi.string().trim().min(10),
+    signature: Joi.string().trim().min(8),
+    hmac: Joi.string().trim().min(8),
+    format: Joi.string().trim().valid("mp4", "webm").default("mp4"),
+    quality: Joi.number().integer().min(1).max(100),
+    speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
+    name: Joi.string().trim().min(1).max(180).allow("")
+  })
+    .or("signature", "hmac", "token")
+    .unknown(true);
+
+  router.post("/proxy/tools/convert-video", express.raw({ type: () => true, limit: "60mb" }), async (req, res, next) => {
+    try {
+      const { error: qErr, value: qValue } = proxyToolsConvertVideoQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: false });
+      if (qErr) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: qErr.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      ensureValidProxyAuth(qValue, qValue.merchantId);
+
+      const merchant = await findMerchantByMerchantId(String(qValue.merchantId));
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      const planKey = getPlanKey(merchant);
+      if (planKey !== "pro" && planKey !== "business") {
+        throw new ApiError(403, "Plan upgrade required", { code: "PLAN_REQUIRED" });
+      }
+
+      const storeId = String(qValue.merchantId);
+      const storeInfo = await getPublicStoreInfo(storeId);
+      const domain =
+        (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") || (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
+      const storeUrlHost =
+        (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") || (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
+      const originHost = pickHostFromUrlLike(req.headers.origin);
+      const refererHost = pickHostFromUrlLike(req.headers.referer);
+      const h = originHost || refererHost;
+      const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
+      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+      if (!allowedHostOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
+      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+      if (!body.length) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+
+      const limits = getPlanLimits(planKey);
+      if (body.length > limits.maxFileBytes) {
+        throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
+      }
+
+      const speed = String(qValue.speed || "fast").trim().toLowerCase();
+      const preset = speed === "small" ? "slow" : speed === "balanced" ? "medium" : "veryfast";
+      const qRaw = qValue.quality != null ? Number(qValue.quality) : null;
+      const quality = qRaw && Number.isFinite(qRaw) ? Math.max(1, Math.min(100, Math.round(qRaw))) : speed === "small" ? 70 : 78;
+
+      const baseCrf = 33 - Math.round(((quality - 1) * 15) / 99);
+      const crf = Math.max(18, Math.min(33, baseCrf));
+
+      const targetFormat = String(qValue.format || "mp4").trim().toLowerCase();
+      const headerName = String(req.headers["x-file-name"] || "").trim();
+      const baseNameRaw = String(qValue.name || headerName || "converted").trim();
+      let baseName = "";
+      for (let i = 0; i < baseNameRaw.length; i += 1) {
+        const ch = baseNameRaw[i];
+        const code = ch.charCodeAt(0);
+        if (code < 32) continue;
+        if (ch === '"') continue;
+        if (ch === "/" || ch === "\\") {
+          baseName += "_";
+          continue;
+        }
+        baseName += ch;
+      }
+      baseName = baseName.replace(/\s+/g, " ").trim().slice(0, 120);
+      let baseNoExt = baseName;
+      const dot = baseNoExt.lastIndexOf(".");
+      if (dot > 0) baseNoExt = baseNoExt.slice(0, dot);
+
+      let ext = "mp4";
+      let contentType = "video/mp4";
+      let args = [];
+      if (targetFormat === "webm") {
+        ext = "webm";
+        contentType = "video/webm";
+        const cpuUsed = speed === "small" ? "2" : speed === "balanced" ? "4" : "6";
+        const vp9Crf = Math.max(18, Math.min(45, Math.round(crf + 6)));
+        args = [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          "pipe:0",
+          "-map_metadata",
+          "-1",
+          "-c:v",
+          "libvpx-vp9",
+          "-b:v",
+          "0",
+          "-crf",
+          String(vp9Crf),
+          "-row-mt",
+          "1",
+          "-cpu-used",
+          String(cpuUsed),
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "libopus",
+          "-b:a",
+          speed === "small" ? "96k" : "128k",
+          "-f",
+          "webm",
+          "pipe:1"
+        ];
+      } else {
+        args = [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          "pipe:0",
+          "-map_metadata",
+          "-1",
+          "-movflags",
+          "frag_keyframe+empty_moov",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:v",
+          "libx264",
+          "-preset",
+          String(preset),
+          "-crf",
+          String(crf),
+          "-c:a",
+          "aac",
+          "-b:a",
+          speed === "small" ? "96k" : "128k",
+          "-ac",
+          "2",
+          "-ar",
+          "48000",
+          "-f",
+          "mp4",
+          "pipe:1"
+        ];
+      }
+
+      const fileName = (baseNoExt || "converted") + "." + ext;
+
+      let stderr = "";
+      const proc = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+      proc.on("spawn", () => {
+        try {
+          res.status(200);
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+          res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+          res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+          res.setHeader("X-Converted-Format", ext);
+          proc.stdout.pipe(res);
+        } catch (e) {
+          void e;
+        }
+      });
+      proc.on("error", (e) => {
+        if (String(e && e.code) === "ENOENT") return next(new ApiError(501, "Video convert is not supported on this server", { code: "NOT_SUPPORTED" }));
+        return next(new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY", details: { message: String(e?.message || e) } }));
+      });
+      proc.stderr.on("data", (d) => {
+        try {
+          if (stderr.length > 4000) return;
+          stderr += String(d || "");
+        } catch (e) {
+          void e;
+        }
+      });
+      res.on("close", () => {
+        try {
+          if (!proc.killed) proc.kill("SIGKILL");
+        } catch (e) {
+          void e;
+        }
+      });
+      proc.on("close", (code) => {
+        const c = Number(code || 0) || 0;
+        if (c === 0) return;
+        try {
+          if (!res.headersSent) return next(new ApiError(400, "Convert failed", { code: "CONVERT_FAILED", details: { message: stderr.trim().slice(0, 1200) } }));
+          try {
+            res.destroy();
+          } catch (e) {
+            void e;
+          }
+        } catch (e) {
+          void e;
+          try {
+            res.destroy();
+          } catch (e2) {
+            void e2;
+          }
+        }
+      });
+
+      try {
+        proc.stdin.end(body);
+      } catch (e) {
+        try {
+          if (!res.headersSent) return next(new ApiError(400, "Convert failed", { code: "CONVERT_FAILED", details: { message: String(e?.message || e) } }));
+        } catch (e2) {
+          void e2;
+        }
+        try {
+          res.destroy();
+        } catch (e2) {
+          void e2;
+        }
+      }
+      return;
     } catch (err) {
       return next(err);
     }

@@ -571,7 +571,7 @@ const mount = () => {
         const convertInput = document.createElement("input");
         convertInput.type = "file";
         convertInput.multiple = false;
-        convertInput.accept = "image/*";
+        convertInput.accept = "image/*,video/mp4,video/webm";
         convertInput.style.display = "none";
         document.body.appendChild(convertInput);
 
@@ -622,6 +622,11 @@ const mount = () => {
           convertFormat: "auto",
           convertSpeed: "fast",
           convertQuality: "",
+          convertPreset: "",
+          convertWidth: "",
+          convertHeight: "",
+          convertMode: "fit",
+          convertPosition: "center",
           converting: false,
           convertProgress: 0,
           convertError: "",
@@ -839,16 +844,28 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
 
-          const format = String((opts && opts.format) || "auto").trim().toLowerCase();
+          const rt = guessResourceType(f);
+          const isVideo = rt === "video";
+          const format = String((opts && opts.format) || (isVideo ? "mp4" : "auto")).trim().toLowerCase();
           const speed = String((opts && opts.speed) || "fast").trim().toLowerCase();
           const quality = (opts && opts.quality != null) ? Number(opts.quality) : null;
           const name = String((opts && opts.name) || (f && f.name) || "").trim();
+          const preset = String((opts && opts.preset) || "").trim().toLowerCase();
+          const width = (opts && opts.width != null) ? String(opts.width || "").trim() : "";
+          const height = (opts && opts.height != null) ? String(opts.height || "").trim() : "";
+          const mode = String((opts && opts.mode) || "").trim().toLowerCase();
+          const position = String((opts && opts.position) || "").trim().toLowerCase();
 
-          const url = buildUrl("/api/proxy/tools/convert", {
+          const url = buildUrl(isVideo ? "/api/proxy/tools/convert-video" : "/api/proxy/tools/convert", {
             format,
             speed,
             quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
-            name
+            name,
+            preset: isVideo ? "" : preset,
+            width: isVideo ? "" : width,
+            height: isVideo ? "" : height,
+            mode: isVideo ? "" : mode,
+            position: isVideo ? "" : position
           });
           if (!url) throw new Error("Missing backend origin");
 
@@ -961,7 +978,17 @@ const mount = () => {
             const q = state.convertQuality ? Number(state.convertQuality) : null;
             const out = await convertOnBackend(
               f,
-              { format: state.convertFormat, speed: state.convertSpeed, quality: q, name: f.name },
+              {
+                format: state.convertFormat,
+                speed: state.convertSpeed,
+                quality: q,
+                name: f.name,
+                preset: state.convertPreset,
+                width: state.convertWidth,
+                height: state.convertHeight,
+                mode: state.convertMode,
+                position: state.convertPosition
+              },
               (p) => {
                 state.convertProgress = Number(p || 0) || 0;
                 render();
@@ -989,6 +1016,19 @@ const mount = () => {
           const file = f || null;
           if (!file) return;
           state.convertFile = file;
+          try {
+            const rt = guessResourceType(file);
+            if (rt === "video") {
+              if (["mp4", "webm"].indexOf(String(state.convertFormat || "").toLowerCase()) < 0) state.convertFormat = "mp4";
+            } else {
+              if (["mp4", "webm"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
+            }
+          } catch {}
+          state.convertPreset = "";
+          state.convertWidth = "";
+          state.convertHeight = "";
+          state.convertMode = "fit";
+          state.convertPosition = "center";
           state.convertError = "";
           state.convertProgress = 0;
           state.convertResultBytes = 0;
@@ -1009,7 +1049,7 @@ const mount = () => {
             sheet.content.innerHTML = "";
 
             const labels = isArabic()
-              ? { upload: "مركز الرفع", convert: "تحويل الصور", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              ? { upload: "مركز الرفع", convert: "تحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
               : { upload: "Upload Center", convert: "Convert", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
 
             const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
@@ -1114,7 +1154,7 @@ const mount = () => {
               title.style.color = "#fff";
               title.style.fontSize = "14px";
               title.style.fontWeight = "950";
-              title.textContent = isArabic() ? "تحويل الصور" : "Image Converter";
+              title.textContent = isArabic() ? "تحويل الصور والفيديو" : "Image & Video Converter";
 
               const hint = document.createElement("div");
               hint.style.color = "rgba(255,255,255,.70)";
@@ -1123,12 +1163,14 @@ const mount = () => {
               hint.style.lineHeight = "1.6";
               hint.textContent = planBlocked
                 ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
-                : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا" : "Upload an image, choose format/quality/speed, then download instantly");
+                : (isArabic()
+                    ? "ارفع ملف (صورة أو فيديو)، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا"
+                    : "Upload a file (image or video), choose format/quality/speed, then download instantly");
 
               titleWrap.appendChild(title);
               titleWrap.appendChild(hint);
 
-              const pickBtn = btnGhost(isArabic() ? "اختيار صورة" : "Pick image");
+              const pickBtn = btnGhost(isArabic() ? "اختيار ملف" : "Pick file");
               pickBtn.disabled = Boolean(state.converting) || planBlocked;
               pickBtn.onclick = () => {
                 try {
@@ -1180,10 +1222,16 @@ const mount = () => {
                 return w;
               };
 
+              let convertRt = "image";
+              try {
+                convertRt = state.convertFile ? guessResourceType(state.convertFile) : "image";
+              } catch {}
+              const convertIsVideo = convertRt === "video";
+
               const s1 = mkStep(
                 1,
-                isArabic() ? "اختيار الصورة" : "Select image",
-                state.convertFile ? "" : (isArabic() ? "اختَر صورة واحدة لبدء التحويل" : "Pick a single image to start")
+                isArabic() ? "اختيار الملف" : "Select file",
+                state.convertFile ? "" : (isArabic() ? "اختَر ملفًا واحدًا لبدء التحويل" : "Pick a single file to start")
               );
 
               const fileMeta = document.createElement("div");
@@ -1231,7 +1279,9 @@ const mount = () => {
               const s2 = mkStep(
                 2,
                 isArabic() ? "اختيار الصيغة" : "Choose output format",
-                isArabic() ? "قائمة مرتبة للاستخدامات الشائعة" : "A clean list for common use-cases"
+                convertIsVideo
+                  ? (isArabic() ? "MP4 أو WebM حسب احتياجك" : "Pick MP4 or WebM depending on your needs")
+                  : (isArabic() ? "قائمة مرتبة للاستخدامات الشائعة" : "A clean list for common use-cases")
               );
 
               const formatList = document.createElement("div");
@@ -1273,21 +1323,222 @@ const mount = () => {
                 return row;
               };
 
-              formatList.appendChild(
-                mkFmtRow(
-                  "auto",
-                  isArabic() ? "تلقائي" : "Auto",
-                  isArabic() ? "يختار أفضل صيغة حسب حجم الصورة" : "Picks best format based on image size"
-                )
-              );
-              formatList.appendChild(mkFmtRow("avif", "AVIF", isArabic() ? "أفضل ضغط لحجم أصغر" : "Best compression for smaller size"));
-              formatList.appendChild(mkFmtRow("webp", "WebP", isArabic() ? "توافق ممتاز مع المتصفحات" : "Great browser compatibility"));
-              formatList.appendChild(mkFmtRow("jpeg", "JPEG", isArabic() ? "مناسب للصور التقليدية" : "Classic photos format"));
-              formatList.appendChild(mkFmtRow("png", "PNG", isArabic() ? "جودة أعلى (قد يكون أثقل)" : "Higher fidelity (can be larger)"));
+              if (convertIsVideo) {
+                formatList.appendChild(mkFmtRow("mp4", "MP4", isArabic() ? "أفضل توافق للتحميل والمشاركة" : "Best compatibility for download & sharing"));
+                formatList.appendChild(mkFmtRow("webm", "WebM", isArabic() ? "عادةً حجم أصغر مع جودة جيدة" : "Often smaller size with good quality"));
+              } else {
+                formatList.appendChild(
+                  mkFmtRow(
+                    "auto",
+                    isArabic() ? "تلقائي" : "Auto",
+                    isArabic() ? "يختار أفضل صيغة حسب حجم الصورة" : "Picks best format based on image size"
+                  )
+                );
+                formatList.appendChild(mkFmtRow("avif", "AVIF", isArabic() ? "أفضل ضغط لحجم أصغر" : "Best compression for smaller size"));
+                formatList.appendChild(mkFmtRow("webp", "WebP", isArabic() ? "توافق ممتاز مع المتصفحات" : "Great browser compatibility"));
+                formatList.appendChild(mkFmtRow("jpeg", "JPEG", isArabic() ? "مناسب للصور التقليدية" : "Classic photos format"));
+                formatList.appendChild(mkFmtRow("png", "PNG", isArabic() ? "جودة أعلى (قد يكون أثقل)" : "Higher fidelity (can be larger)"));
+              }
 
               s2.appendChild(formatList);
 
-              const s3 = mkStep(3, isArabic() ? "تحديد الجودة" : "Adjust quality", isArabic() ? "توازن بين الحجم والجودة" : "Balance quality vs size");
+              const s3 = mkStep(
+                3,
+                isArabic() ? "المقاس والقص" : "Resize & crop",
+                convertIsVideo
+                  ? (isArabic() ? "الخيارات دي للصور فقط" : "These options are for images only")
+                  : (isArabic() ? "اختر مقاس جاهز أو اكتب مقاس مخصص" : "Pick a preset size or set a custom size")
+              );
+
+              if (!convertIsVideo) {
+                const presetList = document.createElement("div");
+                presetList.style.display = "flex";
+                presetList.style.flexDirection = "column";
+                presetList.style.gap = "8px";
+
+                const mkPresetRow = (key, label, desc, w, h) => {
+                  const row = document.createElement("div");
+                  row.style.display = "flex";
+                  row.style.alignItems = "center";
+                  row.style.justifyContent = "space-between";
+                  row.style.gap = "10px";
+                  row.style.flexWrap = "wrap";
+
+                  const left = document.createElement("div");
+                  left.style.display = "flex";
+                  left.style.alignItems = "center";
+                  left.style.gap = "10px";
+                  left.style.flexWrap = "wrap";
+
+                  const b = pill(label, String(state.convertPreset || "") === String(key));
+                  b.disabled = Boolean(state.converting) || planBlocked;
+                  b.onclick = () => {
+                    state.convertPreset = String(key || "");
+                    state.convertError = "";
+                    if (String(key) === "original") {
+                      state.convertWidth = "";
+                      state.convertHeight = "";
+                      state.convertMode = "fit";
+                      state.convertPosition = "center";
+                    } else {
+                      state.convertWidth = w ? String(w) : "";
+                      state.convertHeight = h ? String(h) : "";
+                      if (String(state.convertMode || "") !== "cover") state.convertMode = "cover";
+                      if (!state.convertPosition) state.convertPosition = "center";
+                    }
+                    render();
+                  };
+
+                  const d = document.createElement("div");
+                  d.style.color = "rgba(255,255,255,.66)";
+                  d.style.fontSize = "12px";
+                  d.style.fontWeight = "900";
+                  d.style.lineHeight = "1.6";
+                  d.textContent = String(desc || "");
+
+                  left.appendChild(b);
+                  left.appendChild(d);
+                  row.appendChild(left);
+                  return row;
+                };
+
+                presetList.appendChild(
+                  mkPresetRow("original", isArabic() ? "الأصل" : "Original", isArabic() ? "بدون تغيير مقاس" : "No resizing", 0, 0)
+                );
+                presetList.appendChild(
+                  mkPresetRow(
+                    "square",
+                    isArabic() ? "مربع" : "Square",
+                    isArabic() ? "1080 × 1080 (مناسب للمنتجات)" : "1080 × 1080 (great for products)",
+                    1080,
+                    1080
+                  )
+                );
+                presetList.appendChild(
+                  mkPresetRow(
+                    "story",
+                    isArabic() ? "ستوري" : "Story",
+                    isArabic() ? "1080 × 1920 (ستوري/رييلز)" : "1080 × 1920 (stories/reels)",
+                    1080,
+                    1920
+                  )
+                );
+                presetList.appendChild(
+                  mkPresetRow(
+                    "banner",
+                    isArabic() ? "بانر" : "Banner",
+                    isArabic() ? "1920 × 1080 (هيرو/بنرات)" : "1920 × 1080 (hero banners)",
+                    1920,
+                    1080
+                  )
+                );
+                presetList.appendChild(
+                  mkPresetRow(
+                    "thumb",
+                    isArabic() ? "مصغرة" : "Thumb",
+                    isArabic() ? "512 × 512 (خفيف وسريع)" : "512 × 512 (fast & lightweight)",
+                    512,
+                    512
+                  )
+                );
+
+                s3.appendChild(presetList);
+
+                const custom = document.createElement("div");
+                custom.style.display = "flex";
+                custom.style.flexWrap = "wrap";
+                custom.style.alignItems = "center";
+                custom.style.gap = "10px";
+
+                const mkNum = (ph, val, onVal) => {
+                  const i = document.createElement("input");
+                  i.type = "number";
+                  i.min = "1";
+                  i.max = "6000";
+                  i.inputMode = "numeric";
+                  i.placeholder = String(ph || "");
+                  i.value = String(val || "");
+                  i.disabled = Boolean(state.converting) || planBlocked;
+                  i.style.width = "min(140px,48%)";
+                  i.style.padding = "10px 12px";
+                  i.style.borderRadius = "12px";
+                  i.style.border = "1px solid rgba(255,255,255,.14)";
+                  i.style.background = "rgba(255,255,255,.06)";
+                  i.style.color = "#fff";
+                  i.style.fontSize = "12px";
+                  i.style.fontWeight = "900";
+                  i.oninput = () => {
+                    try {
+                      state.convertPreset = "";
+                      onVal(String(i.value || ""));
+                      render();
+                    } catch {}
+                  };
+                  return i;
+                };
+
+                const wIn = mkNum(isArabic() ? "العرض (px)" : "Width (px)", state.convertWidth, (v) => (state.convertWidth = v));
+                const hIn = mkNum(isArabic() ? "الارتفاع (px)" : "Height (px)", state.convertHeight, (v) => (state.convertHeight = v));
+                custom.appendChild(wIn);
+                custom.appendChild(hIn);
+
+                s3.appendChild(custom);
+
+                const modeRow = document.createElement("div");
+                modeRow.style.display = "flex";
+                modeRow.style.gap = "8px";
+                modeRow.style.flexWrap = "wrap";
+                modeRow.style.alignItems = "center";
+
+                const fitBtn = pill(isArabic() ? "احتواء" : "Fit", String(state.convertMode || "") !== "cover");
+                const cropBtn = pill(isArabic() ? "قص" : "Crop", String(state.convertMode || "") === "cover");
+                fitBtn.disabled = Boolean(state.converting) || planBlocked;
+                cropBtn.disabled = Boolean(state.converting) || planBlocked;
+                fitBtn.onclick = () => {
+                  state.convertMode = "fit";
+                  render();
+                };
+                cropBtn.onclick = () => {
+                  state.convertMode = "cover";
+                  render();
+                };
+                modeRow.appendChild(fitBtn);
+                modeRow.appendChild(cropBtn);
+                s3.appendChild(modeRow);
+
+                if (String(state.convertMode || "") === "cover") {
+                  const posRow = document.createElement("div");
+                  posRow.style.display = "flex";
+                  posRow.style.gap = "8px";
+                  posRow.style.flexWrap = "wrap";
+                  posRow.style.alignItems = "center";
+
+                  const posCenter = pill(isArabic() ? "منتصف" : "Center", String(state.convertPosition || "center") === "center");
+                  const posAtt = pill(isArabic() ? "تركيز" : "Attention", String(state.convertPosition || "") === "attention");
+                  const posEnt = pill(isArabic() ? "ذكاء" : "Entropy", String(state.convertPosition || "") === "entropy");
+                  posCenter.disabled = Boolean(state.converting) || planBlocked;
+                  posAtt.disabled = Boolean(state.converting) || planBlocked;
+                  posEnt.disabled = Boolean(state.converting) || planBlocked;
+                  posCenter.onclick = () => {
+                    state.convertPosition = "center";
+                    render();
+                  };
+                  posAtt.onclick = () => {
+                    state.convertPosition = "attention";
+                    render();
+                  };
+                  posEnt.onclick = () => {
+                    state.convertPosition = "entropy";
+                    render();
+                  };
+                  posRow.appendChild(posCenter);
+                  posRow.appendChild(posAtt);
+                  posRow.appendChild(posEnt);
+                  s3.appendChild(posRow);
+                }
+              }
+
+              const s4 = mkStep(4, isArabic() ? "تحديد الجودة" : "Adjust quality", isArabic() ? "توازن بين الحجم والجودة" : "Balance quality vs size");
 
               const qWrap = document.createElement("div");
               qWrap.style.display = "flex";
@@ -1310,7 +1561,7 @@ const mount = () => {
               qVal.style.color = "#18b5d5";
               qVal.style.fontSize = "12px";
               qVal.style.fontWeight = "950";
-              const qDefault = state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
+              const qDefault = convertIsVideo ? 78 : state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
               const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
               qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
 
@@ -1336,9 +1587,9 @@ const mount = () => {
 
               qWrap.appendChild(qHead);
               qWrap.appendChild(range);
-              s3.appendChild(qWrap);
+              s4.appendChild(qWrap);
 
-              const s4 = mkStep(4, isArabic() ? "اختيار السرعة" : "Choose speed", isArabic() ? "الأسرع أو أصغر حجم" : "Fastest or smallest output");
+              const s5 = mkStep(5, isArabic() ? "اختيار السرعة" : "Choose speed", isArabic() ? "الأسرع أو أصغر حجم" : "Fastest or smallest output");
 
               const speedRow = document.createElement("div");
               speedRow.style.display = "flex";
@@ -1367,9 +1618,9 @@ const mount = () => {
               speedRow.appendChild(spFast);
               speedRow.appendChild(spBal);
               speedRow.appendChild(spSmall);
-              s4.appendChild(speedRow);
+              s5.appendChild(speedRow);
 
-              const s5 = mkStep(5, isArabic() ? "التحويل والتحميل" : "Convert & download", isArabic() ? "ابدأ التحويل ثم حمّل النتيجة" : "Run conversion, then download result");
+              const s6 = mkStep(6, isArabic() ? "التحويل والتحميل" : "Convert & download", isArabic() ? "ابدأ التحويل ثم حمّل النتيجة" : "Run conversion, then download result");
 
               const actions = document.createElement("div");
               actions.style.display = "flex";
@@ -1386,6 +1637,11 @@ const mount = () => {
                 state.convertFile = null;
                 state.convertError = "";
                 state.convertQuality = "";
+                state.convertPreset = "";
+                state.convertWidth = "";
+                state.convertHeight = "";
+                state.convertMode = "fit";
+                state.convertPosition = "center";
                 state.convertProgress = 0;
                 state.convertResultBytes = 0;
                 state.convertResultFormat = "";
@@ -1399,7 +1655,7 @@ const mount = () => {
 
               actions.appendChild(convertBtn);
               actions.appendChild(resetBtn);
-              s5.appendChild(actions);
+              s6.appendChild(actions);
 
               if (state.converting) {
                 const prog = document.createElement("div");
@@ -1413,11 +1669,11 @@ const mount = () => {
                 bar.style.background = "linear-gradient(90deg,#18b5d5,rgba(24,181,213,.35))";
                 bar.style.transition = "width .12s ease";
                 prog.appendChild(bar);
-                s5.appendChild(prog);
+                s6.appendChild(prog);
               }
 
               if (state.convertError) {
-                s5.appendChild(renderError(state.convertError));
+                s6.appendChild(renderError(state.convertError));
               }
 
               if (state.convertResultUrl) {
@@ -1465,7 +1721,11 @@ const mount = () => {
                     baseName = baseName.slice(0, 120) || "converted";
                     const ext =
                       String(state.convertResultFormat || "").trim() ||
-                      (state.convertFormat === "avif"
+                      (state.convertFormat === "mp4"
+                        ? "mp4"
+                        : state.convertFormat === "webm"
+                          ? "webm"
+                          : state.convertFormat === "avif"
                         ? "avif"
                         : state.convertFormat === "webp"
                           ? "webp"
@@ -1485,21 +1745,41 @@ const mount = () => {
                 outMeta.appendChild(outLeft);
                 outMeta.appendChild(dl);
 
-                const img = document.createElement("img");
-                img.alt = "";
-                img.loading = "lazy";
-                img.decoding = "async";
-                img.src = state.convertResultUrl;
-                img.style.width = "100%";
-                img.style.maxHeight = "260px";
-                img.style.objectFit = "contain";
-                img.style.borderRadius = "14px";
-                img.style.border = "1px solid rgba(255,255,255,.10)";
-                img.style.background = "rgba(2,6,23,.28)";
+                const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
+                const isVideoOut = outFmt === "mp4" || outFmt === "webm";
+
+                let preview = null;
+                if (isVideoOut) {
+                  const v = document.createElement("video");
+                  v.controls = true;
+                  v.playsInline = true;
+                  v.preload = "metadata";
+                  v.src = state.convertResultUrl;
+                  v.style.width = "100%";
+                  v.style.maxHeight = "260px";
+                  v.style.objectFit = "contain";
+                  v.style.borderRadius = "14px";
+                  v.style.border = "1px solid rgba(255,255,255,.10)";
+                  v.style.background = "rgba(2,6,23,.28)";
+                  preview = v;
+                } else {
+                  const img = document.createElement("img");
+                  img.alt = "";
+                  img.loading = "lazy";
+                  img.decoding = "async";
+                  img.src = state.convertResultUrl;
+                  img.style.width = "100%";
+                  img.style.maxHeight = "260px";
+                  img.style.objectFit = "contain";
+                  img.style.borderRadius = "14px";
+                  img.style.border = "1px solid rgba(255,255,255,.10)";
+                  img.style.background = "rgba(2,6,23,.28)";
+                  preview = img;
+                }
 
                 outWrap.appendChild(outMeta);
-                outWrap.appendChild(img);
-                s5.appendChild(outWrap);
+                if (preview) outWrap.appendChild(preview);
+                s6.appendChild(outWrap);
               }
 
               stepWrap.appendChild(s1);
@@ -1507,6 +1787,7 @@ const mount = () => {
               stepWrap.appendChild(s3);
               stepWrap.appendChild(s4);
               stepWrap.appendChild(s5);
+              stepWrap.appendChild(s6);
               card.appendChild(stepWrap);
 
               sheet.content.appendChild(card);
