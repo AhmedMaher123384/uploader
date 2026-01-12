@@ -1,4 +1,5 @@
-const uiParts = require("./media.ui");
+const uiPartsRaw = require("./media.ui");
+const uiParts = Array.isArray(uiPartsRaw) ? uiPartsRaw : [];
 
 module.exports = [
   `(function(){\n`,
