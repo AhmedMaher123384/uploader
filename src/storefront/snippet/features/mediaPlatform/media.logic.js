@@ -368,6 +368,10 @@ const buildDeliveryUrlFromItem = (it) => {
     const leaf = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
     if (!leaf) return "";
     const u = new URL(origin + "/api/m/" + encodeURIComponent(storeId) + "/" + encodeURIComponent(leaf));
+    try {
+      const t = String(token || "").trim();
+      if (t) u.searchParams.set("token", t);
+    } catch {}
     return u.toString();
   } catch {
     return "";
@@ -564,7 +568,19 @@ const mount = () => {
         input.style.display = "none";
         document.body.appendChild(input);
 
+        const convertInput = document.createElement("input");
+        convertInput.type = "file";
+        convertInput.multiple = false;
+        convertInput.accept = "image/*";
+        convertInput.style.display = "none";
+        document.body.appendChild(convertInput);
+
+        let convertObjUrl = "";
+
         const close = () => {
+          try {
+            if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
+          } catch {}
           try {
             if (typeof revokeMediaObjectUrls === "function") revokeMediaObjectUrls();
           } catch {}
@@ -573,6 +589,9 @@ const mount = () => {
           } catch {}
           try {
             if (input && input.remove) input.remove();
+          } catch {}
+          try {
+            if (convertInput && convertInput.remove) convertInput.remove();
           } catch {}
           sheetEl = null;
         };
@@ -598,7 +617,17 @@ const mount = () => {
           dash: null,
           uploads: [],
           uploading: false,
-          deletingId: ""
+          deletingId: "",
+          convertFile: null,
+          convertFormat: "auto",
+          convertSpeed: "fast",
+          convertQuality: "",
+          converting: false,
+          convertProgress: 0,
+          convertError: "",
+          convertResultUrl: "",
+          convertResultBytes: 0,
+          convertResultFormat: ""
         };
 
         const refreshDashboard = async (force) => {
@@ -787,6 +816,191 @@ const mount = () => {
           }
         };
 
+        const blobToText = async (blob) => {
+          const b = blob || null;
+          if (!b) return "";
+          try {
+            if (typeof b.text === "function") return await b.text();
+          } catch {}
+          return await new Promise((resolve) => {
+            try {
+              const r = new FileReader();
+              r.onerror = () => resolve("");
+              r.onload = () => resolve(String(r.result || ""));
+              r.readAsText(b);
+            } catch {
+              resolve("");
+            }
+          });
+        };
+
+        const convertOnBackend = async (file, opts, onProgress) => {
+          if (isSandbox) throw new Error("Sandbox mode: convert disabled");
+          const f = file || null;
+          if (!f) throw new Error("Missing file");
+
+          const format = String((opts && opts.format) || "auto").trim().toLowerCase();
+          const speed = String((opts && opts.speed) || "fast").trim().toLowerCase();
+          const quality = (opts && opts.quality != null) ? Number(opts.quality) : null;
+          const name = String((opts && opts.name) || (f && f.name) || "").trim();
+
+          const url = buildUrl("/api/proxy/tools/convert", {
+            format,
+            speed,
+            quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
+            name
+          });
+          if (!url) throw new Error("Missing backend origin");
+
+          return await new Promise((resolve, reject) => {
+            let xhr = null;
+            try {
+              xhr = new XMLHttpRequest();
+            } catch {
+              xhr = null;
+            }
+            if (!xhr) {
+              reject(new Error("Convert not supported"));
+              return;
+            }
+
+            try {
+              xhr.open("POST", url, true);
+              try {
+                xhr.responseType = "blob";
+              } catch {}
+              try {
+                xhr.setRequestHeader("X-File-Name", String((f && f.name) || ""));
+              } catch {}
+              try {
+                const t = String((f && f.type) || "").trim();
+                if (t) xhr.setRequestHeader("Content-Type", t);
+              } catch {}
+            } catch (e) {
+              reject(e);
+              return;
+            }
+
+            try {
+              if (xhr.upload) {
+                xhr.upload.onprogress = (ev) => {
+                  try {
+                    if (typeof onProgress !== "function") return;
+                    const loaded = Number(ev && ev.loaded) || 0;
+                    const total = Number(ev && ev.total) || 0;
+                    if (total > 0) onProgress(Math.max(0, Math.min(70, Math.round((loaded / total) * 70))));
+                    else onProgress(0);
+                  } catch {}
+                };
+              }
+            } catch {}
+
+            xhr.onerror = () => reject(new Error("Convert failed"));
+            xhr.onabort = () => reject(new Error("Convert aborted"));
+            xhr.onload = async () => {
+              const status = Number(xhr.status || 0) || 0;
+              const resp = xhr.response || null;
+              if (typeof onProgress === "function") {
+                try {
+                  onProgress(100);
+                } catch {}
+              }
+              if (status >= 200 && status < 300) {
+                const fmt = String(xhr.getResponseHeader("x-converted-format") || "").trim();
+                resolve({ blob: resp, format: fmt });
+                return;
+              }
+              try {
+                const t = await blobToText(resp);
+                let j = null;
+                try {
+                  j = t ? JSON.parse(t) : null;
+                } catch {
+                  j = null;
+                }
+                reject(new Error(String((j && (j.message || j.error)) || t || ("HTTP " + String(status)))));
+              } catch {
+                reject(new Error("Convert failed"));
+              }
+            };
+
+            try {
+              xhr.send(f);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        };
+
+        const runConvert = async (file) => {
+          const f = file || null;
+          if (!f) return;
+          if (state.converting) return;
+
+          const plan = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          if (plan && plan !== "pro" && plan !== "business") {
+            state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
+            render();
+            return;
+          }
+
+          state.convertFile = f;
+          state.convertError = "";
+          state.convertProgress = 0;
+          state.converting = true;
+          state.convertResultBytes = 0;
+          state.convertResultFormat = "";
+          try {
+            if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
+          } catch {}
+          convertObjUrl = "";
+          state.convertResultUrl = "";
+          render();
+
+          try {
+            const q = state.convertQuality ? Number(state.convertQuality) : null;
+            const out = await convertOnBackend(
+              f,
+              { format: state.convertFormat, speed: state.convertSpeed, quality: q, name: f.name },
+              (p) => {
+                state.convertProgress = Number(p || 0) || 0;
+                render();
+              }
+            );
+            const b = out && out.blob ? out.blob : null;
+            if (!b) throw new Error("Empty response");
+            const obj = URL.createObjectURL(b);
+            convertObjUrl = obj;
+            state.convertResultUrl = obj;
+            state.convertResultBytes = Number(b.size || 0) || 0;
+            state.convertResultFormat = String(out.format || "").trim();
+            state.converting = false;
+            state.convertProgress = 100;
+            render();
+          } catch (e) {
+            state.converting = false;
+            state.convertProgress = 0;
+            state.convertError = String((e && e.message) || e || "");
+            render();
+          }
+        };
+
+        const setConvertFile = (f) => {
+          const file = f || null;
+          if (!file) return;
+          state.convertFile = file;
+          state.convertError = "";
+          state.convertProgress = 0;
+          state.convertResultBytes = 0;
+          state.convertResultFormat = "";
+          try {
+            if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
+          } catch {}
+          convertObjUrl = "";
+          state.convertResultUrl = "";
+          render();
+        };
+
         const render = () => {
           try {
             sheet.tabs.innerHTML = "";
@@ -795,10 +1009,11 @@ const mount = () => {
             sheet.content.innerHTML = "";
 
             const labels = isArabic()
-              ? { upload: "مركز الرفع", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
-              : { upload: "Upload Center", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
+              ? { upload: "مركز الرفع", convert: "تحويل الصور", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              : { upload: "Upload Center", convert: "Convert", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
 
             const uploadTab = pill(labels.upload, state.view === "upload");
+            const convertTab = pill(labels.convert, state.view === "convert");
             const filesTab = pill(labels.files, state.view === "files");
 
             const setView = (v) => {
@@ -809,11 +1024,14 @@ const mount = () => {
               render();
               if (state.view === "files") fetchAndRender();
               if (state.view === "upload") refreshDashboard();
+              if (state.view === "convert") refreshDashboard();
             };
 
             uploadTab.onclick = () => setView("upload");
+            convertTab.onclick = () => setView("convert");
             filesTab.onclick = () => setView("files");
             sheet.tabs.appendChild(uploadTab);
+            sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
             const refreshBtn = btnGhost(labels.ref);
@@ -857,6 +1075,349 @@ const mount = () => {
                   })
                 );
               }
+              return;
+            }
+
+            if (state.view === "convert") {
+              if (state.dashLoading) sheet.content.appendChild(renderLoading());
+              if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
+
+              const plan = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+              const planBlocked = plan && plan !== "pro" && plan !== "business";
+
+              const card = document.createElement("div");
+              card.style.border = "1px solid rgba(255,255,255,.12)";
+              card.style.borderRadius = "16px";
+              card.style.background = "#292929";
+              card.style.boxShadow = "0 18px 50px rgba(0,0,0,.28)";
+              card.style.padding = "14px";
+              card.style.display = "flex";
+              card.style.flexDirection = "column";
+              card.style.gap = "12px";
+
+              const head = document.createElement("div");
+              head.style.display = "flex";
+              head.style.alignItems = "flex-start";
+              head.style.justifyContent = "space-between";
+              head.style.gap = "10px";
+
+              const titleWrap = document.createElement("div");
+              titleWrap.style.display = "flex";
+              titleWrap.style.flexDirection = "column";
+              titleWrap.style.gap = "6px";
+              titleWrap.style.minWidth = "0";
+
+              const title = document.createElement("div");
+              title.style.color = "#fff";
+              title.style.fontSize = "14px";
+              title.style.fontWeight = "950";
+              title.textContent = isArabic() ? "تحويل الصور إلى WebP/AVIF" : "Convert images to WebP/AVIF";
+
+              const hint = document.createElement("div");
+              hint.style.color = "rgba(255,255,255,.70)";
+              hint.style.fontSize = "12px";
+              hint.style.fontWeight = "900";
+              hint.style.lineHeight = "1.6";
+              hint.textContent = planBlocked
+                ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
+                : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة ثم حمّل النتيجة فورًا" : "Upload an image, pick format/quality, then download instantly");
+
+              titleWrap.appendChild(title);
+              titleWrap.appendChild(hint);
+
+              const pickBtn = btnGhost(isArabic() ? "اختيار صورة" : "Pick image");
+              pickBtn.disabled = Boolean(state.converting) || planBlocked;
+              pickBtn.onclick = () => {
+                try {
+                  convertInput.click();
+                } catch {}
+              };
+
+              head.appendChild(titleWrap);
+              head.appendChild(pickBtn);
+              card.appendChild(head);
+
+              const fileRow = document.createElement("div");
+              fileRow.style.display = "flex";
+              fileRow.style.alignItems = "center";
+              fileRow.style.justifyContent = "space-between";
+              fileRow.style.gap = "10px";
+              fileRow.style.flexWrap = "wrap";
+
+              const fileMeta = document.createElement("div");
+              fileMeta.style.display = "flex";
+              fileMeta.style.flexDirection = "column";
+              fileMeta.style.gap = "4px";
+              fileMeta.style.minWidth = "0";
+
+              const fileName = document.createElement("div");
+              fileName.style.color = "#fff";
+              fileName.style.fontSize = "13px";
+              fileName.style.fontWeight = "950";
+              fileName.style.overflow = "hidden";
+              fileName.style.textOverflow = "ellipsis";
+              fileName.style.whiteSpace = "nowrap";
+              fileName.textContent = state.convertFile ? String(state.convertFile.name || "") : (isArabic() ? "لم يتم اختيار ملف" : "No file selected");
+
+              const fileSize = document.createElement("div");
+              fileSize.style.color = "rgba(255,255,255,.66)";
+              fileSize.style.fontSize = "12px";
+              fileSize.style.fontWeight = "900";
+              fileSize.textContent = state.convertFile ? fmtBytes(Number(state.convertFile.size || 0) || 0) : "";
+
+              fileMeta.appendChild(fileName);
+              fileMeta.appendChild(fileSize);
+
+              const formatRow = document.createElement("div");
+              formatRow.style.display = "flex";
+              formatRow.style.gap = "8px";
+              formatRow.style.flexWrap = "wrap";
+              formatRow.style.alignItems = "center";
+
+              const fmtAuto = pill(isArabic() ? "تلقائي" : "Auto", state.convertFormat === "auto");
+              const fmtWebp = pill("WebP", state.convertFormat === "webp");
+              const fmtAvif = pill("AVIF", state.convertFormat === "avif");
+              fmtAuto.disabled = Boolean(state.converting) || planBlocked;
+              fmtWebp.disabled = Boolean(state.converting) || planBlocked;
+              fmtAvif.disabled = Boolean(state.converting) || planBlocked;
+              fmtAuto.onclick = () => {
+                state.convertFormat = "auto";
+                render();
+              };
+              fmtWebp.onclick = () => {
+                state.convertFormat = "webp";
+                render();
+              };
+              fmtAvif.onclick = () => {
+                state.convertFormat = "avif";
+                render();
+              };
+
+              formatRow.appendChild(fmtAuto);
+              formatRow.appendChild(fmtWebp);
+              formatRow.appendChild(fmtAvif);
+
+              fileRow.appendChild(fileMeta);
+              fileRow.appendChild(formatRow);
+              card.appendChild(fileRow);
+
+              const qWrap = document.createElement("div");
+              qWrap.style.display = "flex";
+              qWrap.style.flexDirection = "column";
+              qWrap.style.gap = "8px";
+
+              const qHead = document.createElement("div");
+              qHead.style.display = "flex";
+              qHead.style.alignItems = "center";
+              qHead.style.justifyContent = "space-between";
+              qHead.style.gap = "10px";
+
+              const qLabel = document.createElement("div");
+              qLabel.style.color = "rgba(255,255,255,.82)";
+              qLabel.style.fontSize = "12px";
+              qLabel.style.fontWeight = "950";
+              qLabel.textContent = isArabic() ? "الجودة" : "Quality";
+
+              const qVal = document.createElement("div");
+              qVal.style.color = "#18b5d5";
+              qVal.style.fontSize = "12px";
+              qVal.style.fontWeight = "950";
+              const qDefault = state.convertFormat === "avif" ? 55 : 82;
+              const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
+              qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
+
+              qHead.appendChild(qLabel);
+              qHead.appendChild(qVal);
+
+              const range = document.createElement("input");
+              range.type = "range";
+              range.min = "40";
+              range.max = "95";
+              range.step = "1";
+              range.value = String(qVal.textContent || qDefault);
+              range.disabled = Boolean(state.converting) || planBlocked;
+              range.oninput = () => {
+                try {
+                  state.convertQuality = String(range.value || "");
+                  render();
+                } catch {}
+              };
+              try {
+                range.style.width = "100%";
+              } catch {}
+
+              qWrap.appendChild(qHead);
+              qWrap.appendChild(range);
+              card.appendChild(qWrap);
+
+              const speedRow = document.createElement("div");
+              speedRow.style.display = "flex";
+              speedRow.style.gap = "8px";
+              speedRow.style.flexWrap = "wrap";
+              speedRow.style.alignItems = "center";
+
+              const spFast = pill(isArabic() ? "سريع" : "Fast", state.convertSpeed === "fast");
+              const spBal = pill(isArabic() ? "متوازن" : "Balanced", state.convertSpeed === "balanced");
+              const spSmall = pill(isArabic() ? "أصغر حجم" : "Smallest", state.convertSpeed === "small");
+              spFast.disabled = Boolean(state.converting) || planBlocked;
+              spBal.disabled = Boolean(state.converting) || planBlocked;
+              spSmall.disabled = Boolean(state.converting) || planBlocked;
+              spFast.onclick = () => {
+                state.convertSpeed = "fast";
+                render();
+              };
+              spBal.onclick = () => {
+                state.convertSpeed = "balanced";
+                render();
+              };
+              spSmall.onclick = () => {
+                state.convertSpeed = "small";
+                render();
+              };
+              speedRow.appendChild(spFast);
+              speedRow.appendChild(spBal);
+              speedRow.appendChild(spSmall);
+              card.appendChild(speedRow);
+
+              const dz = renderDropzone({
+                disabled: Boolean(state.converting) || planBlocked,
+                onPick: () => {
+                  try {
+                    convertInput.click();
+                  } catch {}
+                },
+                onFiles: (fs) => {
+                  try {
+                    const list = Array.isArray(fs) ? fs : [];
+                    const f = list && list[0] ? list[0] : null;
+                    if (f) setConvertFile(f);
+                  } catch {}
+                }
+              });
+              card.appendChild(dz);
+
+              const actions = document.createElement("div");
+              actions.style.display = "flex";
+              actions.style.gap = "10px";
+              actions.style.flexWrap = "wrap";
+
+              const convertBtn = btnPrimary(isArabic() ? "تحويل الآن" : "Convert now");
+              convertBtn.disabled = Boolean(state.converting) || planBlocked || !state.convertFile;
+              convertBtn.onclick = () => runConvert(state.convertFile);
+
+              const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
+              resetBtn.disabled = Boolean(state.converting) || planBlocked;
+              resetBtn.onclick = () => {
+                state.convertFile = null;
+                state.convertError = "";
+                state.convertQuality = "";
+                state.convertProgress = 0;
+                state.convertResultBytes = 0;
+                state.convertResultFormat = "";
+                try {
+                  if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
+                } catch {}
+                convertObjUrl = "";
+                state.convertResultUrl = "";
+                render();
+              };
+
+              actions.appendChild(convertBtn);
+              actions.appendChild(resetBtn);
+              card.appendChild(actions);
+
+              if (state.converting) {
+                const prog = document.createElement("div");
+                prog.style.border = "1px solid rgba(255,255,255,.10)";
+                prog.style.borderRadius = "14px";
+                prog.style.background = "rgba(2,6,23,.28)";
+                prog.style.overflow = "hidden";
+                const bar = document.createElement("div");
+                bar.style.height = "10px";
+                bar.style.width = Math.max(0, Math.min(100, Number(state.convertProgress || 0) || 0)) + "%";
+                bar.style.background = "linear-gradient(90deg,#18b5d5,rgba(24,181,213,.35))";
+                bar.style.transition = "width .12s ease";
+                prog.appendChild(bar);
+                card.appendChild(prog);
+              }
+
+              if (state.convertError) {
+                card.appendChild(renderError(state.convertError));
+              }
+
+              if (state.convertResultUrl) {
+                const outWrap = document.createElement("div");
+                outWrap.style.display = "flex";
+                outWrap.style.flexDirection = "column";
+                outWrap.style.gap = "10px";
+
+                const outMeta = document.createElement("div");
+                outMeta.style.display = "flex";
+                outMeta.style.alignItems = "center";
+                outMeta.style.justifyContent = "space-between";
+                outMeta.style.gap = "10px";
+                outMeta.style.flexWrap = "wrap";
+
+                const outLeft = document.createElement("div");
+                outLeft.style.display = "flex";
+                outLeft.style.flexDirection = "column";
+                outLeft.style.gap = "4px";
+
+                const outTitle = document.createElement("div");
+                outTitle.style.color = "#fff";
+                outTitle.style.fontSize = "13px";
+                outTitle.style.fontWeight = "950";
+                outTitle.textContent = isArabic() ? "النتيجة جاهزة" : "Result is ready";
+
+                const outHint = document.createElement("div");
+                outHint.style.color = "rgba(255,255,255,.70)";
+                outHint.style.fontSize = "12px";
+                outHint.style.fontWeight = "900";
+                const fmt = String(state.convertResultFormat || state.convertFormat || "").toUpperCase();
+                outHint.textContent = (fmt ? fmt + " · " : "") + fmtBytes(state.convertResultBytes || 0);
+
+                outLeft.appendChild(outTitle);
+                outLeft.appendChild(outHint);
+
+                const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
+                dl.onclick = () => {
+                  try {
+                    const a = document.createElement("a");
+                    const raw = state.convertFile ? String(state.convertFile.name || "") : "converted";
+                    let baseName = raw;
+                    const dot = baseName.lastIndexOf(".");
+                    if (dot > 0) baseName = baseName.slice(0, dot);
+                    baseName = baseName.slice(0, 120) || "converted";
+                    const ext = String(state.convertResultFormat || "").trim() || (state.convertFormat === "avif" ? "avif" : state.convertFormat === "webp" ? "webp" : "webp");
+                    a.href = state.convertResultUrl;
+                    a.download = baseName + "." + ext;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  } catch {}
+                };
+
+                outMeta.appendChild(outLeft);
+                outMeta.appendChild(dl);
+
+                const img = document.createElement("img");
+                img.alt = "";
+                img.loading = "lazy";
+                img.decoding = "async";
+                img.src = state.convertResultUrl;
+                img.style.width = "100%";
+                img.style.maxHeight = "260px";
+                img.style.objectFit = "contain";
+                img.style.borderRadius = "14px";
+                img.style.border = "1px solid rgba(255,255,255,.10)";
+                img.style.background = "rgba(2,6,23,.28)";
+
+                outWrap.appendChild(outMeta);
+                outWrap.appendChild(img);
+                card.appendChild(outWrap);
+              }
+
+              sheet.content.appendChild(card);
               return;
             }
 
@@ -1046,6 +1607,15 @@ const mount = () => {
             input.value = "";
             if (!fs.length) return;
             runUploads(fs);
+          } catch {}
+        };
+
+        convertInput.onchange = () => {
+          try {
+            const f = convertInput.files && convertInput.files[0] ? convertInput.files[0] : null;
+            convertInput.value = "";
+            if (!f) return;
+            setConvertFile(f);
           } catch {}
         };
 
