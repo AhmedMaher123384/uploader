@@ -1309,7 +1309,7 @@ const renderGrid = (items, opts) => {
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
     const openUrl = String(it.deliveryUrl || it.secureUrl || it.url || "");
-    const copyUrl = String(it.secureUrl || it.url || it.deliveryUrl || "");
+    const copyUrl = String(it.deliveryUrl || it.secureUrl || it.url || "");
     const src = openUrl;
     const onDelete =
       opts && typeof opts.onDeleteItem === "function"
