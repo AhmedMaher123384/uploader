@@ -15,6 +15,25 @@ const findFooterEl = () => {
 };
 `,
   `
+const uiMix = (colorVar, percent) => {
+  const c = String(colorVar || "").trim();
+  const p = Math.max(0, Math.min(100, Number(percent || 0) || 0));
+  return \`color-mix(in srgb,\${c} \${p}%,transparent)\`;
+};
+
+const uiVars = {
+  fontMain: "var(--font-main)",
+  text: "var(--color-text)",
+  textMuted: "var(--color-text-muted,var(--color-text))",
+  background: "var(--color-background)",
+  border: "var(--color-border)",
+  primaryBg: "var(--color-primary)",
+  primaryText: "var(--color-primary-contrast,var(--color-background))",
+  accent: "var(--primary-color)",
+  danger: "var(--color-danger,var(--primary-color))"
+};
+`,
+  `
 const setFabVisible = (btn, on) => {
   try {
     btn.style.opacity = on ? "1" : "0";
@@ -83,22 +102,26 @@ const createFab = () => {
     btn.style.left = "12px";
   }
   btn.style.zIndex = "100002";
-  btn.style.border = "1px solid rgba(24,181,213,.55)";
+  btn.style.border = "1px solid " + uiVars.border;
   btn.style.cursor = "pointer";
   btn.style.borderRadius = "999px";
-  btn.style.background = "#292929";
-  btn.style.color = "#fff";
-  btn.style.boxShadow = "0 14px 34px rgba(0,0,0,.28)";
+  btn.style.background = uiVars.background;
+  btn.style.color = uiVars.accent;
+  btn.style.boxShadow = "0 14px 34px " + uiMix(uiVars.text, 18);
   btn.style.display = "grid";
   btn.style.placeItems = "center";
   btn.style.userSelect = "none";
   btn.style.webkitUserSelect = "none";
   btn.style.lineHeight = "1";
   btn.style.fontWeight = "900";
+  btn.style.fontFamily = uiVars.fontMain;
   btn.style.transition = "opacity .18s ease,transform .18s ease,filter .18s ease";
   btn.style.opacity = "1";
   btn.style.pointerEvents = "auto";
   btn.style.transform = "translateY(0)";
+  btn.style.width = "clamp(42px,7vw,48px)";
+  btn.style.height = "clamp(42px,7vw,48px)";
+  btn.style.padding = "0";
 
   btn.onmouseenter = () => {
     btn.style.filter = "brightness(1.05)";
@@ -107,37 +130,11 @@ const createFab = () => {
     btn.style.filter = "";
   };
 
-  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  icon.setAttribute("viewBox", "0 0 24 24");
+  const icon = document.createElement("i");
+  icon.className = "sicon-upload";
   icon.setAttribute("aria-hidden", "true");
-  icon.style.display = "block";
-  icon.style.color = "#18b5d5";
-
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("fill", "currentColor");
-  path.setAttribute(
-    "d",
-    "M12 2l3.09 6.26 6.91 1.01-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"
-  );
-  icon.appendChild(path);
+  icon.style.fontSize = "20px";
   btn.appendChild(icon);
-
-  const applySize = () => {
-    try {
-      const vw = Math.min(Number(window.innerWidth || 0) || 0, Number(window.innerHeight || 0) || 0);
-      const s = vw && vw < 380 ? 42 : 48;
-      btn.style.width = \`\${s}px\`;
-      btn.style.height = \`\${s}px\`;
-      btn.style.padding = "0";
-      const isSmall = s < 46;
-      icon.setAttribute("width", isSmall ? "18" : "20");
-      icon.setAttribute("height", isSmall ? "18" : "20");
-    } catch {}
-  };
-  applySize();
-  try {
-    window.addEventListener("resize", applySize, { passive: true });
-  } catch {}
 
   return btn;
 };
@@ -145,21 +142,23 @@ const createFab = () => {
   `
 const buildSheet = () => {
   const overlay = document.createElement("div");
-  overlay.className = "bundle-app-bottomsheet";
+  overlay.className = "bundle-app-bottomsheet bundle-app-bottomsheet--center";
   overlay.style.alignItems = "center";
   overlay.style.justifyContent = "center";
   overlay.style.padding = "14px";
   overlay.style.zIndex = "100003";
+  overlay.style.fontFamily = uiVars.fontMain;
+  overlay.style.color = uiVars.text;
 
   const panel = document.createElement("div");
   panel.className = "bundle-app-bottomsheet__panel";
   panel.style.width = "min(760px,100%)";
   panel.style.maxHeight = "85vh";
   panel.style.overflow = "auto";
-  panel.style.background = "#292929";
+  panel.style.background = uiVars.background;
   panel.style.borderRadius = "16px";
-  panel.style.border = "1px solid rgba(24,181,213,.18)";
-  panel.style.boxShadow = "0 22px 60px rgba(0,0,0,.45)";
+  panel.style.border = "1px solid " + uiVars.border;
+  panel.style.boxShadow = "0 22px 60px " + uiMix(uiVars.text, 18);
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
@@ -167,26 +166,28 @@ const buildSheet = () => {
   head.style.display = "flex";
   head.style.alignItems = "center";
   head.style.justifyContent = "space-between";
-  head.style.borderBottom = "1px solid rgba(24,181,213,.2)";
+  head.style.borderBottom = "1px solid " + uiVars.border;
 
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
   title.textContent = isArabic() ? "منصة الرفع" : "Media platform";
   title.style.fontSize = "18px";
   title.style.fontWeight = "900";
-  title.style.color = "#fff";
+  title.style.color = uiVars.text;
+  title.style.fontFamily = uiVars.fontMain;
 
   const close = document.createElement("button");
   close.type = "button";
   close.textContent = isArabic() ? "إغلاق" : "Close";
   close.style.padding = "6px 10px";
   close.style.borderRadius = "10px";
-  close.style.border = "1px solid rgba(24,181,213,.3)";
-  close.style.background = "#292929";
-  close.style.color = "#18b5d5";
+  close.style.border = "1px solid " + uiMix(uiVars.accent, 30);
+  close.style.background = uiVars.background;
+  close.style.color = uiVars.accent;
   close.style.fontSize = "13px";
   close.style.fontWeight = "900";
   close.style.cursor = "pointer";
+  close.style.fontFamily = uiVars.fontMain;
 
   head.appendChild(title);
   head.appendChild(close);
@@ -241,15 +242,16 @@ const pill = (label, active) => {
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = label;
-  b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
-  b.style.background = active ? "#18b5d5" : "#292929";
-  b.style.color = active ? "#292929" : "#fff";
+  b.style.border = active ? "1px solid " + uiMix(uiVars.accent, 45) : "1px solid " + uiVars.border;
+  b.style.background = active ? uiVars.primaryBg : uiVars.background;
+  b.style.color = active ? uiVars.primaryText : uiVars.text;
   b.style.padding = "9px 12px";
   b.style.borderRadius = "999px";
   b.style.fontSize = "13px";
   b.style.fontWeight = "900";
+  b.style.fontFamily = uiVars.fontMain;
   b.style.cursor = "pointer";
-  b.style.boxShadow = active ? "0 14px 30px rgba(24,181,213,.3)" : "0 10px 24px rgba(0,0,0,.2)";
+  b.style.boxShadow = active ? "0 14px 30px " + uiMix(uiVars.accent, 20) : "0 10px 24px " + uiMix(uiVars.text, 14);
   return b;
 };
 `,
@@ -262,11 +264,12 @@ const btnPrimary = (label) => {
   b.style.cursor = "pointer";
   b.style.padding = "10px 12px";
   b.style.borderRadius = "12px";
-  b.style.background = "#18b5d5";
-  b.style.color = "#292929";
+  b.style.background = uiVars.primaryBg;
+  b.style.color = uiVars.primaryText;
   b.style.fontWeight = "900";
   b.style.fontSize = "13px";
-  b.style.boxShadow = "0 18px 40px rgba(24,181,213,.25)";
+  b.style.fontFamily = uiVars.fontMain;
+  b.style.boxShadow = "0 18px 40px " + uiMix(uiVars.accent, 18);
   return b;
 };
 `,
@@ -275,15 +278,16 @@ const btnGhost = (label) => {
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = label;
-  b.style.border = "1px solid rgba(24,181,213,.3)";
+  b.style.border = "1px solid " + uiMix(uiVars.accent, 30);
   b.style.cursor = "pointer";
   b.style.padding = "10px 12px";
   b.style.borderRadius = "12px";
-  b.style.background = "#292929";
-  b.style.color = "#18b5d5";
+  b.style.background = uiVars.background;
+  b.style.color = uiVars.accent;
   b.style.fontWeight = "900";
   b.style.fontSize = "13px";
-  b.style.boxShadow = "0 10px 24px rgba(0,0,0,.2)";
+  b.style.fontFamily = uiVars.fontMain;
+  b.style.boxShadow = "0 10px 24px " + uiMix(uiVars.text, 14);
   return b;
 };
 `,
@@ -361,9 +365,9 @@ const renderUploadHero = (dash) => {
   wrap.style.flexWrap = "wrap";
   wrap.style.padding = "14px";
   wrap.style.borderRadius = "16px";
-  wrap.style.border = "1px solid rgba(24,181,213,.22)";
-  wrap.style.background = "linear-gradient(135deg, rgba(24,181,213,.18), rgba(11,18,32,.60))";
-  wrap.style.boxShadow = "0 18px 46px rgba(0,0,0,.25)";
+  wrap.style.border = "1px solid " + uiVars.border;
+  wrap.style.background = "linear-gradient(135deg, " + uiMix(uiVars.primaryBg, 12) + ", " + uiMix(uiVars.text, 8) + ")";
+  wrap.style.boxShadow = "0 18px 46px " + uiMix(uiVars.text, 14);
 
   const left = document.createElement("div");
   left.style.display = "flex";
@@ -377,12 +381,13 @@ const renderUploadHero = (dash) => {
   avatar.style.borderRadius = "14px";
   avatar.style.overflow = "hidden";
   avatar.style.flex = "0 0 auto";
-  avatar.style.border = "1px solid rgba(255,255,255,.18)";
-  avatar.style.background = "rgba(255,255,255,.06)";
+  avatar.style.border = "1px solid " + uiVars.border;
+  avatar.style.background = uiMix(uiVars.text, 4);
   avatar.style.display = "grid";
   avatar.style.placeItems = "center";
-  avatar.style.color = "#fff";
+  avatar.style.color = uiVars.text;
   avatar.style.fontWeight = "950";
+  avatar.style.fontFamily = uiVars.fontMain;
 
   const logo = String(store.logoUrl || "").trim();
   if (logo) {
@@ -411,13 +416,13 @@ const renderUploadHero = (dash) => {
   const hello = document.createElement("div");
   hello.style.fontSize = "13px";
   hello.style.fontWeight = "900";
-  hello.style.color = "rgba(255,255,255,.82)";
+  hello.style.color = uiVars.textMuted;
   hello.textContent = isArabic() ? "أهلاً بك في مركز الرفع" : "Welcome to Upload Center";
 
   const name = document.createElement("div");
   name.style.fontSize = "16px";
   name.style.fontWeight = "950";
-  name.style.color = "#fff";
+  name.style.color = uiVars.text;
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
   name.style.whiteSpace = "nowrap";
@@ -426,7 +431,7 @@ const renderUploadHero = (dash) => {
   const domain = document.createElement("div");
   domain.style.fontSize = "12px";
   domain.style.fontWeight = "900";
-  domain.style.color = "rgba(24,181,213,.95)";
+  domain.style.color = uiVars.accent;
   domain.style.overflow = "hidden";
   domain.style.textOverflow = "ellipsis";
   domain.style.whiteSpace = "nowrap";
@@ -449,11 +454,12 @@ const renderUploadHero = (dash) => {
   const plan = document.createElement("div");
   plan.style.padding = "8px 12px";
   plan.style.borderRadius = "999px";
-  plan.style.border = "1px solid rgba(24,181,213,.35)";
-  plan.style.background = "rgba(24,181,213,.12)";
-  plan.style.color = "#18b5d5";
+  plan.style.border = "1px solid " + uiMix(uiVars.accent, 28);
+  plan.style.background = uiMix(uiVars.primaryBg, 10);
+  plan.style.color = uiVars.accent;
   plan.style.fontWeight = "950";
   plan.style.fontSize = "12px";
+  plan.style.fontFamily = uiVars.fontMain;
   plan.textContent = (isArabic() ? "الباقة: " : "Plan: ") + planLabel(d.planKey);
 
   const visit = document.createElement("a");
@@ -468,11 +474,12 @@ const renderUploadHero = (dash) => {
   visit.style.justifyContent = "center";
   visit.style.padding = "10px 12px";
   visit.style.borderRadius = "12px";
-  visit.style.border = "1px solid rgba(255,255,255,.14)";
-  visit.style.background = "rgba(255,255,255,.06)";
-  visit.style.color = "#fff";
+  visit.style.border = "1px solid " + uiVars.border;
+  visit.style.background = uiMix(uiVars.text, 4);
+  visit.style.color = uiVars.text;
   visit.style.fontSize = "13px";
   visit.style.fontWeight = "950";
+  visit.style.fontFamily = uiVars.fontMain;
   visit.style.textDecoration = "none";
   visit.style.pointerEvents = url ? "auto" : "none";
   visit.style.opacity = url ? "1" : "0.6";
@@ -496,10 +503,10 @@ const renderUploadHero = (dash) => {
   `
 const statCard = (label, value) => {
   const c = document.createElement("div");
-  c.style.border = "1px solid rgba(24,181,213,.20)";
+  c.style.border = "1px solid " + uiVars.border;
   c.style.borderRadius = "14px";
-  c.style.background = "#292929";
-  c.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+  c.style.background = uiVars.background;
+  c.style.boxShadow = "0 10px 22px " + uiMix(uiVars.text, 10);
   c.style.padding = "12px";
   c.style.display = "flex";
   c.style.flexDirection = "column";
@@ -508,13 +515,15 @@ const statCard = (label, value) => {
   const l = document.createElement("div");
   l.style.fontSize = "12px";
   l.style.fontWeight = "900";
-  l.style.color = "rgba(255,255,255,.78)";
+  l.style.color = uiVars.textMuted;
+  l.style.fontFamily = uiVars.fontMain;
   l.textContent = String(label || "");
 
   const v = document.createElement("div");
   v.style.fontSize = "16px";
   v.style.fontWeight = "950";
-  v.style.color = "#fff";
+  v.style.color = uiVars.text;
+  v.style.fontFamily = uiVars.fontMain;
   v.textContent = String(value == null ? "" : value);
 
   c.appendChild(l);
@@ -549,27 +558,29 @@ const renderSmartStats = (dash) => {
   `
 const renderDropzone = ({ disabled, onPick, onFiles }) => {
   const z = document.createElement("div");
-  z.style.border = "1px dashed rgba(24,181,213,.45)";
+  z.style.border = "1px dashed " + uiMix(uiVars.accent, 40);
   z.style.borderRadius = "16px";
-  z.style.background = "rgba(24,181,213,.06)";
+  z.style.background = uiMix(uiVars.primaryBg, 6);
   z.style.padding = "16px";
   z.style.display = "flex";
   z.style.flexDirection = "column";
   z.style.gap = "10px";
-  z.style.boxShadow = "0 12px 30px rgba(0,0,0,.18)";
+  z.style.boxShadow = "0 12px 30px " + uiMix(uiVars.text, 12);
   z.style.cursor = disabled ? "not-allowed" : "pointer";
   z.style.opacity = disabled ? "0.65" : "1";
 
   const t1 = document.createElement("div");
   t1.style.fontSize = "14px";
   t1.style.fontWeight = "950";
-  t1.style.color = "#fff";
+  t1.style.color = uiVars.text;
+  t1.style.fontFamily = uiVars.fontMain;
   t1.textContent = isArabic() ? "ارفع ملفاتك هنا" : "Upload your files here";
 
   const t2 = document.createElement("div");
   t2.style.fontSize = "12px";
   t2.style.fontWeight = "900";
-  t2.style.color = "rgba(255,255,255,.78)";
+  t2.style.color = uiVars.textMuted;
+  t2.style.fontFamily = uiVars.fontMain;
   t2.textContent = isArabic() ? "اسحب وافلت أو اضغط للاختيار" : "Drag & drop or click to choose";
 
   const b = document.createElement("button");
@@ -579,11 +590,12 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
   b.style.cursor = disabled ? "not-allowed" : "pointer";
   b.style.padding = "10px 12px";
   b.style.borderRadius = "12px";
-  b.style.background = "#18b5d5";
-  b.style.color = "#292929";
+  b.style.background = uiVars.primaryBg;
+  b.style.color = uiVars.primaryText;
   b.style.fontWeight = "950";
   b.style.fontSize = "13px";
-  b.style.boxShadow = "0 18px 40px rgba(24,181,213,.25)";
+  b.style.fontFamily = uiVars.fontMain;
+  b.style.boxShadow = "0 18px 40px " + uiMix(uiVars.accent, 18);
   b.disabled = Boolean(disabled);
 
   const pick = () => {
@@ -639,13 +651,14 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
   `
 const renderEmpty = () => {
   const wrap = document.createElement("div");
-  wrap.style.border = "1px dashed rgba(24,181,213,.3)";
+  wrap.style.border = "1px dashed " + uiMix(uiVars.accent, 30);
   wrap.style.borderRadius = "14px";
   wrap.style.padding = "16px";
-  wrap.style.background = "rgba(24,181,213,.05)";
-  wrap.style.color = "#18b5d5";
+  wrap.style.background = uiMix(uiVars.primaryBg, 5);
+  wrap.style.color = uiVars.accent;
   wrap.style.fontSize = "13px";
   wrap.style.fontWeight = "900";
+  wrap.style.fontFamily = uiVars.fontMain;
   wrap.textContent = isArabic() ? "مفيش ملفات مرفوعة لحد دلوقتي." : "No media uploaded yet.";
   return wrap;
 };
@@ -653,13 +666,14 @@ const renderEmpty = () => {
   `
 const renderError = (msg) => {
   const wrap = document.createElement("div");
-  wrap.style.border = "1px solid rgba(239,68,68,.4)";
+  wrap.style.border = "1px solid " + uiMix(uiVars.danger, 35);
   wrap.style.borderRadius = "14px";
   wrap.style.padding = "16px";
-  wrap.style.background = "rgba(239,68,68,.1)";
-  wrap.style.color = "#ef4444";
+  wrap.style.background = uiMix(uiVars.danger, 10);
+  wrap.style.color = uiVars.danger;
   wrap.style.fontSize = "13px";
   wrap.style.fontWeight = "900";
+  wrap.style.fontFamily = uiVars.fontMain;
   wrap.textContent = String(msg || "Error");
   return wrap;
 };
@@ -679,10 +693,10 @@ const renderLoading = () => {
   } catch {}
 
   const wrap = document.createElement("div");
-  wrap.style.border = "1px solid rgba(24,181,213,.3)";
+  wrap.style.border = "1px solid " + uiVars.border;
   wrap.style.borderRadius = "14px";
   wrap.style.padding = "14px";
-  wrap.style.background = "#292929";
+  wrap.style.background = uiVars.background;
 
   const title = document.createElement("div");
   title.style.display = "flex";
@@ -699,23 +713,25 @@ const renderLoading = () => {
   dot.style.width = "10px";
   dot.style.height = "10px";
   dot.style.borderRadius = "999px";
-  dot.style.background = "#18b5d5";
-  dot.style.boxShadow = "0 0 0 6px rgba(24,181,213,.12), 0 14px 30px rgba(24,181,213,.18)";
+  dot.style.background = uiVars.accent;
+  dot.style.boxShadow = "0 0 0 6px " + uiMix(uiVars.accent, 12) + ", 0 14px 30px " + uiMix(uiVars.accent, 18);
   dot.style.animation = "bundleAppMediaPulse 1.2s ease-in-out infinite";
 
   const t = document.createElement("div");
-  t.style.color = "#fff";
+  t.style.color = uiVars.text;
   t.style.fontSize = "13px";
   t.style.fontWeight = "950";
+  t.style.fontFamily = uiVars.fontMain;
   t.textContent = isArabic() ? "جاري التحميل" : "Loading";
 
   left.appendChild(dot);
   left.appendChild(t);
 
   const hint = document.createElement("div");
-  hint.style.color = "rgba(255,255,255,.66)";
+  hint.style.color = uiVars.textMuted;
   hint.style.fontSize = "12px";
   hint.style.fontWeight = "900";
+  hint.style.fontFamily = uiVars.fontMain;
   hint.textContent = isArabic() ? "لحظة واحدة" : "Please wait";
 
   title.appendChild(left);
@@ -725,10 +741,10 @@ const renderLoading = () => {
   bar.style.marginTop = "12px";
   bar.style.height = "10px";
   bar.style.borderRadius = "999px";
-  bar.style.background = "rgba(255,255,255,.08)";
+  bar.style.background = uiMix(uiVars.text, 6);
   bar.style.overflow = "hidden";
   bar.style.position = "relative";
-  bar.style.border = "1px solid rgba(255,255,255,.10)";
+  bar.style.border = "1px solid " + uiVars.border;
 
   const fill = document.createElement("div");
   fill.style.position = "absolute";
@@ -737,8 +753,15 @@ const renderLoading = () => {
   fill.style.left = "0";
   fill.style.width = "46%";
   fill.style.borderRadius = "999px";
-  fill.style.background = "linear-gradient(90deg, rgba(24,181,213,0) 0%, rgba(24,181,213,.92) 40%, rgba(255,255,255,.55) 60%, rgba(24,181,213,.92) 80%, rgba(24,181,213,0) 100%)";
-  fill.style.filter = "drop-shadow(0 14px 22px rgba(24,181,213,.25))";
+  fill.style.background =
+    "linear-gradient(90deg, transparent 0%, " +
+    uiMix(uiVars.accent, 80) +
+    " 40%, " +
+    uiMix(uiVars.text, 30) +
+    " 60%, " +
+    uiMix(uiVars.accent, 80) +
+    " 80%, transparent 100%)";
+  fill.style.filter = "drop-shadow(0 14px 22px " + uiMix(uiVars.accent, 18) + ")";
   fill.style.animation = "bundleAppMediaIndeterminate 1.05s ease-in-out infinite";
 
   bar.appendChild(fill);
@@ -789,9 +812,9 @@ const renderLinkBlock = (url) => {
   wrap.style.gap = "10px";
   wrap.style.padding = "10px";
   wrap.style.borderRadius = "12px";
-  wrap.style.border = "1px solid rgba(24,181,213,.35)";
-  wrap.style.background = "#292929";
-  wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+  wrap.style.border = "1px solid " + uiVars.border;
+  wrap.style.background = uiVars.background;
+  wrap.style.boxShadow = "0 10px 22px " + uiMix(uiVars.text, 10);
 
   const a = document.createElement("a");
   a.href = u;
@@ -806,7 +829,8 @@ const renderLinkBlock = (url) => {
   a.style.direction = "ltr";
   a.style.fontSize = "14px";
   a.style.fontWeight = "950";
-  a.style.color = "#18b5d5";
+  a.style.color = uiVars.accent;
+  a.style.fontFamily = uiVars.fontMain;
   a.style.textDecoration = "underline";
   a.style.textDecorationThickness = "2px";
   a.style.textUnderlineOffset = "3px";
@@ -819,11 +843,12 @@ const renderLinkBlock = (url) => {
   copy.style.cursor = "pointer";
   copy.style.padding = "10px 14px";
   copy.style.borderRadius = "10px";
-  copy.style.background = "#18b5d5";
-  copy.style.color = "#292929";
+  copy.style.background = uiVars.primaryBg;
+  copy.style.color = uiVars.primaryText;
   copy.style.fontSize = "13px";
   copy.style.fontWeight = "950";
-  copy.style.boxShadow = "0 12px 26px rgba(24,181,213,.3)";
+  copy.style.fontFamily = uiVars.fontMain;
+  copy.style.boxShadow = "0 12px 26px " + uiMix(uiVars.accent, 20);
   copy.onclick = () => {
     try {
       const prev = isArabic() ? "انسخ الرابط" : "Copy link";
@@ -862,11 +887,12 @@ const renderThumbActions = (url) => {
   open.style.justifyContent = "center";
   open.style.padding = "7px 10px";
   open.style.borderRadius = "10px";
-  open.style.border = "1px solid rgba(255,255,255,.14)";
-  open.style.background = "rgba(255,255,255,.06)";
-  open.style.color = "#fff";
+  open.style.border = "1px solid " + uiVars.border;
+  open.style.background = uiMix(uiVars.text, 4);
+  open.style.color = uiVars.text;
   open.style.fontSize = "12px";
   open.style.fontWeight = "950";
+  open.style.fontFamily = uiVars.fontMain;
   open.style.textDecoration = "none";
   open.style.flex = "1 1 auto";
 
@@ -878,11 +904,12 @@ const renderThumbActions = (url) => {
   copy.style.cursor = "pointer";
   copy.style.padding = "7px 10px";
   copy.style.borderRadius = "10px";
-  copy.style.background = "#18b5d5";
-  copy.style.color = "#292929";
+  copy.style.background = uiVars.primaryBg;
+  copy.style.color = uiVars.primaryText;
   copy.style.fontSize = "12px";
   copy.style.fontWeight = "950";
-  copy.style.boxShadow = "0 10px 22px rgba(24,181,213,.22)";
+  copy.style.fontFamily = uiVars.fontMain;
+  copy.style.boxShadow = "0 10px 22px " + uiMix(uiVars.accent, 18);
   copy.onclick = () => {
     try {
       const prev = isArabic() ? "نسخ" : "Copy";
@@ -908,9 +935,9 @@ const renderUploadRow = (rec) => {
   wrap.style.gap = "10px";
   wrap.style.padding = "12px";
   wrap.style.borderRadius = "14px";
-  wrap.style.border = "1px solid rgba(24,181,213,.25)";
-  wrap.style.background = "#292929";
-  wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+  wrap.style.border = "1px solid " + uiVars.border;
+  wrap.style.background = uiVars.background;
+  wrap.style.boxShadow = "0 10px 22px " + uiMix(uiVars.text, 10);
 
   const row = document.createElement("div");
   row.style.display = "flex";
@@ -927,7 +954,8 @@ const renderUploadRow = (rec) => {
   const name = document.createElement("div");
   name.style.fontSize = "12px";
   name.style.fontWeight = "950";
-  name.style.color = "#fff";
+  name.style.color = uiVars.text;
+  name.style.fontFamily = uiVars.fontMain;
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
   name.style.whiteSpace = "nowrap";
@@ -936,7 +964,8 @@ const renderUploadRow = (rec) => {
   const sub = document.createElement("div");
   sub.style.fontSize = "12px";
   sub.style.fontWeight = "900";
-  sub.style.color = rec.status === "error" ? "#ef4444" : "rgba(24,181,213,.9)";
+  sub.style.color = rec.status === "error" ? uiVars.danger : uiVars.accent;
+  sub.style.fontFamily = uiVars.fontMain;
   const pct = (() => {
     try {
       const p = Number(rec && rec.progress);
@@ -971,7 +1000,8 @@ const renderUploadRow = (rec) => {
   const meta = document.createElement("div");
   meta.style.fontSize = "12px";
   meta.style.fontWeight = "900";
-  meta.style.color = "rgba(24,181,213,.8)";
+  meta.style.color = uiVars.textMuted;
+  meta.style.fontFamily = uiVars.fontMain;
   meta.style.textAlign = "right";
   meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
   right.appendChild(meta);
@@ -984,8 +1014,8 @@ const renderUploadRow = (rec) => {
     const bar = document.createElement("div");
     bar.style.height = "10px";
     bar.style.borderRadius = "999px";
-    bar.style.background = "rgba(255,255,255,.08)";
-    bar.style.border = "1px solid rgba(255,255,255,.10)";
+    bar.style.background = uiMix(uiVars.text, 6);
+    bar.style.border = "1px solid " + uiVars.border;
     bar.style.overflow = "hidden";
     bar.style.position = "relative";
 
@@ -993,8 +1023,8 @@ const renderUploadRow = (rec) => {
     fill.style.height = "100%";
     fill.style.width = String(pct) + "%";
     fill.style.borderRadius = "999px";
-    fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.35) 0%, rgba(24,181,213,.95) 50%, rgba(255,255,255,.55) 100%)";
-    fill.style.boxShadow = "0 12px 22px rgba(24,181,213,.18)";
+    fill.style.background = "linear-gradient(90deg, " + uiMix(uiVars.accent, 28) + " 0%, " + uiMix(uiVars.accent, 78) + " 50%, " + uiMix(uiVars.text, 22) + " 100%)";
+    fill.style.boxShadow = "0 12px 22px " + uiMix(uiVars.accent, 16);
     fill.style.transition = "width .12s ease";
 
     bar.appendChild(fill);
@@ -1116,16 +1146,16 @@ const renderGrid = (items) => {
     const src = String(it.deliveryUrl || it.secureUrl || it.url || "");
 
     const card = document.createElement("div");
-    card.style.border = "1px solid rgba(24,181,213,.20)";
+    card.style.border = "1px solid " + uiVars.border;
     card.style.borderRadius = "14px";
     card.style.overflow = "hidden";
-    card.style.background = "#292929";
-    card.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+    card.style.background = uiVars.background;
+    card.style.boxShadow = "0 10px 22px " + uiMix(uiVars.text, 10);
 
     const media = document.createElement("div");
     media.style.width = "100%";
     media.style.aspectRatio = "16 / 10";
-    media.style.background = "rgba(24,181,213,.08)";
+    media.style.background = uiMix(uiVars.primaryBg, 6);
     media.style.display = "flex";
     media.style.alignItems = "center";
     media.style.justifyContent = "center";
@@ -1156,7 +1186,8 @@ const renderGrid = (items) => {
       const label = document.createElement("div");
       label.style.fontSize = "14px";
       label.style.fontWeight = "950";
-      label.style.color = "#fff";
+      label.style.color = uiVars.text;
+      label.style.fontFamily = uiVars.fontMain;
       label.style.textAlign = "center";
       label.style.wordBreak = "break-word";
       label.textContent = String(it.originalFilename || it.publicId || "FILE");
@@ -1171,10 +1202,11 @@ const renderGrid = (items) => {
       open.style.justifyContent = "center";
       open.style.padding = "10px 12px";
       open.style.borderRadius = "12px";
-      open.style.border = "1px solid rgba(24,181,213,.35)";
-      open.style.background = "rgba(24,181,213,.10)";
-      open.style.color = "#18b5d5";
+      open.style.border = "1px solid " + uiVars.border;
+      open.style.background = uiMix(uiVars.primaryBg, 10);
+      open.style.color = uiVars.accent;
       open.style.fontWeight = "950";
+      open.style.fontFamily = uiVars.fontMain;
       open.style.textDecoration = "none";
       open.style.pointerEvents = src ? "auto" : "none";
       open.style.opacity = src ? "1" : "0.6";
@@ -1244,7 +1276,8 @@ const renderGrid = (items) => {
     name.style.minWidth = "0";
     name.style.fontSize = "13px";
     name.style.fontWeight = "950";
-    name.style.color = "#fff";
+    name.style.color = uiVars.text;
+    name.style.fontFamily = uiVars.fontMain;
     name.style.overflow = "hidden";
     name.style.textOverflow = "ellipsis";
     name.style.whiteSpace = "normal";
@@ -1261,9 +1294,10 @@ const renderGrid = (items) => {
     badge.style.fontWeight = "950";
     badge.style.padding = "5px 8px";
     badge.style.borderRadius = "999px";
-    badge.style.border = "1px solid rgba(24,181,213,.35)";
-    badge.style.background = "rgba(24,181,213,.10)";
-    badge.style.color = "#18b5d5";
+    badge.style.border = "1px solid " + uiMix(uiVars.accent, 28);
+    badge.style.background = uiMix(uiVars.primaryBg, 10);
+    badge.style.color = uiVars.accent;
+    badge.style.fontFamily = uiVars.fontMain;
     badge.textContent = (() => {
       const rtKey = String(rt || "").trim().toLowerCase();
       if (fmt) return fmt;
@@ -1293,11 +1327,12 @@ const renderGrid = (items) => {
         c.style.justifyContent = "center";
         c.style.padding = "4px 7px";
         c.style.borderRadius = "999px";
-        c.style.border = "1px solid rgba(255,255,255,.10)";
-        c.style.background = "rgba(255,255,255,.05)";
-        c.style.color = "rgba(255,255,255,.72)";
+        c.style.border = "1px solid " + uiVars.border;
+        c.style.background = uiMix(uiVars.text, 3);
+        c.style.color = uiVars.textMuted;
         c.style.fontSize = "10px";
         c.style.fontWeight = "900";
+        c.style.fontFamily = uiVars.fontMain;
         c.style.lineHeight = "1";
         c.style.letterSpacing = ".2px";
         c.textContent = String(text || "");
@@ -1351,16 +1386,17 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     b.type = "button";
     b.textContent = String(label || "");
     b.disabled = Boolean(disabled);
-    b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.10)";
-    b.style.background = active ? "rgba(24,181,213,.18)" : "#292929";
-    b.style.color = active ? "#18b5d5" : "#fff";
+    b.style.border = active ? "1px solid " + uiMix(uiVars.accent, 40) : "1px solid " + uiVars.border;
+    b.style.background = active ? uiMix(uiVars.primaryBg, 12) : uiVars.background;
+    b.style.color = active ? uiVars.accent : uiVars.text;
     b.style.padding = "8px 10px";
     b.style.borderRadius = "12px";
     b.style.fontSize = "12px";
     b.style.fontWeight = "950";
+    b.style.fontFamily = uiVars.fontMain;
     b.style.cursor = disabled ? "not-allowed" : "pointer";
     b.style.opacity = disabled ? "0.6" : "1";
-    b.style.boxShadow = active ? "0 14px 30px rgba(24,181,213,.18)" : "0 10px 24px rgba(0,0,0,.2)";
+    b.style.boxShadow = active ? "0 14px 30px " + uiMix(uiVars.accent, 16) : "0 10px 24px " + uiMix(uiVars.text, 12);
     return b;
   };
 
@@ -1390,8 +1426,9 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     if (start > 2) {
       const dots = document.createElement("div");
       dots.textContent = "…";
-      dots.style.color = "rgba(255,255,255,.55)";
+      dots.style.color = uiVars.textMuted;
       dots.style.fontWeight = "900";
+      dots.style.fontFamily = uiVars.fontMain;
       wrap.appendChild(dots);
     }
   }
@@ -1406,8 +1443,9 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     if (end < totalPages - 1) {
       const dots = document.createElement("div");
       dots.textContent = "…";
-      dots.style.color = "rgba(255,255,255,.55)";
+      dots.style.color = uiVars.textMuted;
       dots.style.fontWeight = "900";
+      dots.style.fontFamily = uiVars.fontMain;
       wrap.appendChild(dots);
     }
     const last = mk(String(totalPages), p === totalPages, loading);
