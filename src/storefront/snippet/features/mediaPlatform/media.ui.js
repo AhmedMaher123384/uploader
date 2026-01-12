@@ -849,50 +849,133 @@ const renderThumbActions = (opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
-  wrap.style.justifyContent = "space-between";
+  wrap.style.justifyContent = "flex-start";
   wrap.style.gap = "8px";
+
+  const mkSallaIcon = (iconClass) => {
+    const i = document.createElement("i");
+    i.className = String(iconClass || "").trim();
+    i.setAttribute("aria-hidden", "true");
+    i.style.display = "block";
+    i.style.fontSize = "18px";
+    i.style.lineHeight = "1";
+    i.style.pointerEvents = "none";
+    return i;
+  };
+
+  const mkBtnBase = (el, label, tone) => {
+    el.title = String(label || "");
+    el.style.display = "inline-flex";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+    el.style.width = "36px";
+    el.style.height = "36px";
+    el.style.borderRadius = "10px";
+    el.style.cursor = "pointer";
+    el.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+    el.style.flex = "0 0 auto";
+    el.style.padding = "0";
+    el.style.fontSize = "18px";
+    el.style.lineHeight = "1";
+    if (tone === "brand") {
+      el.style.border = "1px solid rgba(24,181,213,.35)";
+      el.style.background = "rgba(24,181,213,.12)";
+      el.style.color = "#18b5d5";
+      return;
+    }
+    if (tone === "danger") {
+      el.style.border = "1px solid rgba(239,68,68,.35)";
+      el.style.background = "rgba(239,68,68,.12)";
+      el.style.color = "#fecaca";
+      return;
+    }
+    el.style.border = "1px solid rgba(255,255,255,.14)";
+    el.style.background = "rgba(255,255,255,.06)";
+    el.style.color = "#fff";
+  };
 
   const open = document.createElement("a");
   open.href = u;
   open.target = "_blank";
   open.rel = "noopener";
-  open.textContent = isArabic() ? "فتح" : "Open";
-  open.style.display = "inline-flex";
-  open.style.alignItems = "center";
-  open.style.justifyContent = "center";
-  open.style.padding = "7px 10px";
-  open.style.borderRadius = "10px";
-  open.style.border = "1px solid rgba(255,255,255,.14)";
-  open.style.background = "rgba(255,255,255,.06)";
-  open.style.color = "#fff";
-  open.style.fontSize = "12px";
-  open.style.fontWeight = "950";
   open.style.textDecoration = "none";
-  open.style.flex = "1 1 auto";
+  mkBtnBase(open, isArabic() ? "فتح" : "Open", "neutral");
+  open.appendChild(mkSallaIcon("sicon-external-link"));
 
   const copy = document.createElement("button");
   copy.type = "button";
-  copy.textContent = isArabic() ? "نسخ" : "Copy";
-  copy.style.flex = "0 0 auto";
   copy.style.border = "0";
-  copy.style.cursor = "pointer";
-  copy.style.padding = "7px 10px";
-  copy.style.borderRadius = "10px";
-  copy.style.background = "#18b5d5";
-  copy.style.color = "#292929";
-  copy.style.fontSize = "12px";
-  copy.style.fontWeight = "950";
-  copy.style.boxShadow = "0 10px 22px rgba(24,181,213,.22)";
+  mkBtnBase(copy, isArabic() ? "نسخ" : "Copy", "brand");
+  copy.appendChild(mkSallaIcon("sicon-copy"));
   copy.onclick = () => {
     try {
-      const prev = isArabic() ? "نسخ" : "Copy";
-      copyText(u, (done) => {
-        copy.textContent = done ? (isArabic() ? "تم" : "Copied") : prev;
-        setTimeout(() => {
-          copy.textContent = prev;
-        }, 900);
-      });
+      copyText(u, () => {});
+      const prevBg = copy.style.background;
+      copy.style.background = "rgba(24,181,213,.22)";
+      setTimeout(() => {
+        try {
+          copy.style.background = prevBg;
+        } catch {}
+      }, 650);
     } catch {}
+  };
+
+  const guessDownloadName = () => {
+    try {
+      const n = String((opts && opts.downloadName) || "").trim();
+      if (n) return n;
+    } catch {}
+    try {
+      const url = new URL(u, window.location.origin);
+      const parts = String(url.pathname || "")
+        .split("/")
+        .filter(Boolean);
+      const last = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
+      if (last) return decodeURIComponent(last);
+    } catch {}
+    return "file";
+  };
+
+  const download = document.createElement("button");
+  download.type = "button";
+  download.style.border = "0";
+  mkBtnBase(download, isArabic() ? "تحميل" : "Download", "neutral");
+  download.appendChild(mkSallaIcon("sicon-download"));
+  download.onclick = async () => {
+    try {
+      if (download.disabled) return;
+      download.disabled = true;
+      download.style.opacity = "0.65";
+      const name = guessDownloadName();
+      let href = "";
+      try {
+        const obj = await fetchMediaObjectUrl(u);
+        href = obj || "";
+      } catch {
+        href = "";
+      }
+      if (!href) href = u;
+
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = String(name || "file");
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      try {
+        a.remove();
+      } catch {}
+    } catch {
+      try {
+        window.open(u, "_blank", "noopener");
+      } catch {}
+    } finally {
+      try {
+        download.disabled = false;
+        download.style.opacity = "1";
+      } catch {}
+    }
   };
 
   const onDelete = opts && typeof opts.onDelete === "function" ? opts.onDelete : null;
@@ -900,17 +983,9 @@ const renderThumbActions = (opts) => {
   if (onDelete) {
     del = document.createElement("button");
     del.type = "button";
-    del.textContent = isArabic() ? "حذف" : "Delete";
-    del.style.flex = "0 0 auto";
-    del.style.border = "1px solid rgba(239,68,68,.35)";
-    del.style.cursor = "pointer";
-    del.style.padding = "7px 10px";
-    del.style.borderRadius = "10px";
-    del.style.background = "rgba(239,68,68,.12)";
-    del.style.color = "#fecaca";
-    del.style.fontSize = "12px";
-    del.style.fontWeight = "950";
-    del.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
+    del.style.border = "0";
+    mkBtnBase(del, isArabic() ? "حذف" : "Delete", "danger");
+    del.appendChild(mkSallaIcon("sicon-trash"));
     del.disabled = Boolean(opts && opts.deleting);
     del.style.opacity = del.disabled ? "0.55" : "1";
     del.onclick = () => {
@@ -923,6 +998,7 @@ const renderThumbActions = (opts) => {
 
   wrap.appendChild(open);
   wrap.appendChild(copy);
+  wrap.appendChild(download);
   if (del) wrap.appendChild(del);
   return wrap;
 };
@@ -1356,7 +1432,7 @@ const renderGrid = (items, opts) => {
 
       meta.appendChild(info);
 
-      const actions = renderThumbActions({ url: src, onDelete, deleting: isDeleting });
+      const actions = renderThumbActions({ url: src, onDelete, deleting: isDeleting, downloadName: fileName });
       if (actions) meta.appendChild(actions);
     }
 
