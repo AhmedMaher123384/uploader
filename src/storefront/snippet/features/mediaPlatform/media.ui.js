@@ -843,8 +843,10 @@ const renderLinkBlock = (url) => {
 `,
   `
 const renderThumbActions = (opts) => {
-  const u = String((opts && opts.url) || "");
-  if (!u) return null;
+  const uOpen = String((opts && (opts.openUrl || opts.url)) || "");
+  if (!uOpen) return null;
+  const uCopy = String((opts && (opts.copyUrl || uOpen)) || "");
+  const uDownload = String((opts && (opts.downloadUrl || uOpen)) || "");
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
@@ -981,23 +983,23 @@ const renderThumbActions = (opts) => {
   };
 
   const open = document.createElement("a");
-  open.href = u;
+  open.href = uOpen;
   open.target = "_blank";
   open.rel = "noopener";
   open.style.textDecoration = "none";
   mkBtnBase(open, isArabic() ? "فتح" : "Open", "neutral");
-  open.appendChild(mkSallaIcon("open", ["sicon-external-link", "sicon-link", "sicon-eye", "sicon-view"]));
+  open.appendChild(mkSallaIcon("open", ["sicon-vision", "sicon-eye", "sicon-view", "sicon-external-link", "sicon-link"]));
   wireHover(open);
 
   const copy = document.createElement("button");
   copy.type = "button";
   copy.style.border = "0";
   mkBtnBase(copy, isArabic() ? "نسخ" : "Copy", "brand");
-  copy.appendChild(mkSallaIcon("copy", ["sicon-copy", "sicon-files", "sicon-duplicate", "sicon-copy-1"]));
+  copy.appendChild(mkSallaIcon("copy", ["sicon-pages", "sicon-copy", "sicon-files", "sicon-duplicate", "sicon-copy-1"]));
   wireHover(copy);
   copy.onclick = () => {
     try {
-      copyText(u, () => {});
+      copyText(uCopy, () => {});
       const prevBg = copy.style.background;
       copy.style.background = "rgba(24,181,213,.78)";
       setTimeout(() => {
@@ -1014,7 +1016,7 @@ const renderThumbActions = (opts) => {
       if (n) return n;
     } catch {}
     try {
-      const url = new URL(u, window.location.origin);
+      const url = new URL(uDownload, window.location.origin);
       const parts = String(url.pathname || "")
         .split("/")
         .filter(Boolean);
@@ -1038,12 +1040,12 @@ const renderThumbActions = (opts) => {
       const name = guessDownloadName();
       let href = "";
       try {
-        const obj = await fetchMediaObjectUrl(u);
+        const obj = await fetchMediaObjectUrl(uDownload);
         href = obj || "";
       } catch {
         href = "";
       }
-      if (!href) href = u;
+      if (!href) href = uDownload;
 
       const a = document.createElement("a");
       a.href = href;
@@ -1057,7 +1059,7 @@ const renderThumbActions = (opts) => {
       } catch {}
     } catch {
       try {
-        window.open(u, "_blank", "noopener");
+        window.open(uOpen, "_blank", "noopener");
       } catch {}
     } finally {
       try {
@@ -1306,7 +1308,9 @@ const renderGrid = (items, opts) => {
 
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
-    const src = String(it.deliveryUrl || it.secureUrl || it.url || "");
+    const openUrl = String(it.deliveryUrl || it.secureUrl || it.url || "");
+    const copyUrl = String(it.secureUrl || it.url || it.deliveryUrl || "");
+    const src = openUrl;
     const onDelete =
       opts && typeof opts.onDeleteItem === "function"
         ? () => {
@@ -1540,7 +1544,7 @@ const renderGrid = (items, opts) => {
 
       meta.appendChild(info);
 
-      const actions = renderThumbActions({ url: src, onDelete, deleting: isDeleting, downloadName: fileName });
+      const actions = renderThumbActions({ openUrl, copyUrl, downloadUrl: openUrl, onDelete, deleting: isDeleting, downloadName: fileName });
       if (actions) meta.appendChild(actions);
     }
 
