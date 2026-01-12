@@ -572,14 +572,6 @@ function createApiRouter(config) {
         return res.send(placeholderSvg(storeId));
       }
 
-      const token = String(req.query?.token || "").trim();
-      if (storeId === "sandbox" && token === "sandbox") {
-        void token;
-      } else {
-        if (!token) throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
-        ensureValidStorefrontToken(token, storeId);
-      }
-
       const storeInfo = await getPublicStoreInfo(storeId);
       const domain =
         (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") ||
@@ -596,6 +588,13 @@ function createApiRouter(config) {
       if (!h) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       const ok = allowedHosts.some((a) => hostEquals(h, a));
       if (!ok) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
+      const token = String(req.query?.token || "").trim();
+      if (storeId === "sandbox" && token === "sandbox") {
+        void token;
+      } else if (token) {
+        ensureValidStorefrontToken(token, storeId);
+      }
 
       const { folderPrefix } = requireCloudinaryConfig();
       const folder = mediaFolderForMerchant(folderPrefix, storeId);

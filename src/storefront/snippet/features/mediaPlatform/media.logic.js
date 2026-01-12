@@ -368,7 +368,6 @@ const buildDeliveryUrlFromItem = (it) => {
     const leaf = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
     if (!leaf) return "";
     const u = new URL(origin + "/api/m/" + encodeURIComponent(storeId) + "/" + encodeURIComponent(leaf));
-    if (token) u.searchParams.set("token", token);
     return u.toString();
   } catch {
     return "";
