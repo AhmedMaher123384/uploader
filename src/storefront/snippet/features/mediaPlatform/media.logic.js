@@ -938,7 +938,7 @@ const mount = () => {
           if (state.converting) return;
 
           const plan = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
-          if (plan && plan !== "pro" && plan !== "business") {
+          if (plan !== "pro" && plan !== "business") {
             state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
             render();
             return;
@@ -1012,6 +1012,10 @@ const mount = () => {
               ? { upload: "مركز الرفع", convert: "تحويل الصور", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
               : { upload: "Upload Center", convert: "Convert", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
 
+            const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+            const allowConvert = planKey === "pro" || planKey === "business";
+            if (!allowConvert && state.view === "convert") state.view = "upload";
+
             const uploadTab = pill(labels.upload, state.view === "upload");
             const convertTab = pill(labels.convert, state.view === "convert");
             const filesTab = pill(labels.files, state.view === "files");
@@ -1031,7 +1035,7 @@ const mount = () => {
             convertTab.onclick = () => setView("convert");
             filesTab.onclick = () => setView("files");
             sheet.tabs.appendChild(uploadTab);
-            sheet.tabs.appendChild(convertTab);
+            if (allowConvert) sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
             const refreshBtn = btnGhost(labels.ref);
@@ -1082,8 +1086,7 @@ const mount = () => {
               if (state.dashLoading) sheet.content.appendChild(renderLoading());
               if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
 
-              const plan = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
-              const planBlocked = plan && plan !== "pro" && plan !== "business";
+              const planBlocked = !allowConvert;
 
               const card = document.createElement("div");
               card.style.border = "1px solid rgba(255,255,255,.12)";
@@ -1111,7 +1114,7 @@ const mount = () => {
               title.style.color = "#fff";
               title.style.fontSize = "14px";
               title.style.fontWeight = "950";
-              title.textContent = isArabic() ? "تحويل الصور إلى WebP/AVIF" : "Convert images to WebP/AVIF";
+              title.textContent = isArabic() ? "تحويل الصور" : "Image Converter";
 
               const hint = document.createElement("div");
               hint.style.color = "rgba(255,255,255,.70)";
@@ -1120,7 +1123,7 @@ const mount = () => {
               hint.style.lineHeight = "1.6";
               hint.textContent = planBlocked
                 ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
-                : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة ثم حمّل النتيجة فورًا" : "Upload an image, pick format/quality, then download instantly");
+                : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا" : "Upload an image, choose format/quality/speed, then download instantly");
 
               titleWrap.appendChild(title);
               titleWrap.appendChild(hint);
@@ -1137,12 +1140,51 @@ const mount = () => {
               head.appendChild(pickBtn);
               card.appendChild(head);
 
-              const fileRow = document.createElement("div");
-              fileRow.style.display = "flex";
-              fileRow.style.alignItems = "center";
-              fileRow.style.justifyContent = "space-between";
-              fileRow.style.gap = "10px";
-              fileRow.style.flexWrap = "wrap";
+              const stepWrap = document.createElement("div");
+              stepWrap.style.display = "flex";
+              stepWrap.style.flexDirection = "column";
+              stepWrap.style.gap = "10px";
+
+              const mkStep = (n, t, sub) => {
+                const w = document.createElement("div");
+                w.style.border = "1px solid rgba(255,255,255,.10)";
+                w.style.borderRadius = "14px";
+                w.style.background = "rgba(2,6,23,.18)";
+                w.style.padding = "12px";
+                w.style.display = "flex";
+                w.style.flexDirection = "column";
+                w.style.gap = "10px";
+
+                const left = document.createElement("div");
+                left.style.display = "flex";
+                left.style.flexDirection = "column";
+                left.style.gap = "4px";
+                left.style.minWidth = "0";
+
+                const tt = document.createElement("div");
+                tt.style.color = "#fff";
+                tt.style.fontSize = "12px";
+                tt.style.fontWeight = "950";
+                tt.textContent = String(n) + ". " + String(t || "");
+
+                const ss = document.createElement("div");
+                ss.style.color = "rgba(255,255,255,.66)";
+                ss.style.fontSize = "12px";
+                ss.style.fontWeight = "900";
+                ss.style.lineHeight = "1.6";
+                ss.textContent = String(sub || "");
+
+                left.appendChild(tt);
+                if (ss.textContent) left.appendChild(ss);
+                w.appendChild(left);
+                return w;
+              };
+
+              const s1 = mkStep(
+                1,
+                isArabic() ? "اختيار الصورة" : "Select image",
+                state.convertFile ? "" : (isArabic() ? "اختَر صورة واحدة لبدء التحويل" : "Pick a single image to start")
+              );
 
               const fileMeta = document.createElement("div");
               fileMeta.style.display = "flex";
@@ -1167,39 +1209,85 @@ const mount = () => {
 
               fileMeta.appendChild(fileName);
               fileMeta.appendChild(fileSize);
+              s1.appendChild(fileMeta);
 
-              const formatRow = document.createElement("div");
-              formatRow.style.display = "flex";
-              formatRow.style.gap = "8px";
-              formatRow.style.flexWrap = "wrap";
-              formatRow.style.alignItems = "center";
+              const dz = renderDropzone({
+                disabled: Boolean(state.converting) || planBlocked,
+                onPick: () => {
+                  try {
+                    convertInput.click();
+                  } catch {}
+                },
+                onFiles: (fs) => {
+                  try {
+                    const list = Array.isArray(fs) ? fs : [];
+                    const f = list && list[0] ? list[0] : null;
+                    if (f) setConvertFile(f);
+                  } catch {}
+                }
+              });
+              s1.appendChild(dz);
 
-              const fmtAuto = pill(isArabic() ? "تلقائي" : "Auto", state.convertFormat === "auto");
-              const fmtWebp = pill("WebP", state.convertFormat === "webp");
-              const fmtAvif = pill("AVIF", state.convertFormat === "avif");
-              fmtAuto.disabled = Boolean(state.converting) || planBlocked;
-              fmtWebp.disabled = Boolean(state.converting) || planBlocked;
-              fmtAvif.disabled = Boolean(state.converting) || planBlocked;
-              fmtAuto.onclick = () => {
-                state.convertFormat = "auto";
-                render();
+              const s2 = mkStep(
+                2,
+                isArabic() ? "اختيار الصيغة" : "Choose output format",
+                isArabic() ? "قائمة مرتبة للاستخدامات الشائعة" : "A clean list for common use-cases"
+              );
+
+              const formatList = document.createElement("div");
+              formatList.style.display = "flex";
+              formatList.style.flexDirection = "column";
+              formatList.style.gap = "8px";
+
+              const mkFmtRow = (key, label, desc) => {
+                const row = document.createElement("div");
+                row.style.display = "flex";
+                row.style.alignItems = "center";
+                row.style.justifyContent = "space-between";
+                row.style.gap = "10px";
+                row.style.flexWrap = "wrap";
+
+                const left = document.createElement("div");
+                left.style.display = "flex";
+                left.style.alignItems = "center";
+                left.style.gap = "10px";
+                left.style.flexWrap = "wrap";
+
+                const b = pill(label, state.convertFormat === key);
+                b.disabled = Boolean(state.converting) || planBlocked;
+                b.onclick = () => {
+                  state.convertFormat = key;
+                  render();
+                };
+
+                const d = document.createElement("div");
+                d.style.color = "rgba(255,255,255,.66)";
+                d.style.fontSize = "12px";
+                d.style.fontWeight = "900";
+                d.style.lineHeight = "1.6";
+                d.textContent = String(desc || "");
+
+                left.appendChild(b);
+                left.appendChild(d);
+                row.appendChild(left);
+                return row;
               };
-              fmtWebp.onclick = () => {
-                state.convertFormat = "webp";
-                render();
-              };
-              fmtAvif.onclick = () => {
-                state.convertFormat = "avif";
-                render();
-              };
 
-              formatRow.appendChild(fmtAuto);
-              formatRow.appendChild(fmtWebp);
-              formatRow.appendChild(fmtAvif);
+              formatList.appendChild(
+                mkFmtRow(
+                  "auto",
+                  isArabic() ? "تلقائي" : "Auto",
+                  isArabic() ? "يختار أفضل صيغة حسب حجم الصورة" : "Picks best format based on image size"
+                )
+              );
+              formatList.appendChild(mkFmtRow("avif", "AVIF", isArabic() ? "أفضل ضغط لحجم أصغر" : "Best compression for smaller size"));
+              formatList.appendChild(mkFmtRow("webp", "WebP", isArabic() ? "توافق ممتاز مع المتصفحات" : "Great browser compatibility"));
+              formatList.appendChild(mkFmtRow("jpeg", "JPEG", isArabic() ? "مناسب للصور التقليدية" : "Classic photos format"));
+              formatList.appendChild(mkFmtRow("png", "PNG", isArabic() ? "جودة أعلى (قد يكون أثقل)" : "Higher fidelity (can be larger)"));
 
-              fileRow.appendChild(fileMeta);
-              fileRow.appendChild(formatRow);
-              card.appendChild(fileRow);
+              s2.appendChild(formatList);
+
+              const s3 = mkStep(3, isArabic() ? "تحديد الجودة" : "Adjust quality", isArabic() ? "توازن بين الحجم والجودة" : "Balance quality vs size");
 
               const qWrap = document.createElement("div");
               qWrap.style.display = "flex";
@@ -1222,7 +1310,7 @@ const mount = () => {
               qVal.style.color = "#18b5d5";
               qVal.style.fontSize = "12px";
               qVal.style.fontWeight = "950";
-              const qDefault = state.convertFormat === "avif" ? 55 : 82;
+              const qDefault = state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
               const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
               qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
 
@@ -1248,7 +1336,9 @@ const mount = () => {
 
               qWrap.appendChild(qHead);
               qWrap.appendChild(range);
-              card.appendChild(qWrap);
+              s3.appendChild(qWrap);
+
+              const s4 = mkStep(4, isArabic() ? "اختيار السرعة" : "Choose speed", isArabic() ? "الأسرع أو أصغر حجم" : "Fastest or smallest output");
 
               const speedRow = document.createElement("div");
               speedRow.style.display = "flex";
@@ -1277,24 +1367,9 @@ const mount = () => {
               speedRow.appendChild(spFast);
               speedRow.appendChild(spBal);
               speedRow.appendChild(spSmall);
-              card.appendChild(speedRow);
+              s4.appendChild(speedRow);
 
-              const dz = renderDropzone({
-                disabled: Boolean(state.converting) || planBlocked,
-                onPick: () => {
-                  try {
-                    convertInput.click();
-                  } catch {}
-                },
-                onFiles: (fs) => {
-                  try {
-                    const list = Array.isArray(fs) ? fs : [];
-                    const f = list && list[0] ? list[0] : null;
-                    if (f) setConvertFile(f);
-                  } catch {}
-                }
-              });
-              card.appendChild(dz);
+              const s5 = mkStep(5, isArabic() ? "التحويل والتحميل" : "Convert & download", isArabic() ? "ابدأ التحويل ثم حمّل النتيجة" : "Run conversion, then download result");
 
               const actions = document.createElement("div");
               actions.style.display = "flex";
@@ -1324,7 +1399,7 @@ const mount = () => {
 
               actions.appendChild(convertBtn);
               actions.appendChild(resetBtn);
-              card.appendChild(actions);
+              s5.appendChild(actions);
 
               if (state.converting) {
                 const prog = document.createElement("div");
@@ -1338,11 +1413,11 @@ const mount = () => {
                 bar.style.background = "linear-gradient(90deg,#18b5d5,rgba(24,181,213,.35))";
                 bar.style.transition = "width .12s ease";
                 prog.appendChild(bar);
-                card.appendChild(prog);
+                s5.appendChild(prog);
               }
 
               if (state.convertError) {
-                card.appendChild(renderError(state.convertError));
+                s5.appendChild(renderError(state.convertError));
               }
 
               if (state.convertResultUrl) {
@@ -1388,7 +1463,17 @@ const mount = () => {
                     const dot = baseName.lastIndexOf(".");
                     if (dot > 0) baseName = baseName.slice(0, dot);
                     baseName = baseName.slice(0, 120) || "converted";
-                    const ext = String(state.convertResultFormat || "").trim() || (state.convertFormat === "avif" ? "avif" : state.convertFormat === "webp" ? "webp" : "webp");
+                    const ext =
+                      String(state.convertResultFormat || "").trim() ||
+                      (state.convertFormat === "avif"
+                        ? "avif"
+                        : state.convertFormat === "webp"
+                          ? "webp"
+                          : state.convertFormat === "jpeg"
+                            ? "jpeg"
+                            : state.convertFormat === "png"
+                              ? "png"
+                              : "webp");
                     a.href = state.convertResultUrl;
                     a.download = baseName + "." + ext;
                     document.body.appendChild(a);
@@ -1414,8 +1499,15 @@ const mount = () => {
 
                 outWrap.appendChild(outMeta);
                 outWrap.appendChild(img);
-                card.appendChild(outWrap);
+                s5.appendChild(outWrap);
               }
+
+              stepWrap.appendChild(s1);
+              stepWrap.appendChild(s2);
+              stepWrap.appendChild(s3);
+              stepWrap.appendChild(s4);
+              stepWrap.appendChild(s5);
+              card.appendChild(stepWrap);
 
               sheet.content.appendChild(card);
               return;

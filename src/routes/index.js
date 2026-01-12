@@ -1877,7 +1877,7 @@ function createApiRouter(config) {
     token: Joi.string().trim().min(10),
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
-    format: Joi.string().trim().valid("auto", "webp", "avif").default("auto"),
+    format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
     quality: Joi.number().integer().min(1).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
     name: Joi.string().trim().min(1).max(180).allow("")
@@ -1976,6 +1976,15 @@ function createApiRouter(config) {
         out = await img.avif({ quality, effort }).toBuffer();
         contentType = "image/avif";
         ext = "avif";
+      } else if (targetFormat === "jpeg") {
+        out = await img.jpeg({ quality, mozjpeg: true }).toBuffer();
+        contentType = "image/jpeg";
+        ext = "jpeg";
+      } else if (targetFormat === "png") {
+        const compressionLevel = speed === "small" ? 9 : speed === "balanced" ? 7 : 6;
+        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: speed === "small", quality }).toBuffer();
+        contentType = "image/png";
+        ext = "png";
       } else {
         throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
       }
