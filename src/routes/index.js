@@ -859,7 +859,7 @@ function createApiRouter(config) {
         }
       }
 
-      const { folderPrefix } = requireCloudinaryConfig();
+      const folderPrefix = getMediaFolderPrefix();
       const folder = mediaFolderForMerchant(folderPrefix, storeId);
       const publicId = `${folder}/${leaf}`;
       let asset = await MediaAsset.findOne({ storeId, publicId, deletedAt: null }).lean();
@@ -868,6 +868,92 @@ function createApiRouter(config) {
         asset = await MediaAsset.findOne({ storeId, deletedAt: null, publicId: new RegExp(`/${escapedLeaf}$`) }).lean();
       }
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
+
+      if (provider === "r2") {
+        const key = String(asset.publicId || publicId).trim() || publicId;
+        if (!key) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+        const range = String(req.headers.range || "").trim();
+        const wantsRange = Boolean(range);
+
+        if (stage === "watermark" && String(asset.resourceType) === "image") {
+          const { bucket } = requireR2Config();
+          const client = getR2Client();
+          let obj = null;
+          try {
+            obj = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+          } catch {
+            throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+          }
+
+          const body = obj && obj.Body ? await streamToBuffer(obj.Body, 25 * 1024 * 1024) : Buffer.from("");
+          if (!body || !body.length) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+          const ext = String(asset.format || "").trim().toLowerCase();
+          const fmt = ext === "png" ? "png" : ext === "webp" ? "webp" : ext === "avif" ? "avif" : "jpeg";
+
+          const wmSvg =
+            `<svg width="1200" height="1200" xmlns="http://www.w3.org/2000/svg">` +
+            `<text x="98%" y="96%" text-anchor="end" font-family="Arial" font-size="48" font-weight="700" fill="white" fill-opacity="0.7" stroke="black" stroke-width="2">BundleApp</text>` +
+            `</svg>`;
+
+          let out = null;
+          try {
+            out = await sharp(body).composite([{ input: Buffer.from(wmSvg), gravity: "southeast" }]).toFormat(fmt).toBuffer();
+          } catch (e) {
+            void e;
+            out = body;
+          }
+
+          if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+          res.setHeader("Cache-Control", "private, no-store, max-age=0");
+          res.setHeader("Vary", "Origin, Referer, Cookie");
+          res.status(200);
+          res.setHeader("Content-Type", fmt === "png" ? "image/png" : fmt === "webp" ? "image/webp" : fmt === "avif" ? "image/avif" : "image/jpeg");
+          res.setHeader("Content-Length", String(Buffer.byteLength(out)));
+          return res.send(out);
+        }
+
+        const { bucket } = requireR2Config();
+        const client = getR2Client();
+        let obj = null;
+        try {
+          obj = await client.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              ...(wantsRange ? { Range: range } : {})
+            })
+          );
+        } catch {
+          throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+        }
+
+        const ct = String(obj?.ContentType || "").trim();
+        const cl = obj?.ContentLength != null ? Number(obj.ContentLength) : null;
+        const cr = String(obj?.ContentRange || "").trim();
+        const etag = String(obj?.ETag || "").trim();
+        const lm = obj?.LastModified ? new Date(obj.LastModified) : null;
+
+        if (ct) res.setHeader("content-type", ct);
+        if (Number.isFinite(cl) && cl >= 0) res.setHeader("content-length", String(cl));
+        if (cr) res.setHeader("content-range", cr);
+        if (etag) res.setHeader("etag", etag);
+        if (lm && !Number.isNaN(lm.getTime())) res.setHeader("last-modified", lm.toUTCString());
+        res.setHeader("accept-ranges", "bytes");
+        if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        res.setHeader("Vary", "Origin, Referer, Cookie");
+        res.status(cr ? 206 : 200);
+        if (obj?.Body && typeof obj.Body.pipe === "function") {
+          obj.Body.pipe(res);
+          return;
+        }
+        const buf = obj && obj.Body ? await streamToBuffer(obj.Body, 50 * 1024 * 1024) : Buffer.from("");
+        return res.send(buf);
+      }
 
       const baseUrl = String(asset.secureUrl || asset.url || "").trim();
       if (!baseUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
