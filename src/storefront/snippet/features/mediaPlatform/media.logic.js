@@ -725,7 +725,7 @@ const mount = () => {
           deletingId: "",
           convertKind: "image",
           convertFile: null,
-          convertFormat: "auto",
+          convertFormat: "webp",
           convertSpeed: "fast",
           convertQuality: "",
           convertPreset: "",
@@ -1421,7 +1421,7 @@ const mount = () => {
               try {
                 convertInput.accept = "image/*";
               } catch {}
-              if (["mp4", "webm", "webm_local", "mov"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
+              if (["mp4", "webm", "webm_local", "mov"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "webp";
             }
           } catch {}
           state.convertPreset = "";
@@ -1463,7 +1463,7 @@ const mount = () => {
             state.convertMode = "fit";
             state.convertPosition = "center";
           } else {
-            state.convertFormat = "auto";
+            state.convertFormat = "webp";
             state.convertPreset = "";
             state.convertWidth = "";
             state.convertHeight = "";

@@ -615,16 +615,15 @@ const renderConversionPlatform = (opts) => {
     const s2 = mkStep(
       2,
       isArabic() ? "إعدادات الفيديو" : "Video settings",
-      isArabic() ? "اختَر الصيغة المناسبة: MP4 للمتاجر، WebM لحجم أقل، MOV للـ QuickTime" : "Pick the right format: MP4 for stores, WebM smaller, MOV for QuickTime"
     );
     const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج" : "Output format",
       String(state.convertFormat || "mp4"),
       [
-        { value: "mp4", label: isArabic() ? "MP4 (H.264) — مناسب للمتاجر" : "MP4 (H.264) — store-friendly" },
-        { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — حجم أقل غالبًا" : "WebM (VP9/VP8) — usually smaller" },
-        { value: "webm_local", label: isArabic() ? "WebM (سريع) — أولوية للسرعة" : "WebM (fast) — prioritize speed" },
-        { value: "mov", label: isArabic() ? "MOV — للـ QuickTime (حسب دعم المتصفح)" : "MOV — for QuickTime (browser dependent)" },
+        { value: "mp4", label: isArabic() ? "MP4 (H.264) " : "MP4 (H.264) " },
+        { value: "webm", label: isArabic() ? "WebM (VP9)" : "WebM (VP9)" },
+        { value: "webm_local", label: isArabic() ? "WebM " : "WebM " },
+        { value: "mov", label: isArabic() ? "MOV" : "MOV " },
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {
@@ -645,11 +644,13 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "اختيار الصيغة" : "Choose output format",
       isArabic() ? "قائمة مرتبة للاستخدامات الشائعة" : "A clean list for common use-cases"
     );
+
+    let fmtValue = String(state.convertFormat || "webp");
+    if (fmtValue === "auto") fmtValue = "webp";
     const fmtSelect = mkSelect(
       isArabic() ? "الصيغة" : "Format",
-      state.convertFormat,
+      fmtValue,
       [
-        { value: "auto", label: isArabic() ? "تلقائي (Auto)" : "Auto" },
         { value: "avif", label: "AVIF" },
         { value: "webp", label: "WebP" },
         { value: "jpeg", label: "JPEG" },
@@ -658,7 +659,7 @@ const renderConversionPlatform = (opts) => {
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          state.convertFormat = v;
+          state.convertFormat = String(v || "webp");
           if (onRender) onRender();
         } catch {}
       }

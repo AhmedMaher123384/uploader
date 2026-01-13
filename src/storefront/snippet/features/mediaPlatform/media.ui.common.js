@@ -533,23 +533,22 @@ const buildLegalFooter = () => {
     b.textContent = String(label || "");
     b.style.border = "0";
     b.style.background = "transparent";
-    b.style.padding = "0";
+    b.style.padding = "0 2px";
     b.style.margin = "0";
     b.style.cursor = "pointer";
     b.style.fontSize = "12px";
     b.style.fontWeight = "950";
-    b.style.color = "#18b5d5";
-    b.style.textDecoration = "underline";
-    b.style.textDecorationThickness = "2px";
-    b.style.textUnderlineOffset = "3px";
+    b.style.color = "#fff";
+    b.style.textDecoration = "none";
     b.onclick = () => openLegalSheet(kind);
     return b;
   };
 
   const sep = document.createElement("span");
-  sep.textContent = " | ";
+  sep.textContent = "|";
   sep.style.color = "rgba(255,255,255,.55)";
   sep.style.fontWeight = "900";
+  sep.style.margin = "0 10px";
 
   wrap.appendChild(mkLink(isArabic() ? "شروط الاستخدام" : "Terms of Use", "terms"));
   wrap.appendChild(sep);
