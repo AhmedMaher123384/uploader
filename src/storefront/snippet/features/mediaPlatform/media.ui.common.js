@@ -132,60 +132,327 @@ const createFab = () => {
 };
 `,
   `
+const buildLegalTheme = () => {
+  return {
+    overlayBg: "rgba(0,0,0,.55)",
+    panelBg: "#303030",
+    cardBg: "#373737",
+    border: "1px solid rgba(255,255,255,.10)",
+    borderSoft: "1px solid rgba(255,255,255,.08)",
+    borderBrand: "1px solid rgba(24,181,213,.22)",
+    text: "rgba(255,255,255,.92)",
+    textMuted: "rgba(255,255,255,.70)",
+    textFaint: "rgba(255,255,255,.55)",
+    brand: "#18b5d5"
+  };
+};
+
+const getLegalCopy = (kind, ar) => {
+  const k = String(kind || "").trim().toLowerCase() || "terms";
+  const isPrivacy = k === "privacy";
+  const updated = ar ? "آخر تحديث: 2026-01-13" : "Last updated: 2026-01-13";
+
+  const intro = isPrivacy
+    ? (ar
+        ? "توضح سياسة الخصوصية كيفية تعاملنا مع بياناتك عند استخدام مركز الرفع."
+        : "Privacy Policy explains how we handle your data while using Upload Center.")
+    : (ar
+        ? "توضح شروط الاستخدام القواعد والمسؤوليات الأساسية لاستخدام مركز الرفع."
+        : "Terms of Use describe the basic rules and responsibilities when using Upload Center.");
+
+  const mk = (id, title, points) => ({ id: String(id || ""), title: String(title || ""), points: Array.isArray(points) ? points : [] });
+
+  if (isPrivacy) {
+    return {
+      title: ar ? "سياسة الخصوصية" : "Privacy Policy",
+      updated,
+      intro,
+      sections: ar
+        ? [
+            mk("collect", "المعلومات التي نجمعها", ["معلومات فنية عن الملف (مثل النوع والحجم).", "معرّفات تشغيل داخلية مرتبطة بمتجرك.", "قد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."]),
+            mk("use", "كيفية استخدام المعلومات", ["رفع الملفات وإدارتها.", "تحسين الأداء وتجربة الاستخدام.", "منع إساءة الاستخدام وحماية الخدمة."]),
+            mk("share", "المشاركة مع أطراف خارجية", ["قد نعتمد على مزوّدي بنية تحتية (تخزين/شبكات) لتنفيذ الخدمة.", "لا نقوم ببيع بياناتك."]),
+            mk("retain", "الاحتفاظ والحذف", ["نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية.", "يمكنك حذف ملفاتك من تبويب (ملفاتي) عند توفره."]),
+            mk("rights", "حقوقك", ["يمكنك طلب حذف/مراجعة بيانات مرتبطة باستخدامك للخدمة عبر فريق الدعم."])
+          ]
+        : [
+            mk("collect", "Information We Collect", ["Technical file metadata (type/size).", "Internal operational identifiers tied to your store.", "Technical event logs for security and diagnostics."]),
+            mk("use", "How We Use It", ["Upload and manage files.", "Improve performance and user experience.", "Prevent abuse and protect the service."]),
+            mk("share", "Sharing", ["We may rely on infrastructure providers (storage/network) to deliver the service.", "We do not sell your data."]),
+            mk("retain", "Retention & Deletion", ["We retain data as needed to provide the service or for legal/security needs.", "You can delete your files from the 'My files' tab when available."]),
+            mk("rights", "Your Rights", ["You can request deletion/review of data related to your usage through support."])
+          ]
+    };
+  }
+
+  return {
+    title: ar ? "شروط الاستخدام" : "Terms of Use",
+    updated,
+    intro,
+    sections: ar
+      ? [
+          mk("allowed", "الاستخدام المسموح", ["لا يجوز رفع إلا المحتوى الذي تملكه أو تملك حق استخدامه.", "يجب استخدام الخدمة لأغراض مشروعة وبما يتوافق مع سياسات منصتك."]),
+          mk("blocked", "المحتوى المحظور", ["لا يجوز رفع محتوى ينتهك حقوق الملكية الفكرية.", "لا يجوز رفع محتوى غير قانوني أو ضار أو يتضمن برمجيات خبيثة."]),
+          mk("resp", "المسؤولية", ["تتحمل المسؤولية عن الملفات التي تقوم برفعها وكيفية استخدامها.", "قد تتأثر إتاحة الخدمة مؤقتًا بسبب الصيانة أو الأسباب التقنية."]),
+          mk("retain", "الحذف والاحتفاظ", ["يمكنك حذف ملفاتك من تبويب (ملفاتي) عند توفره.", "قد نحتفظ بنسخ تشغيلية/أمنية مؤقتة ضمن حدود معقولة."])
+        ]
+      : [
+          mk("allowed", "Permitted Use", ["Upload only content you own or have rights to use.", "Use the service lawfully and in compliance with your platform policies."]),
+          mk("blocked", "Prohibited Content", ["Do not upload content that infringes IP rights.", "Do not upload illegal, harmful content, or malware."]),
+          mk("resp", "Responsibility", ["You are responsible for the files you upload and how you use them.", "Service availability may be impacted by maintenance or technical issues."]),
+          mk("retain", "Retention & Deletion", ["You can delete your files from the 'My files' tab when available.", "We may keep temporary operational/security copies within reasonable limits."])
+        ]
+  };
+};
+
+const buildLegalOverlay = (theme) => {
+  const overlay = document.createElement("div");
+  overlay.className = "bundle-app-bottomsheet";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.padding = "14px";
+  overlay.style.background = theme.overlayBg;
+  overlay.style.zIndex = "100004";
+  return overlay;
+};
+
+const buildLegalPanel = (theme) => {
+  const panel = document.createElement("div");
+  panel.className = "bundle-app-bottomsheet__panel";
+  panel.style.width = "min(760px,100%)";
+  panel.style.maxHeight = "85vh";
+  panel.style.overflow = "auto";
+  panel.style.background = theme.panelBg;
+  panel.style.borderRadius = "16px";
+  panel.style.border = theme.borderBrand;
+  return panel;
+};
+
+const buildLegalHead = (titleText, theme, onClose) => {
+  const head = document.createElement("div");
+  head.className = "bundle-app-bottomsheet__head";
+  head.style.padding = "16px 14px";
+  head.style.display = "flex";
+  head.style.alignItems = "center";
+  head.style.justifyContent = "space-between";
+  head.style.gap = "10px";
+  head.style.borderBottom = "1px solid rgba(24,181,213,.2)";
+
+  const title = document.createElement("div");
+  title.className = "bundle-app-bottomsheet__title";
+  title.textContent = String(titleText || "");
+  title.style.fontSize = "18px";
+  title.style.fontWeight = "950";
+  title.style.color = "#fff";
+  title.style.minWidth = "0";
+  title.style.overflow = "hidden";
+  title.style.textOverflow = "ellipsis";
+  title.style.whiteSpace = "nowrap";
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = isArabic() ? "إغلاق" : "Close";
+  close.style.padding = "6px 10px";
+  close.style.borderRadius = "10px";
+  close.style.border = "1px solid rgba(24,181,213,.3)";
+  close.style.background = theme.cardBg;
+  close.style.color = theme.brand;
+  close.style.fontSize = "13px";
+  close.style.fontWeight = "900";
+  close.style.cursor = "pointer";
+  close.onclick = () => {
+    try {
+      if (typeof onClose === "function") onClose();
+    } catch {}
+  };
+
+  head.appendChild(title);
+  head.appendChild(close);
+  return head;
+};
+
+const buildLegalInfoBar = (copy, theme) => {
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.flexWrap = "wrap";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "space-between";
+  wrap.style.gap = "10px";
+  wrap.style.border = theme.borderSoft;
+  wrap.style.background = theme.cardBg;
+  wrap.style.borderRadius = "14px";
+  wrap.style.padding = "12px";
+
+  const left = document.createElement("div");
+  left.style.minWidth = "0";
+
+  const intro = document.createElement("div");
+  intro.style.fontSize = "12px";
+  intro.style.fontWeight = "900";
+  intro.style.color = theme.textMuted;
+  intro.style.lineHeight = "1.75";
+  intro.textContent = String((copy && copy.intro) || "");
+
+  const updated = document.createElement("div");
+  updated.style.marginTop = "6px";
+  updated.style.fontSize = "11px";
+  updated.style.fontWeight = "900";
+  updated.style.color = theme.textFaint;
+  updated.textContent = String((copy && copy.updated) || "");
+
+  left.appendChild(intro);
+  left.appendChild(updated);
+
+  const right = document.createElement("div");
+  right.style.display = "flex";
+  right.style.alignItems = "center";
+  right.style.gap = "8px";
+  right.style.flex = "0 0 auto";
+
+  const badge = document.createElement("div");
+  badge.textContent = isArabic() ? "نص إرشادي" : "Guideline";
+  badge.style.padding = "6px 10px";
+  badge.style.borderRadius = "999px";
+  badge.style.border = "1px solid rgba(24,181,213,.35)";
+  badge.style.background = "rgba(24,181,213,.10)";
+  badge.style.color = theme.brand;
+  badge.style.fontWeight = "950";
+  badge.style.fontSize = "11px";
+
+  right.appendChild(badge);
+
+  wrap.appendChild(left);
+  wrap.appendChild(right);
+  return wrap;
+};
+
+const buildLegalToc = (sections, theme, onJump) => {
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.flexWrap = "wrap";
+  wrap.style.gap = "8px";
+  wrap.style.alignItems = "center";
+
+  const mk = (label, id) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = String(label || "");
+    b.style.border = theme.borderSoft;
+    b.style.background = theme.cardBg;
+    b.style.color = theme.text;
+    b.style.padding = "8px 10px";
+    b.style.borderRadius = "12px";
+    b.style.fontSize = "12px";
+    b.style.fontWeight = "950";
+    b.style.cursor = "pointer";
+    b.onclick = () => {
+      try {
+        if (typeof onJump === "function") onJump(String(id || ""));
+      } catch {}
+    };
+    return b;
+  };
+
+  for (let i = 0; i < (sections || []).length; i += 1) {
+    const s = sections[i] || {};
+    wrap.appendChild(mk(String(s.title || ""), String(s.id || "")));
+  }
+  return wrap;
+};
+
+const buildLegalSectionCard = (sec, idx, theme) => {
+  const box = document.createElement("div");
+  box.id = "legal_" + String((sec && sec.id) || "");
+  box.style.border = theme.borderSoft;
+  box.style.background = theme.cardBg;
+  box.style.borderRadius = "14px";
+  box.style.padding = "12px";
+
+  const head = document.createElement("div");
+  head.style.display = "flex";
+  head.style.alignItems = "flex-start";
+  head.style.justifyContent = "space-between";
+  head.style.gap = "10px";
+
+  const title = document.createElement("div");
+  title.style.fontSize = "13px";
+  title.style.fontWeight = "950";
+  title.style.color = theme.text;
+  title.style.lineHeight = "1.4";
+  title.textContent = String((sec && sec.title) || "");
+
+  const num = document.createElement("div");
+  num.textContent = String(idx + 1);
+  num.style.flex = "0 0 auto";
+  num.style.minWidth = "28px";
+  num.style.height = "28px";
+  num.style.display = "grid";
+  num.style.placeItems = "center";
+  num.style.borderRadius = "10px";
+  num.style.border = "1px solid rgba(24,181,213,.28)";
+  num.style.background = "rgba(24,181,213,.10)";
+  num.style.color = theme.brand;
+  num.style.fontWeight = "950";
+  num.style.fontSize = "12px";
+
+  head.appendChild(title);
+  head.appendChild(num);
+
+  const list = document.createElement("div");
+  list.style.marginTop = "10px";
+  list.style.display = "flex";
+  list.style.flexDirection = "column";
+  list.style.gap = "8px";
+
+  for (let i = 0; i < (sec && sec.points ? sec.points : []).length; i += 1) {
+    const line = document.createElement("div");
+    line.style.display = "flex";
+    line.style.alignItems = "flex-start";
+    line.style.gap = "8px";
+
+    const dot = document.createElement("div");
+    dot.textContent = "•";
+    dot.style.color = theme.brand;
+    dot.style.fontWeight = "950";
+    dot.style.lineHeight = "1.6";
+    dot.style.marginTop = "1px";
+
+    const txt = document.createElement("div");
+    txt.style.fontSize = "12px";
+    txt.style.fontWeight = "850";
+    txt.style.color = theme.textMuted;
+    txt.style.lineHeight = "1.75";
+    txt.textContent = String(sec.points[i] || "");
+
+    line.appendChild(dot);
+    line.appendChild(txt);
+    list.appendChild(line);
+  }
+
+  box.appendChild(head);
+  box.appendChild(list);
+  return box;
+};
+
 const openLegalSheet = (kind) => {
   try {
-    const k = String(kind || "").trim().toLowerCase() || "terms";
     const ar = isArabic();
+    const copy = getLegalCopy(kind, ar);
+    const theme = buildLegalTheme();
 
-    const overlay = document.createElement("div");
-    overlay.className = "bundle-app-bottomsheet";
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.padding = "14px";
-    overlay.style.background = "rgba(0,0,0,.55)";
-    overlay.style.zIndex = "100004";
+    const overlay = buildLegalOverlay(theme);
+    const panel = buildLegalPanel(theme);
 
-    const panel = document.createElement("div");
-    panel.className = "bundle-app-bottomsheet__panel";
-    panel.style.width = "min(760px,100%)";
-    panel.style.maxHeight = "85vh";
-    panel.style.overflow = "auto";
-    panel.style.background = "#303030";
-    panel.style.borderRadius = "16px";
-    panel.style.border = "1px solid rgba(24,181,213,.18)";
+    const done = () => {
+      try {
+        overlay.remove();
+      } catch {}
+    };
 
-    const head = document.createElement("div");
-    head.className = "bundle-app-bottomsheet__head";
-    head.style.padding = "16px 14px";
-    head.style.display = "flex";
-    head.style.alignItems = "center";
-    head.style.justifyContent = "space-between";
-    head.style.borderBottom = "1px solid rgba(24,181,213,.2)";
-
-    const title = document.createElement("div");
-    title.className = "bundle-app-bottomsheet__title";
-    title.textContent = ar ? (k === "privacy" ? "سياسة الخصوصية" : "شروط الاستخدام") : (k === "privacy" ? "Privacy Policy" : "Terms of Use");
-    title.style.fontSize = "18px";
-    title.style.fontWeight = "900";
-    title.style.color = "#fff";
-
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = ar ? "إغلاق" : "Close";
-    close.style.padding = "6px 10px";
-    close.style.borderRadius = "10px";
-    close.style.border = "1px solid rgba(24,181,213,.3)";
-    close.style.background = "#373737";
-    close.style.color = "#18b5d5";
-    close.style.fontSize = "13px";
-    close.style.fontWeight = "900";
-    close.style.cursor = "pointer";
-
-    head.appendChild(title);
-    head.appendChild(close);
+    const head = buildLegalHead(copy.title, theme, done);
 
     const body = document.createElement("div");
     body.style.padding = "14px";
@@ -197,147 +464,43 @@ const openLegalSheet = (kind) => {
       body.style.direction = rtl ? "rtl" : "ltr";
     } catch {}
 
-    const mkSection = (h, t) => {
-      const box = document.createElement("div");
-      box.style.border = "1px solid rgba(255,255,255,.08)";
-      box.style.background = "#373737";
-      box.style.borderRadius = "14px";
-      box.style.padding = "12px";
+    const info = buildLegalInfoBar(copy, theme);
 
-      const hh = document.createElement("div");
-      hh.style.fontSize = "13px";
-      hh.style.fontWeight = "950";
-      hh.style.color = "rgba(255,255,255,.92)";
-      hh.textContent = String(h || "");
-
-      const tt = document.createElement("div");
-      tt.style.marginTop = "6px";
-      tt.style.fontSize = "12px";
-      tt.style.fontWeight = "850";
-      tt.style.color = "rgba(255,255,255,.72)";
-      tt.style.lineHeight = "1.75";
-      tt.style.whiteSpace = "pre-wrap";
-      tt.textContent = String(t || "");
-
-      box.appendChild(hh);
-      box.appendChild(tt);
-      return box;
+    const jump = (id) => {
+      try {
+        const el = document.getElementById("legal_" + String(id || ""));
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "auto", block: "start" });
+      } catch {}
     };
 
-    const intro = document.createElement("div");
-    intro.style.fontSize = "12px";
-    intro.style.fontWeight = "900";
-    intro.style.color = "rgba(255,255,255,.70)";
-    intro.style.lineHeight = "1.75";
-    intro.textContent = ar
-      ? "المستند ده بيشرح القواعد الأساسية لاستخدام مركز الرفع، وإزاي بنتعامل مع بياناتك."
-      : "This document explains how Upload Center works and how your data is handled.";
+    const toc = buildLegalToc(copy.sections, theme, jump);
 
-    body.appendChild(intro);
+    const tocWrap = document.createElement("div");
+    tocWrap.style.border = theme.borderSoft;
+    tocWrap.style.background = theme.cardBg;
+    tocWrap.style.borderRadius = "14px";
+    tocWrap.style.padding = "12px";
 
-    const sections = (() => {
-      if (k === "privacy") {
-        return ar
-          ? [
-              {
-                h: "المعلومات اللي بنجمعها",
-                t: "بيانات فنية مرتبطة بالملف (زي النوع/الحجم) ومعرّفات تشغيل داخلية مرتبطة بمتجرك. قد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."
-              },
-              {
-                h: "استخدام المعلومات",
-                t: "رفع وإدارة الملفات، تحسين الأداء، منع إساءة الاستخدام، وحماية الخدمة."
-              },
-              {
-                h: "المشاركة مع أطراف خارجية",
-                t: "قد نستخدم مزوّدي بنية تحتية (مثل التخزين أو الشبكات) لتنفيذ الخدمة. لا نقوم ببيع بياناتك."
-              },
-              {
-                h: "الاحتفاظ والحذف",
-                t: "نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية. يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك."
-              },
-              {
-                h: "حقوقك",
-                t: "يمكنك طلب حذف/مراجعة بيانات مرتبطة باستخدامك للخدمة عبر فريق الدعم."
-              }
-            ]
-          : [
-              {
-                h: "Information We Collect",
-                t: "Technical file metadata (e.g., type/size) and internal operational identifiers tied to your store. We may log technical events for security and diagnostics."
-              },
-              {
-                h: "How We Use It",
-                t: "To upload and manage files, improve performance, prevent abuse, and protect the service."
-              },
-              {
-                h: "Sharing",
-                t: "We may rely on infrastructure providers (storage/network) to deliver the service. We do not sell your data."
-              },
-              {
-                h: "Retention & Deletion",
-                t: "We retain data as needed to provide the service or for legal/security needs. You can delete your files from the 'My files' tab when available."
-              },
-              {
-                h: "Your Rights",
-                t: "You can request deletion/review of data related to your usage through support."
-              }
-            ];
-      }
+    const tocTitle = document.createElement("div");
+    tocTitle.style.fontSize = "12px";
+    tocTitle.style.fontWeight = "950";
+    tocTitle.style.color = theme.text;
+    tocTitle.textContent = ar ? "المحتويات" : "Contents";
 
-      return ar
-        ? [
-            {
-              h: "الاستخدام المسموح",
-              t: "ارفع فقط المحتوى اللي تملكه أو لديك حق استخدامه. استخدم الخدمة لأغراض مشروعة ومتوافقة مع أنظمة منصتك."
-            },
-            {
-              h: "المحتوى المحظور",
-              t: "ممنوع رفع محتوى ينتهك حقوق الملكية، أو غير قانوني، أو ضار/خبيث، أو يحتوي برمجيات ضارة."
-            },
-            {
-              h: "المسؤولية",
-              t: "أنت مسؤول عن الملفات التي ترفعها واستخدامك لها. قد تتعطل الخدمة مؤقتًا لأسباب تقنية أو صيانة."
-            },
-            {
-              h: "الحذف والاحتفاظ",
-              t: "يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك. قد نحتفظ بنسخ مؤقتة لأسباب تشغيلية/أمنية ضمن حدود معقولة."
-            }
-          ]
-        : [
-            {
-              h: "Permitted Use",
-              t: "Upload only content you own or have rights to use. Use the service lawfully and in compliance with your platform policies."
-            },
-            {
-              h: "Prohibited Content",
-              t: "Do not upload content that infringes IP rights, is illegal, harmful, or contains malware."
-            },
-            {
-              h: "Responsibility",
-              t: "You are responsible for the files you upload and how you use them. Service availability may be impacted by maintenance or technical issues."
-            },
-            {
-              h: "Retention & Deletion",
-              t: "You can delete your files from the 'My files' tab when available. We may keep temporary operational/security copies within reasonable limits."
-            }
-          ];
-    })();
+    tocWrap.appendChild(tocTitle);
+    tocWrap.appendChild(toc);
 
-    for (let i = 0; i < sections.length; i += 1) {
-      const s = sections[i];
-      body.appendChild(mkSection(s.h, s.t));
+    body.appendChild(info);
+    body.appendChild(tocWrap);
+
+    for (let i = 0; i < copy.sections.length; i += 1) {
+      body.appendChild(buildLegalSectionCard(copy.sections[i], i, theme));
     }
 
     panel.appendChild(head);
     panel.appendChild(body);
     overlay.appendChild(panel);
 
-    const done = () => {
-      try {
-        overlay.remove();
-      } catch {}
-    };
-    close.onclick = done;
     overlay.addEventListener("click", (ev) => {
       try {
         if (ev.target === overlay) done();
