@@ -804,7 +804,7 @@ const mount = () => {
               panel.style.width = "min(340px,100%)";
               panel.style.borderRadius = "16px";
               panel.style.border = "1px solid rgba(255,255,255,.14)";
-              panel.style.background = "#292929";
+              panel.style.background = "#373737";
               panel.style.boxShadow = "0 18px 60px rgba(0,0,0,.45)";
               panel.style.padding = "12px";
               panel.style.display = "flex";

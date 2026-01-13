@@ -86,7 +86,7 @@ const createFab = () => {
   btn.style.border = "1px solid rgba(24,181,213,.55)";
   btn.style.cursor = "pointer";
   btn.style.borderRadius = "999px";
-  btn.style.background = "#292929";
+  btn.style.background = "#373737";
   btn.style.color = "#fff";
   btn.style.boxShadow = "0 14px 34px rgba(0,0,0,.28)";
   btn.style.display = "grid";
@@ -156,7 +156,7 @@ const buildSheet = () => {
   panel.style.width = "min(760px,100%)";
   panel.style.maxHeight = "85vh";
   panel.style.overflow = "auto";
-  panel.style.background = "#292929";
+  panel.style.background = "#303030";
   panel.style.borderRadius = "16px";
   panel.style.border = "1px solid rgba(24,181,213,.18)";
   panel.style.boxShadow = "0 22px 60px rgba(0,0,0,.45)";
@@ -182,7 +182,7 @@ const buildSheet = () => {
   close.style.padding = "6px 10px";
   close.style.borderRadius = "10px";
   close.style.border = "1px solid rgba(24,181,213,.3)";
-  close.style.background = "#292929";
+  close.style.background = "#373737";
   close.style.color = "#18b5d5";
   close.style.fontSize = "13px";
   close.style.fontWeight = "900";
@@ -242,7 +242,7 @@ const pill = (label, active) => {
   b.type = "button";
   b.textContent = label;
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
-  b.style.background = active ? "#18b5d5" : "#292929";
+  b.style.background = active ? "#18b5d5" : "#373737";
   b.style.color = active ? "#292929" : "#fff";
   b.style.padding = "9px 12px";
   b.style.borderRadius = "999px";
@@ -279,7 +279,7 @@ const btnGhost = (label) => {
   b.style.cursor = "pointer";
   b.style.padding = "10px 12px";
   b.style.borderRadius = "12px";
-  b.style.background = "#292929";
+  b.style.background = "#373737";
   b.style.color = "#18b5d5";
   b.style.fontWeight = "900";
   b.style.fontSize = "13px";
@@ -466,7 +466,7 @@ const renderLoading = () => {
   wrap.style.border = "1px solid rgba(24,181,213,.3)";
   wrap.style.borderRadius = "14px";
   wrap.style.padding = "14px";
-  wrap.style.background = "#292929";
+  wrap.style.background = "#373737";
 
   const title = document.createElement("div");
   title.style.display = "flex";
@@ -574,7 +574,7 @@ const renderLinkBlock = (url) => {
   wrap.style.padding = "10px";
   wrap.style.borderRadius = "12px";
   wrap.style.border = "1px solid rgba(24,181,213,.35)";
-  wrap.style.background = "#292929";
+  wrap.style.background = "#373737";
   wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
 
   const a = document.createElement("a");
@@ -626,4 +626,3 @@ const renderLinkBlock = (url) => {
 };
 `
 ];
-

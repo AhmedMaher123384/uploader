@@ -374,7 +374,7 @@ const renderGrid = (items, opts) => {
     card.style.border = "1px solid rgba(255,255,255,.10)";
     card.style.borderRadius = "16px";
     card.style.overflow = "hidden";
-    card.style.background = "#292929";
+    card.style.background = "#373737";
     card.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
     card.style.transition = "transform .14s ease, box-shadow .14s ease, border-color .14s ease";
     card.onmouseenter = () => {
@@ -625,7 +625,7 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     b.textContent = String(label || "");
     b.disabled = Boolean(disabled);
     b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.10)";
-    b.style.background = active ? "rgba(24,181,213,.18)" : "#292929";
+    b.style.background = active ? "rgba(24,181,213,.18)" : "#373737";
     b.style.color = active ? "#18b5d5" : "#fff";
     b.style.padding = "8px 10px";
     b.style.borderRadius = "12px";
@@ -696,4 +696,3 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
 };
 `
 ];
-

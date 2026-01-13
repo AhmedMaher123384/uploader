@@ -167,7 +167,7 @@ const statCard = (label, value) => {
   const c = document.createElement("div");
   c.style.border = "1px solid rgba(24,181,213,.20)";
   c.style.borderRadius = "14px";
-  c.style.background = "#292929";
+  c.style.background = "#373737";
   c.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
   c.style.padding = "12px";
   c.style.display = "flex";
@@ -224,7 +224,7 @@ const renderUploadRow = (rec) => {
   wrap.style.padding = "12px";
   wrap.style.borderRadius = "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.25)";
-  wrap.style.background = "#292929";
+  wrap.style.background = "#373737";
   wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
 
   const row = document.createElement("div");
@@ -326,4 +326,3 @@ const renderUploadRow = (rec) => {
 };
 `
 ];
-
