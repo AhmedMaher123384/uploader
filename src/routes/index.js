@@ -645,13 +645,18 @@ function createApiRouter(config) {
   function svgLooksSafe(text) {
     const s = String(text || "");
     if (!s) return false;
+    if (/<\?xml\b/i.test(s)) return false;
+    if (/<!doctype\b/i.test(s)) return false;
+    if (/<!entity\b/i.test(s)) return false;
     if (/<script\b/i.test(s)) return false;
     if (/<foreignObject\b/i.test(s)) return false;
     if (/\bon\w+\s*=/i.test(s)) return false;
-    if (/\bhref\s*=\s*["']\s*javascript:/i.test(s)) return false;
-    if (/\bxlink:href\s*=\s*["']\s*javascript:/i.test(s)) return false;
-    if (/\bhref\s*=\s*["']\s*(https?:|data:|\/\/)/i.test(s)) return false;
-    if (/\bxlink:href\s*=\s*["']\s*(https?:|data:|\/\/)/i.test(s)) return false;
+    if (/\bhref\s*=\s*(["']?)\s*javascript:/i.test(s)) return false;
+    if (/\bxlink:href\s*=\s*(["']?)\s*javascript:/i.test(s)) return false;
+    if (/\bhref\s*=\s*(["']?)\s*(https?:|data:|\/\/)/i.test(s)) return false;
+    if (/\bxlink:href\s*=\s*(["']?)\s*(https?:|data:|\/\/)/i.test(s)) return false;
+    if (/\bstyle\s*=\s*(["'])[\s\S]*?expression\s*\(/i.test(s)) return false;
+    if (/\bstyle\s*=\s*(["'])[\s\S]*?url\s*\(\s*javascript:/i.test(s)) return false;
     return true;
   }
 
@@ -671,7 +676,7 @@ function createApiRouter(config) {
       throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID", details: { message: String(e?.message || e) } });
     }
     const body = typeof resp?.data === "string" ? resp.data : "";
-      if (!svgLooksSafe(body)) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
+    if (!svgLooksSafe(body)) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
   }
 
   function cloudinaryUrlWithTransform(url, transform) {
@@ -998,6 +1003,23 @@ function createApiRouter(config) {
           const secure = Boolean(req.secure) || xf.indexOf("https") >= 0;
           const base = `${MEDIA_SESSION_COOKIE}=${t}; Path=/api/m; Max-Age=${12 * 60 * 60}; HttpOnly; SameSite=Lax`;
           setSessionCookie = secure ? `${base}; Secure` : base;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      const accept = String(req.headers.accept || "");
+      const wantsHtml = /text\/html/i.test(accept);
+      if (token && wantsHtml) {
+        try {
+          const origin = externalOriginFromReq(req);
+          const u = new URL(String(req.originalUrl || req.url || ""), origin || "http://localhost");
+          u.searchParams.delete("token");
+          if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+          res.setHeader("Cache-Control", "private, no-store, max-age=0");
+          res.setHeader("Vary", "Origin, Referer, Cookie");
+          res.redirect(302, u.pathname + (u.search ? u.search : ""));
+          return;
         } catch (e) {
           void e;
         }

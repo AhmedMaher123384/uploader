@@ -211,6 +211,41 @@ const isArabic = () => {
 };
 `,
   `
+const friendlyApiErrorMessage = (err) => {
+  const fallback = String((err && err.message) || err || "").trim();
+  const payload = err && err.details && typeof err.details === "object" ? err.details : null;
+  const code = String((payload && payload.code) || (err && err.code) || "").trim();
+  const details = payload && payload.details && typeof payload.details === "object" ? payload.details : null;
+
+  if (code === "FILE_TYPE_NOT_ALLOWED") return isArabic() ? "نوع الملف غير مسموح" : "File type is not allowed";
+
+  if (code === "FILE_SIZE_LIMIT_EXCEEDED") {
+    const maxBytes = Number(details && details.maxBytes) || 0;
+    const maxText = maxBytes ? (isArabic() ? " (الحد " + fmtBytes(maxBytes) + ")" : " (max " + fmtBytes(maxBytes) + ")") : "";
+    return (isArabic() ? "حجم الملف أكبر من المسموح" : "File is too large") + maxText;
+  }
+
+  if (code === "STORAGE_LIMIT_EXCEEDED") {
+    const maxBytes = Number(details && details.maxBytes) || 0;
+    const usedBytes = Number(details && details.usedBytes) || 0;
+    const maxText = maxBytes ? (isArabic() ? " (" + fmtBytes(usedBytes) + " / " + fmtBytes(maxBytes) + ")" : " (" + fmtBytes(usedBytes) + " / " + fmtBytes(maxBytes) + ")") : "";
+    return (isArabic() ? "تم تجاوز حد التخزين" : "Storage limit exceeded") + maxText;
+  }
+
+  if (code === "SVG_INVALID") return isArabic() ? "SVG غير صالح أو غير آمن" : "Invalid or unsafe SVG";
+
+  if (code === "VALIDATION_ERROR") return isArabic() ? "بيانات غير صحيحة" : "Validation error";
+  if (code === "UNAUTHORIZED") return isArabic() ? "غير مصرح" : "Unauthorized";
+  if (code === "FORBIDDEN") return isArabic() ? "غير مسموح" : "Forbidden";
+  if (code === "NOT_FOUND") return isArabic() ? "غير موجود" : "Not found";
+  if (code === "MEDIA_STORAGE_NOT_CONFIGURED") return isArabic() ? "التخزين غير مُعد" : "Media storage is not configured";
+
+  if (fallback) return fallback;
+  if (payload && payload.message) return String(payload.message);
+  return isArabic() ? "حدث خطأ" : "Something went wrong";
+};
+`,
+  `
 const isRtl = () => {
   try {
     const d = (document && document.documentElement && document.documentElement.dir) || "";
@@ -1560,7 +1595,7 @@ const mount = () => {
           } catch (e) {
             state.convertUploading = false;
             state.convertUploadProgress = 0;
-            state.convertUploadError = String((e && e.message) || e || "");
+            state.convertUploadError = friendlyApiErrorMessage(e);
             render();
           }
         };
@@ -1959,7 +1994,7 @@ const mount = () => {
               render();
             } catch (e) {
               rec.status = "error";
-              rec.error = String((e && e.message) || e || "Error");
+              rec.error = friendlyApiErrorMessage(e);
               render();
             }
           }
