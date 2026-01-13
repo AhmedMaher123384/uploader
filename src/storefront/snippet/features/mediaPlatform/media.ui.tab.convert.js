@@ -62,11 +62,9 @@ const renderConversionPlatform = (opts) => {
     hint2.textContent = "";
   } else if (convertIsVideoKind) {
     hint1.textContent = isArabic()
-      ? "المدخل: MP4 / WebM / MOV / AVI … (أي فيديو يدعمه المتصفح)"
-      : "Input: MP4 / WebM / MOV / AVI … (any browser-supported video)";
-    hint2.textContent = isArabic()
-      ? "الناتج: تلقائي / MP4 / WebM / MOV / AVF … (حسب الدعم)"
-      : "Output: Auto / MP4 / WebM / MOV / AVF … (depending on support)";
+      ? "صيغ الإدخال المدعومة: MP4 / WebM / MOV / AVI"
+      : "Supported input formats: MP4 / WebM / MOV / AVI";
+    hint2.textContent = "";
   } else {
     hint1.textContent = isArabic()
       ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا"
@@ -455,13 +453,11 @@ const renderConversionPlatform = (opts) => {
           baseName = baseName.slice(0, 120) || "converted";
           const rf = String(state.convertResultFormat || "").trim().toLowerCase();
           const ext =
-            (rf ? (rf === "avf" ? "mp4" : rf) : "") ||
+            (rf ? rf : "") ||
             (state.convertFormat === "mp4"
               ? "mp4"
               : state.convertFormat === "mov"
                 ? "mov"
-                : state.convertFormat === "avf"
-                  ? "mp4"
               : state.convertFormat === "webm"
                 ? "webm"
                 : state.convertFormat === "webm_local"
@@ -487,7 +483,7 @@ const renderConversionPlatform = (opts) => {
       outMeta.appendChild(dl);
 
       const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
-      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "mov" || outFmt === "avf";
+      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "mov";
 
       let preview = null;
       if (isVideoOut) {
@@ -534,19 +530,17 @@ const renderConversionPlatform = (opts) => {
     );
     const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج" : "Output format",
-      String(state.convertFormat || "auto"),
+      String(state.convertFormat || "mp4"),
       [
-        { value: "auto", label: isArabic() ? "تلقائي — الأفضل حسب دعم المتصفح" : "Auto — best supported by your browser" },
         { value: "mp4", label: isArabic() ? "MP4 (H.264) — مناسب للمتاجر" : "MP4 (H.264) — store-friendly" },
         { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — حجم أقل غالبًا" : "WebM (VP9/VP8) — usually smaller" },
         { value: "webm_local", label: isArabic() ? "WebM (سريع) — أولوية للسرعة" : "WebM (fast) — prioritize speed" },
         { value: "mov", label: isArabic() ? "MOV — للـ QuickTime (حسب دعم المتصفح)" : "MOV — for QuickTime (browser dependent)" },
-        { value: "avf", label: isArabic() ? "AVF (AV1) — لو مدعوم" : "AVF (AV1) — if supported" }
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          state.convertFormat = String(v || "auto");
+          state.convertFormat = String(v || "mp4");
           if (onRender) onRender();
         } catch {}
       }
