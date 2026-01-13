@@ -62,8 +62,8 @@ const renderConversionPlatform = (opts) => {
     hint2.textContent = "";
   } else if (convertIsVideoKind) {
     hint1.textContent = isArabic()
-      ? "صيغ الإدخال المدعومة: MP4 / WebM / MOV / AVI"
-      : "Supported input formats: MP4 / WebM / MOV / AVI";
+      ? "صيغ الإدخال المدعومة: MP4 / WebM / MOV / AVI / M4V / MKV / 3GP"
+      : "Supported input formats: MP4 / WebM / MOV / AVI / M4V / MKV / 3GP";
     hint2.textContent = "";
   } else {
     hint1.textContent = isArabic()
@@ -115,7 +115,7 @@ const renderConversionPlatform = (opts) => {
       if (pickBtn.disabled) return;
       const isVid = String(state.convertKind || "image") === "video";
       try {
-        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv" : "image/*";
+        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
       } catch {}
       convertInput.click();
     } catch {}
@@ -179,7 +179,6 @@ const renderConversionPlatform = (opts) => {
 
     const s = document.createElement("select");
     s.disabled = Boolean(disabled);
-    s.value = String(value == null ? "" : value);
     s.style.width = "100%";
     s.style.padding = "10px 12px";
     s.style.borderRadius = "12px";
@@ -195,13 +194,18 @@ const renderConversionPlatform = (opts) => {
     };
 
     const list = Array.isArray(options) ? options : [];
+    const desired = String(value == null ? "" : value);
     for (let i = 0; i < list.length; i += 1) {
       const o = list[i] || {};
       const opt = document.createElement("option");
       opt.value = String(o.value == null ? "" : o.value);
       opt.textContent = String(o.label == null ? "" : o.label);
+      if (opt.value === desired) opt.selected = true;
       s.appendChild(opt);
     }
+    try {
+      s.value = desired;
+    } catch {}
 
     wrap.appendChild(l);
     wrap.appendChild(s);
@@ -526,7 +530,7 @@ const renderConversionPlatform = (opts) => {
     const s2 = mkStep(
       2,
       isArabic() ? "إعدادات الفيديو" : "Video settings",
-      isArabic() ? "اختر نوع مناسب للمتاجر أو حجم أخف" : "Pick a store-friendly or smaller format"
+      isArabic() ? "اختَر الصيغة المناسبة: MP4 للمتاجر، WebM لحجم أقل، MOV للـ QuickTime" : "Pick the right format: MP4 for stores, WebM smaller, MOV for QuickTime"
     );
     const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج" : "Output format",

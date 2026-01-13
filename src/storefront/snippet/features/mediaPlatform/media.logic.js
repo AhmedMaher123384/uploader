@@ -1414,7 +1414,7 @@ const mount = () => {
             if (rt === "video") {
               state.convertKind = "video";
               try {
-                convertInput.accept = "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv";
+                convertInput.accept = "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2";
               } catch {}
               state.convertFormat = "mp4";
             } else {
@@ -1448,7 +1448,7 @@ const mount = () => {
           if (next === state.convertKind) return;
           state.convertKind = next;
           try {
-            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv" : "image/*";
+            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
           } catch {}
           try {
             const rt = state.convertFile ? guessResourceType(state.convertFile) : "";
