@@ -403,12 +403,7 @@ const buildDeliveryUrlFromItem = (it) => {
     const parts = publicId.split("/").filter(Boolean);
     const leaf = parts.length ? String(parts[parts.length - 1] || "").trim() : "";
     if (!leaf) return "";
-    const u = new URL(origin + "/api/m/" + encodeURIComponent(storeId) + "/" + encodeURIComponent(leaf));
-    try {
-      const t = String(token || "").trim();
-      if (t) u.searchParams.set("token", t);
-    } catch {}
-    return u.toString();
+    return String(origin + "/api/m/" + encodeURIComponent(storeId) + "/" + encodeURIComponent(leaf));
   } catch {
     return "";
   }

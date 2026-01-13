@@ -986,9 +986,6 @@ function createApiRouter(config) {
       if (!allowedHostOk && !sessionOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
 
       const token = String(req.query?.token || "").trim();
-      if (!token && !sessionOk) {
-        throw new ApiError(401, "Unauthorized", { code: "UNAUTHORIZED" });
-      }
       if (storeId === "sandbox" && token === "sandbox") {
         void token;
       } else if (token) {
@@ -996,7 +993,7 @@ function createApiRouter(config) {
       }
 
       let setSessionCookie = null;
-      if (allowedHostOk && !sessionOk) {
+      if (token && allowedHostOk && !sessionOk) {
         try {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();

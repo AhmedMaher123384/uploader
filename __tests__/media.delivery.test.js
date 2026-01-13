@@ -90,7 +90,7 @@ describe("GET /api/m/:storeId/:leaf", () => {
     jest.clearAllMocks();
   });
 
-  it("رفض الطلب بدون token", async () => {
+  it("يسلّم الطلب بدون token لو referer صحيح", async () => {
     const merchant = {
       merchantId: "123",
       appStatus: "installed",
@@ -106,8 +106,34 @@ describe("GET /api/m/:storeId/:leaf", () => {
     getStoreInfo.mockResolvedValue({ data: { store: { id: 123, domain: "myshop.com", url: "https://myshop.com" } } });
 
     const app = createApp(makeConfig());
-    const res = await request(app).get("/api/m/123/abcdef").set("referer", "https://myshop.com/p/1");
-    expect(res.status).toBe(401);
+    const leaf = "abcdef";
+    const asset = {
+      storeId: "123",
+      publicId: `bundle_app/123/${leaf}`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+    };
+
+    MediaAsset.findOne.mockImplementation(() => ({
+      lean: jest.fn().mockResolvedValue(asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "3" },
+      data: Readable.from(Buffer.from("abc"))
+    });
+
+    const res = await request(app)
+      .get(`/api/m/123/${leaf}`)
+      .set("referer", "https://myshop.com/p/1")
+      .buffer(true)
+      .parse(binaryParser);
+    expect(res.status).toBe(200);
+    expect(res.headers.location).toBeUndefined();
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.body.toString("utf8")).toBe("abc");
   });
 
   it("رفض الطلب لو referer/origin مش تبع دومين المتجر", async () => {

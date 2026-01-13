@@ -323,10 +323,24 @@ const renderGrid = (items, opts) => {
   grid.style.alignItems = "stretch";
   grid.style.marginTop = "4px";
 
+  const stripTokenFromUrl = (raw) => {
+    const u = String(raw || "");
+    if (!u) return "";
+    try {
+      const x = new URL(u, window.location.origin);
+      try {
+        x.searchParams.delete("token");
+      } catch {}
+      return x.toString();
+    } catch {
+      return u;
+    }
+  };
+
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
-    const openUrl = String(it.deliveryUrl || it.secureUrl || it.url || "");
-    const copyUrl = String(it.deliveryUrl || it.secureUrl || it.url || "");
+    const openUrl = stripTokenFromUrl(it.deliveryUrl || it.secureUrl || it.url || "");
+    const copyUrl = stripTokenFromUrl(it.deliveryUrl || it.secureUrl || it.url || "");
     const src = openUrl;
     const onDelete =
       opts && typeof opts.onDeleteItem === "function"
