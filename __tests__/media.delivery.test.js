@@ -45,6 +45,21 @@ function binaryParser(res, cb) {
   res.on("end", () => cb(null, Buffer.concat(chunks)));
 }
 
+function issueStorefrontTokenForTest(merchantId, secret) {
+  const payload = JSON.stringify({
+    merchantId: String(merchantId || "").trim(),
+    iat: Date.now(),
+    nonce: "testnonce"
+  });
+  const payloadB64 = Buffer.from(payload, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  const sig = require("crypto").createHmac("sha256", String(secret || "")).update(payloadB64).digest("hex");
+  return `${payloadB64}.${sig}`;
+}
+
 function makeConfig() {
   return {
     port: 0,
@@ -321,5 +336,164 @@ describe("GET /api/m/:storeId/:leaf", () => {
     expect(resOk.headers.location).toBeUndefined();
     expect(resOk.headers["content-type"]).toBe("image/png");
     expect(resOk.body.toString("utf8")).toBe("abc");
+  });
+
+  it("يستخدم placeholder للصورة لو المتجر غير مثبت وتم ضبط Placeholder Image", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "uninstalled",
+      updatedAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000),
+      storeDomain: "myshop.com",
+      storeUrl: "https://myshop.com",
+      mediaPlaceholderImageAssetId: "ph1"
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+
+    const leaf = "abcdef";
+    const asset = {
+      storeId: "123",
+      publicId: `bundle_app/123/${leaf}`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+    };
+    const placeholder = {
+      _id: "ph1",
+      storeId: "123",
+      publicId: `bundle_app/123/phimg`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/phimg.png"
+    };
+
+    MediaAsset.findOne.mockImplementation((q) => ({
+      lean: jest.fn().mockResolvedValue(q && String(q._id || "") === "ph1" ? placeholder : asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "2" },
+      data: Readable.from(Buffer.from("ph"))
+    });
+
+    const app = createApp(makeConfig());
+    const token = issueStorefrontTokenForTest("123", "secret");
+    const res = await request(app)
+      .get(`/api/m/123/${leaf}?token=${encodeURIComponent(token)}`)
+      .set("referer", "https://myshop.com/p/1")
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.body.toString("utf8")).toBe("ph");
+  });
+
+  it("يستخدم placeholder للفيديو لو المتجر غير مثبت وتم ضبط Placeholder Video", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "uninstalled",
+      updatedAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000),
+      storeDomain: "myshop.com",
+      storeUrl: "https://myshop.com",
+      mediaPlaceholderVideoAssetId: "vph1"
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+
+    const leaf = "vvv111";
+    const asset = {
+      storeId: "123",
+      publicId: `bundle_app/123/${leaf}`,
+      deletedAt: null,
+      resourceType: "video",
+      secureUrl: "https://res.cloudinary.com/x/video/upload/v1/bundle_app/123/vvv111.mp4"
+    };
+    const placeholder = {
+      _id: "vph1",
+      storeId: "123",
+      publicId: `bundle_app/123/vph`,
+      deletedAt: null,
+      resourceType: "video",
+      secureUrl: "https://res.cloudinary.com/x/video/upload/v1/bundle_app/123/vph.mp4"
+    };
+
+    MediaAsset.findOne.mockImplementation((q) => ({
+      lean: jest.fn().mockResolvedValue(q && String(q._id || "") === "vph1" ? placeholder : asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "video/mp4", "content-length": "4" },
+      data: Readable.from(Buffer.from("vph!"))
+    });
+
+    const app = createApp(makeConfig());
+    const token = issueStorefrontTokenForTest("123", "secret");
+    const res = await request(app)
+      .get(`/api/m/123/${leaf}?token=${encodeURIComponent(token)}`)
+      .set("referer", "https://myshop.com/p/1")
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("video/mp4");
+    expect(res.body.toString("utf8")).toBe("vph!");
+  });
+});
+
+describe("GET /api/media/watermark/:storeId.png", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("يرجع لوجو افتراضي حتى لو المتجر غير موجود", async () => {
+    findMerchantByMerchantId.mockResolvedValue(null);
+
+    const app = createApp(makeConfig());
+    const res = await request(app).get("/api/media/watermark/123.png?w=360").buffer(true).parse(binaryParser);
+
+    expect(res.status).toBe(200);
+    expect(["image/png", "image/svg+xml; charset=utf-8", "image/svg+xml"]).toContain(String(res.headers["content-type"] || ""));
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it("يرجع لوجو مخصص للمتجر لو تم ضبطه", async () => {
+    const merchant = {
+      merchantId: "123",
+      mediaWatermarkLogoAssetId: "logo1"
+    };
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+
+    const logoAsset = {
+      _id: "logo1",
+      storeId: "123",
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://example.invalid/logo.png"
+    };
+
+    MediaAsset.findOne.mockImplementation((q) => ({
+      lean: jest.fn().mockResolvedValue(q && String(q._id || "") === "logo1" ? logoAsset : null)
+    }));
+
+    const oneByOnePng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6X9kQAAAABJRU5ErkJggg==",
+      "base64"
+    );
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": String(oneByOnePng.length) },
+      data: oneByOnePng
+    });
+
+    const app = createApp(makeConfig());
+    const res = await request(app).get("/api/media/watermark/123.png?w=360").buffer(true).parse(binaryParser);
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.body.length).toBeGreaterThan(0);
   });
 });

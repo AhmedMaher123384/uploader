@@ -46,10 +46,17 @@ const renderConversionPlatform = (opts) => {
   hint.style.lineHeight = "1.6";
 
   const convertIsVideoKind = String(state.convertKind || "image") === "video";
+  const videoFmt = String(state.convertFormat || "").trim().toLowerCase();
   hint.textContent = planBlocked
     ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
     : convertIsVideoKind
-      ? (isArabic() ? "ارفع فيديو (MP4 أو WebM) وسيتم تحويله محليًا إلى WebM على جهازك بدون رفع للسيرفر" : "Upload a video (MP4/WebM) and it will be converted locally to WebM without server upload")
+      ? (videoFmt === "webm_local"
+          ? (isArabic()
+              ? "ارفع فيديو (MP4 أو WebM) وسيتم تحويله محليًا إلى WebM على جهازك بدون رفع للسيرفر"
+              : "Upload a video (MP4/WebM) and it will be converted locally to WebM without server upload")
+          : (isArabic()
+              ? "ارفع فيديو (MP4 أو WebM) واختر الصيغة: MP4 (H.264) للمتاجر أو WebM (VP9) لحجم أصغر"
+              : "Upload a video (MP4/WebM) then choose MP4 (H.264) for stores or WebM (VP9) for smaller size"))
       : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا" : "Upload an image, choose format/quality/speed, then download instantly");
 
   titleWrap.appendChild(title);
@@ -499,9 +506,24 @@ const renderConversionPlatform = (opts) => {
     const s2 = mkStep(
       2,
       isArabic() ? "إعدادات الفيديو" : "Video settings",
-      isArabic() ? "تحويل محلي على جهازك إلى WebM بدون رفع للسيرفر" : "Local browser conversion to WebM (no server upload)"
+      isArabic() ? "اختر نوع مناسب للمتاجر أو حجم أخف" : "Pick a store-friendly or smaller format"
     );
-    const fmtSelect = mkSelect(isArabic() ? "صيغة الناتج" : "Output format", "webm", [{ value: "webm", label: "WebM" }], true, () => {});
+    const fmtSelect = mkSelect(
+      isArabic() ? "صيغة الناتج" : "Output format",
+      String(state.convertFormat || "mp4"),
+      [
+        { value: "mp4", label: isArabic() ? "MP4 (H.264) — الأفضل للمتاجر" : "MP4 (H.264) — best for stores" },
+        { value: "webm", label: isArabic() ? "WebM (VP9) — حجم أخف" : "WebM (VP9) — smaller size" },
+        { value: "webm_local", label: isArabic() ? "WebM (سريع) — محلي بدون رفع" : "WebM (fast) — local no upload" }
+      ],
+      Boolean(state.converting) || planBlocked,
+      (v) => {
+        try {
+          state.convertFormat = String(v || "mp4");
+          if (onRender) onRender();
+        } catch {}
+      }
+    );
     s2.appendChild(fmtSelect);
     stepWrap.appendChild(s2);
     stepWrap.appendChild(buildQualityStep(3));
@@ -683,4 +705,3 @@ const renderConversionPlatform = (opts) => {
 };
 `
 ];
-

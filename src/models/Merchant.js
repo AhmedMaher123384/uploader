@@ -27,7 +27,10 @@ const MerchantSchema = new mongoose.Schema(
     },
     storeDomain: { type: String, default: null, index: true },
     storeUrl: { type: String, default: null },
-    storeName: { type: String, default: null }
+    storeName: { type: String, default: null },
+    mediaWatermarkLogoAssetId: { type: String, default: null },
+    mediaPlaceholderImageAssetId: { type: String, default: null },
+    mediaPlaceholderVideoAssetId: { type: String, default: null }
   },
   { timestamps: true, collection: "merchants" }
 );

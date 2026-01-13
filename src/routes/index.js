@@ -501,26 +501,31 @@ function createApiRouter(config) {
     return Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
   }
 
+  function sleep(ms) {
+    const n = Number(ms || 0) || 0;
+    return new Promise((resolve) => globalThis.setTimeout(resolve, Math.max(0, n)));
+  }
+
   function getPlanLimits(planKey) {
     const k = String(planKey || "").trim().toLowerCase();
     if (k === "pro") {
       return {
         maxFileBytes: bytesFromMb(30),
         maxStorageBytes: bytesFromGb(20),
-        linkLeafLength: 16
+        linkLeafLength: 12
       };
     }
     if (k === "business") {
       return {
         maxFileBytes: bytesFromMb(50),
         maxStorageBytes: bytesFromGb(50),
-        linkLeafLength: 9
+        linkLeafLength: 6
       };
     }
     return {
       maxFileBytes: bytesFromMb(10),
       maxStorageBytes: bytesFromGb(5),
-      linkLeafLength: 24
+      linkLeafLength: 40
     };
   }
 
@@ -681,23 +686,168 @@ function createApiRouter(config) {
     return `${before}${t}/${after}`;
   }
 
-  function placeholderSvg(storeId) {
-    const sid = String(storeId || "").trim();
-    const label = sid ? `Store ${sid}` : "Store";
-    const now = new Date().toISOString();
+  function bundleAppMarkSvgContent(id, opacity) {
+    const gid = String(id || "g").trim() || "g";
+    const o = opacity != null && Number.isFinite(Number(opacity)) ? Math.max(0, Math.min(1, Number(opacity))) : 1;
     return (
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">' +
-      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">` +
       '<stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/>' +
       "</linearGradient></defs>" +
-      '<rect width="100%" height="100%" fill="url(#g)"/>' +
-      '<rect x="40" y="40" width="1120" height="550" rx="28" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)"/>' +
-      '<text x="80" y="150" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="54" font-weight="900" fill="#ffffff">BundleApp</text>' +
-      `<text x="80" y="230" font-family="ui-sans-serif,system-ui,Segoe UI,Arial" font-size="28" font-weight="800" fill="rgba(255,255,255,0.92)">${label}</text>` +
-      `<text x="80" y="540" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="18" font-weight="700" fill="rgba(255,255,255,0.8)">${now}</text>` +
+      `<g opacity="${o}">` +
+      `<circle cx="128" cy="128" r="120" fill="url(#${gid})"/>` +
+      '<circle cx="128" cy="128" r="120" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="6"/>' +
+      '<rect x="84" y="92" width="28" height="72" rx="14" fill="rgba(255,255,255,0.92)"/>' +
+      '<rect x="114" y="76" width="28" height="104" rx="14" fill="rgba(255,255,255,0.92)"/>' +
+      '<rect x="144" y="92" width="28" height="72" rx="14" fill="rgba(255,255,255,0.92)"/>' +
+      "</g>"
+    );
+  }
+
+  function bundleAppMarkSvg(sizePx, opacity) {
+    const s = sizePx != null && Number.isFinite(Number(sizePx)) ? Math.max(32, Math.min(2048, Math.round(Number(sizePx)))) : 256;
+    const id = `g${Math.random().toString(16).slice(2)}`;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">${bundleAppMarkSvgContent(id, opacity)}</svg>`;
+  }
+
+  function placeholderSvg() {
+    const w = 1200;
+    const h = 630;
+    const size = 520;
+    const x = Math.round((w - size) / 2);
+    const y = Math.round((h - size) / 2);
+    const id = `g${Math.random().toString(16).slice(2)}`;
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+      `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18b5d5"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#${id})"/>` +
+      `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">` +
+      bundleAppMarkSvgContent(`m${Math.random().toString(16).slice(2)}`, 1) +
+      "</svg>" +
       "</svg>"
     );
   }
+
+  async function loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth }) {
+    const id = String(merchant?.mediaWatermarkLogoAssetId || "").trim();
+    if (!id) return null;
+    let logo = null;
+    try {
+      logo = await MediaAsset.findOne({ _id: id, storeId, deletedAt: null }).lean();
+    } catch (e) {
+      void e;
+      logo = null;
+    }
+    if (!logo || String(logo.resourceType) !== "image") return null;
+
+    const provider = String(logo?.cloudinary?.__provider || logo?.cloudinary?.provider || "").trim().toLowerCase();
+    let buf = null;
+
+    if (provider === "r2") {
+      const key = String(logo.publicId || "").trim();
+      if (!key) return null;
+      const { bucket } = requireR2Config();
+      const client = getR2Client();
+      let obj = null;
+      try {
+        obj = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      } catch (e) {
+        void e;
+        return null;
+      }
+      buf = obj && obj.Body ? await streamToBuffer(obj.Body, 10 * 1024 * 1024) : Buffer.from("");
+    } else {
+      const url = String(logo.secureUrl || logo.url || "").trim();
+      if (!url) return null;
+      let resp = null;
+      try {
+        resp = await axios.get(url, {
+          responseType: "arraybuffer",
+          timeout: 15000,
+          maxContentLength: 5 * 1024 * 1024,
+          maxBodyLength: 5 * 1024 * 1024,
+          validateStatus: () => true
+        });
+      } catch (e) {
+        void e;
+        return null;
+      }
+      const status = Number(resp?.status || 0) || 0;
+      if (status >= 400) return null;
+      const data = resp && resp.data ? resp.data : null;
+      buf = data ? Buffer.from(data) : Buffer.from("");
+    }
+
+    if (!buf || !buf.length) return null;
+    const w = maxWidth != null && Number.isFinite(Number(maxWidth)) ? Math.max(16, Math.min(1024, Math.round(Number(maxWidth)))) : 260;
+    try {
+      return await sharp(buf).resize({ width: w, withoutEnlargement: true }).png().toBuffer();
+    } catch (e) {
+      void e;
+      return null;
+    }
+  }
+
+  function externalOriginFromReq(req) {
+    const xfProtoRaw = String(req?.headers?.["x-forwarded-proto"] || "");
+    const xfProto = xfProtoRaw ? String(xfProtoRaw.split(",")[0] || "").trim().toLowerCase() : "";
+    const proto = xfProto || (req && req.secure ? "https" : "http");
+    const xfHostRaw = String(req?.headers?.["x-forwarded-host"] || "");
+    const xfHost = xfHostRaw ? String(xfHostRaw.split(",")[0] || "").trim() : "";
+    const host = xfHost || String(req?.headers?.host || "").trim();
+    if (!host) return "";
+    return `${proto}://${host}`;
+  }
+
+  function cloudinaryWatermarkLogoTransform(req) {
+    const origin = externalOriginFromReq(req);
+    if (!origin) return "";
+    const storeId = String(req?.params?.storeId || "").trim();
+    const logoUrl = storeId ? `${origin}/api/media/watermark/${encodeURIComponent(storeId)}.png?w=360` : `${origin}/api/media/logo.svg`;
+    const enc = base64UrlEncodeUtf8(logoUrl);
+    return `l_fetch:${enc},g_south_east,x_18,y_18,w_0.18,fl_relative,o_70/fl_layer_apply`;
+  }
+
+  router.get("/media/logo.svg", (req, res) => {
+    const size = req.query && req.query.size != null ? Number(req.query.size) : null;
+    const s = size != null && Number.isFinite(size) ? Math.max(32, Math.min(2048, Math.round(size))) : 256;
+    const svg = bundleAppMarkSvg(s, 1);
+    res.status(200);
+    res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.send(svg);
+  });
+
+  const mediaWatermarkPngParamsSchema = Joi.object({
+    storeId: Joi.string().trim().min(1).max(80).required()
+  });
+
+  router.get("/media/watermark/:storeId.png", validate(mediaWatermarkPngParamsSchema, "params"), async (req, res, next) => {
+    try {
+      const storeId = String(req.params.storeId).trim();
+      const w = req.query && req.query.w != null ? Number(req.query.w) : null;
+      const maxWidth = w != null && Number.isFinite(w) ? Math.max(32, Math.min(1024, Math.round(w))) : 360;
+
+      const merchant = await findMerchantByMerchantId(storeId);
+      let out = merchant ? await loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth }) : null;
+
+      if (!out || !out.length) {
+        try {
+          out = await sharp(Buffer.from(bundleAppMarkSvg(maxWidth, 0.9))).png().toBuffer();
+        } catch (e) {
+          void e;
+          out = Buffer.from("");
+        }
+      }
+
+      res.status(200);
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("Content-Length", String(Buffer.byteLength(out)));
+      return res.send(out);
+    } catch (err) {
+      return next(err);
+    }
+  });
 
   function pickHostFromUrlLike(value) {
     const raw = String(value || "").trim();
@@ -800,12 +950,6 @@ function createApiRouter(config) {
       if (stage === "blocked") {
         return res.status(410).type("text/plain; charset=utf-8").send("Gone");
       }
-      if (stage === "placeholder") {
-        res.status(200);
-        res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
-        res.setHeader("Cache-Control", "public, max-age=60");
-        return res.send(placeholderSvg(storeId));
-      }
 
       const storeInfo = await getPublicStoreInfo(storeId);
       const domain =
@@ -869,6 +1013,32 @@ function createApiRouter(config) {
       }
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
+      if (stage === "placeholder") {
+        const rt = String(asset.resourceType || "");
+        const placeholderId =
+          rt === "image"
+            ? String(merchant?.mediaPlaceholderImageAssetId || "").trim()
+            : rt === "video"
+              ? String(merchant?.mediaPlaceholderVideoAssetId || "").trim()
+              : "";
+        let placeholderAsset = null;
+        if (placeholderId) {
+          try {
+            const ph = await MediaAsset.findOne({ _id: placeholderId, storeId, deletedAt: null }).lean();
+            if (ph && String(ph.resourceType) === rt) placeholderAsset = ph;
+          } catch (e) {
+            void e;
+          }
+        }
+      if (!placeholderAsset) {
+        res.status(200);
+        res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=60");
+        return res.send(placeholderSvg());
+      }
+      asset = placeholderAsset;
+    }
+
       const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
 
       if (provider === "r2") {
@@ -894,14 +1064,12 @@ function createApiRouter(config) {
           const ext = String(asset.format || "").trim().toLowerCase();
           const fmt = ext === "png" ? "png" : ext === "webp" ? "webp" : ext === "avif" ? "avif" : "jpeg";
 
-          const wmSvg =
-            `<svg width="1200" height="1200" xmlns="http://www.w3.org/2000/svg">` +
-            `<text x="98%" y="96%" text-anchor="end" font-family="Arial" font-size="48" font-weight="700" fill="white" fill-opacity="0.7" stroke="black" stroke-width="2">BundleApp</text>` +
-            `</svg>`;
+          const wmPng = await loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth: 260 });
+          const wmInput = wmPng && wmPng.length ? wmPng : Buffer.from(bundleAppMarkSvg(260, 0.9));
 
           let out = null;
           try {
-            out = await sharp(body).composite([{ input: Buffer.from(wmSvg), gravity: "southeast" }]).toFormat(fmt).toBuffer();
+            out = await sharp(body).composite([{ input: wmInput, gravity: "southeast" }]).toFormat(fmt).toBuffer();
           } catch (e) {
             void e;
             out = body;
@@ -914,6 +1082,134 @@ function createApiRouter(config) {
           res.setHeader("Content-Type", fmt === "png" ? "image/png" : fmt === "webp" ? "image/webp" : fmt === "avif" ? "image/avif" : "image/jpeg");
           res.setHeader("Content-Length", String(Buffer.byteLength(out)));
           return res.send(out);
+        }
+
+        if (stage === "watermark" && String(asset.resourceType) === "video") {
+          const { bucket } = requireR2Config();
+          const client = getR2Client();
+          let obj = null;
+          try {
+            obj = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+          } catch {
+            throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+          }
+
+          const inStream = obj && obj.Body && typeof obj.Body.pipe === "function" ? obj.Body : null;
+          if (!inStream) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+          let wmPng = await loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth: 360 });
+          if (!wmPng || !wmPng.length) {
+            try {
+              const wmSvg = bundleAppMarkSvg(360, 0.85);
+              wmPng = await sharp(Buffer.from(wmSvg)).png().toBuffer();
+            } catch (e) {
+              void e;
+              wmPng = null;
+            }
+          }
+          if (!wmPng || !wmPng.length) throw new ApiError(501, "Video watermark is not supported on this server", { code: "NOT_SUPPORTED" });
+
+          const args = [
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            "pipe:0",
+            "-i",
+            "pipe:3",
+            "-filter_complex",
+            "overlay=W-w-18:H-h-18",
+            "-map_metadata",
+            "-1",
+            "-movflags",
+            "frag_keyframe+empty_moov",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "28",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            "-f",
+            "mp4",
+            "pipe:1"
+          ];
+
+          let stderr = "";
+          const proc = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe", "pipe"] });
+
+          proc.on("spawn", () => {
+            try {
+              if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+              res.setHeader("Cache-Control", "private, no-store, max-age=0");
+              res.setHeader("Vary", "Origin, Referer, Cookie");
+              res.status(200);
+              res.setHeader("Content-Type", "video/mp4");
+              proc.stdout.pipe(res);
+            } catch (e) {
+              void e;
+            }
+          });
+          proc.on("error", (e) => {
+            if (String(e && e.code) === "ENOENT") return next(new ApiError(501, "Video watermark is not supported on this server", { code: "NOT_SUPPORTED" }));
+            return next(new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY", details: { message: String(e?.message || e) } }));
+          });
+          proc.stderr.on("data", (d) => {
+            try {
+              if (stderr.length > 4000) return;
+              stderr += String(d || "");
+            } catch (e) {
+              void e;
+            }
+          });
+          res.on("close", () => {
+            try {
+              if (!proc.killed) proc.kill("SIGKILL");
+            } catch (e) {
+              void e;
+            }
+          });
+          proc.on("close", (code) => {
+            const c = Number(code || 0) || 0;
+            if (c === 0) return;
+            try {
+              if (!res.headersSent) return next(new ApiError(400, "Watermark failed", { code: "WATERMARK_FAILED", details: { message: stderr.trim().slice(0, 1200) } }));
+              try {
+                res.destroy();
+              } catch (e) {
+                void e;
+              }
+            } catch (e) {
+              void e;
+              try {
+                res.destroy();
+              } catch (e2) {
+                void e2;
+              }
+            }
+          });
+
+          try {
+            inStream.pipe(proc.stdin);
+          } catch (e) {
+            void e;
+            throw new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY" });
+          }
+          try {
+            proc.stdio[3].end(wmPng);
+          } catch (e) {
+            void e;
+          }
+          return;
         }
 
         const { bucket } = requireR2Config();
@@ -959,9 +1255,9 @@ function createApiRouter(config) {
       if (!baseUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
       let nextUrl = baseUrl;
-      if (stage === "watermark" && String(asset.resourceType) === "image") {
-        const wm = "l_text:arial_48:BundleApp,g_south_east,x_18,y_18,co_white,o_70,bo_2px_solid_black";
-        nextUrl = cloudinaryUrlWithTransform(baseUrl, wm);
+      if (stage === "watermark" && (String(asset.resourceType) === "image" || String(asset.resourceType) === "video")) {
+        const wm = cloudinaryWatermarkLogoTransform(req);
+        if (wm) nextUrl = cloudinaryUrlWithTransform(baseUrl, wm);
       }
 
       const range = String(req.headers.range || "").trim();
@@ -1336,6 +1632,11 @@ function createApiRouter(config) {
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
+      const rt = String(c.resource_type || "").trim().toLowerCase();
+      if (process.env.NODE_ENV !== "test" && planKey === "basic" && (rt === "image" || rt === "video")) {
+        await sleep(10_000);
+      }
+
       return res.json({ ok: true, asset: serializeMediaAsset(doc) });
     } catch (err) {
       return next(err);
@@ -1407,6 +1708,96 @@ function createApiRouter(config) {
         limit,
         total,
         items: docs.map(serializeMediaAsset)
+      });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  const mediaBrandingBodySchema = Joi.object({
+    watermarkLogoAssetId: Joi.string().trim().min(8).max(64).allow("", null),
+    placeholderImageAssetId: Joi.string().trim().min(8).max(64).allow("", null),
+    placeholderVideoAssetId: Joi.string().trim().min(8).max(64).allow("", null)
+  }).required();
+
+  async function resolveBrandingAssetOrThrow({ storeId, assetId, expectedType }) {
+    const id = String(assetId || "").trim();
+    if (!id) return null;
+    const doc = await MediaAsset.findOne({ _id: id, storeId, deletedAt: null }).lean();
+    if (!doc) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+    if (String(doc.resourceType) !== String(expectedType)) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+    return doc;
+  }
+
+  router.get("/media/branding", merchantAuth(config), async (req, res, next) => {
+    try {
+      const merchantId = String(req.merchant?.merchantId || "").trim();
+      const storeId = merchantId;
+
+      const watermarkLogoAssetId = String(req.merchant?.mediaWatermarkLogoAssetId || "").trim() || null;
+      const placeholderImageAssetId = String(req.merchant?.mediaPlaceholderImageAssetId || "").trim() || null;
+      const placeholderVideoAssetId = String(req.merchant?.mediaPlaceholderVideoAssetId || "").trim() || null;
+
+      const [logo, imgPh, vidPh] = await Promise.all([
+        watermarkLogoAssetId ? MediaAsset.findOne({ _id: watermarkLogoAssetId, storeId, deletedAt: null }).lean() : null,
+        placeholderImageAssetId ? MediaAsset.findOne({ _id: placeholderImageAssetId, storeId, deletedAt: null }).lean() : null,
+        placeholderVideoAssetId ? MediaAsset.findOne({ _id: placeholderVideoAssetId, storeId, deletedAt: null }).lean() : null
+      ]);
+
+      return res.json({
+        ok: true,
+        branding: {
+          watermarkLogoAssetId,
+          placeholderImageAssetId,
+          placeholderVideoAssetId,
+          watermarkLogo: logo ? serializeMediaAsset(logo) : null,
+          placeholderImage: imgPh ? serializeMediaAsset(imgPh) : null,
+          placeholderVideo: vidPh ? serializeMediaAsset(vidPh) : null
+        }
+      });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  router.post("/media/branding", merchantAuth(config), async (req, res, next) => {
+    try {
+      const { error, value } = mediaBrandingBodySchema.validate(req.body, { abortEarly: false, stripUnknown: true });
+      if (error) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: error.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      const merchantId = String(req.merchant?.merchantId || "").trim();
+      const storeId = merchantId;
+
+      const logoId = String(value.watermarkLogoAssetId || "").trim();
+      const imgPhId = String(value.placeholderImageAssetId || "").trim();
+      const vidPhId = String(value.placeholderVideoAssetId || "").trim();
+
+      const [logo, imgPh, vidPh] = await Promise.all([
+        resolveBrandingAssetOrThrow({ storeId, assetId: logoId, expectedType: "image" }),
+        resolveBrandingAssetOrThrow({ storeId, assetId: imgPhId, expectedType: "image" }),
+        resolveBrandingAssetOrThrow({ storeId, assetId: vidPhId, expectedType: "video" })
+      ]);
+
+      req.merchant.mediaWatermarkLogoAssetId = logo ? String(logo._id) : null;
+      req.merchant.mediaPlaceholderImageAssetId = imgPh ? String(imgPh._id) : null;
+      req.merchant.mediaPlaceholderVideoAssetId = vidPh ? String(vidPh._id) : null;
+      await req.merchant.save();
+
+      return res.json({
+        ok: true,
+        branding: {
+          watermarkLogoAssetId: req.merchant.mediaWatermarkLogoAssetId,
+          placeholderImageAssetId: req.merchant.mediaPlaceholderImageAssetId,
+          placeholderVideoAssetId: req.merchant.mediaPlaceholderVideoAssetId,
+          watermarkLogo: logo ? serializeMediaAsset(logo) : null,
+          placeholderImage: imgPh ? serializeMediaAsset(imgPh) : null,
+          placeholderVideo: vidPh ? serializeMediaAsset(vidPh) : null
+        }
       });
     } catch (err) {
       return next(err);
@@ -3077,6 +3468,11 @@ function createApiRouter(config) {
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
+
+      const rt = String(c.resource_type || "").trim().toLowerCase();
+      if (process.env.NODE_ENV !== "test" && planKey === "basic" && (rt === "image" || rt === "video")) {
+        await sleep(10_000);
+      }
 
       return res.json({ ok: true, asset: serializeMediaAsset(doc) });
     } catch (err) {

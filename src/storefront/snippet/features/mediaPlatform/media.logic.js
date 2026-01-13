@@ -1324,17 +1324,31 @@ const mount = () => {
           try {
             const q = state.convertQuality ? Number(state.convertQuality) : null;
             const isVideo = guessResourceType(f) === "video";
-            const targetFmt = isVideo ? "webm" : String(state.convertFormat || "").trim().toLowerCase();
+            const targetFmt = isVideo ? String(state.convertFormat || "mp4").trim().toLowerCase() : String(state.convertFormat || "").trim().toLowerCase();
 
             const out = isVideo
-              ? await convertVideoOnClient(
-                  f,
-                  { format: targetFmt, speed: state.convertSpeed, quality: q, name: f.name },
-                  (p) => {
-                    state.convertProgress = Number(p || 0) || 0;
-                    render();
-                  }
-                )
+              ? targetFmt === "webm_local"
+                ? await convertVideoOnClient(
+                    f,
+                    { format: "webm", speed: state.convertSpeed, quality: q, name: f.name },
+                    (p) => {
+                      state.convertProgress = Number(p || 0) || 0;
+                      render();
+                    }
+                  )
+                : await convertOnBackend(
+                    f,
+                    {
+                      format: targetFmt === "webm" ? "webm" : "mp4",
+                      speed: state.convertSpeed,
+                      quality: q,
+                      name: f.name
+                    },
+                    (p) => {
+                      state.convertProgress = Number(p || 0) || 0;
+                      render();
+                    }
+                  )
               : await convertOnBackend(
                   f,
                   {
@@ -1382,13 +1396,13 @@ const mount = () => {
               try {
                 convertInput.accept = "video/mp4,video/webm";
               } catch {}
-              state.convertFormat = "webm";
+              state.convertFormat = "mp4";
             } else {
               state.convertKind = "image";
               try {
                 convertInput.accept = "image/*";
               } catch {}
-              if (["mp4", "webm"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
+              if (["mp4", "webm", "webm_local"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
             }
           } catch {}
           state.convertPreset = "";
@@ -1423,7 +1437,7 @@ const mount = () => {
             state.convertFile = null;
           }
           if (next === "video") {
-            state.convertFormat = "webm";
+            state.convertFormat = "mp4";
             state.convertPreset = "";
             state.convertWidth = "";
             state.convertHeight = "";
