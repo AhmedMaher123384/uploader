@@ -78,18 +78,42 @@ const renderConversionPlatform = (opts) => {
 
   const kindRow = document.createElement("div");
   kindRow.style.display = "flex";
-  kindRow.style.gap = "8px";
+  kindRow.style.gap = "10px";
   kindRow.style.flexWrap = "wrap";
   kindRow.style.alignItems = "center";
-  kindRow.style.padding = "6px";
-  kindRow.style.borderRadius = "999px";
-  kindRow.style.border = "1px solid rgba(255,255,255,.08)";
-  kindRow.style.background = "#373737";
+  kindRow.style.marginTop = "2px";
 
-  const imgKindBtn = pill(isArabic() ? "صور" : "Images", !convertIsVideoKind);
-  const vidKindBtn = pill(isArabic() ? "فيديو" : "Videos", convertIsVideoKind);
+  const kindBtn = (label, active) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = String(label || "");
+    b.style.display = "inline-flex";
+    b.style.alignItems = "center";
+    b.style.justifyContent = "center";
+    b.style.gap = "8px";
+    b.style.padding = "10px 14px";
+    b.style.borderRadius = "14px";
+    b.style.fontSize = "13px";
+    b.style.fontWeight = "950";
+    b.style.lineHeight = "1";
+    b.style.userSelect = "none";
+    b.style.webkitUserSelect = "none";
+    b.style.cursor = "pointer";
+    b.style.boxShadow = active ? "0 12px 30px rgba(24,181,213,.22)" : "0 10px 22px rgba(0,0,0,.18)";
+    b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.12)";
+    b.style.background = active ? "#18b5d5" : "#373737";
+    b.style.color = active ? "#303030" : "rgba(255,255,255,.92)";
+    return b;
+  };
+
+  const imgKindBtn = kindBtn(isArabic() ? "صور" : "Images", !convertIsVideoKind);
+  const vidKindBtn = kindBtn(isArabic() ? "فيديو" : "Videos", convertIsVideoKind);
   imgKindBtn.disabled = Boolean(state.converting) || planBlocked || !onSetKind;
   vidKindBtn.disabled = Boolean(state.converting) || planBlocked || !onSetKind;
+  imgKindBtn.style.opacity = imgKindBtn.disabled ? "0.55" : "1";
+  vidKindBtn.style.opacity = vidKindBtn.disabled ? "0.55" : "1";
+  imgKindBtn.style.cursor = imgKindBtn.disabled ? "not-allowed" : "pointer";
+  vidKindBtn.style.cursor = vidKindBtn.disabled ? "not-allowed" : "pointer";
 
   imgKindBtn.onclick = () => {
     try {
