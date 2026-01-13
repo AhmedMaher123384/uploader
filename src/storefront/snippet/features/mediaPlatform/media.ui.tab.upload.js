@@ -30,9 +30,8 @@ const renderUploadHero = (dash) => {
   wrap.style.flexWrap = "wrap";
   wrap.style.padding = "14px";
   wrap.style.borderRadius = "16px";
-  wrap.style.border = "1px solid rgba(24,181,213,.22)";
-  wrap.style.background = "linear-gradient(135deg, rgba(24,181,213,.18), rgba(11,18,32,.60))";
-  wrap.style.boxShadow = "0 18px 46px rgba(0,0,0,.25)";
+  wrap.style.border = "1px solid rgba(255,255,255,.10)";
+  wrap.style.background = "#373737";
 
   const left = document.createElement("div");
   left.style.display = "flex";
@@ -137,8 +136,8 @@ const renderUploadHero = (dash) => {
   visit.style.justifyContent = "center";
   visit.style.padding = "10px 12px";
   visit.style.borderRadius = "12px";
-  visit.style.border = "1px solid rgba(255,255,255,.14)";
-  visit.style.background = "rgba(255,255,255,.06)";
+  visit.style.border = "1px solid rgba(255,255,255,.12)";
+  visit.style.background = "#303030";
   visit.style.color = "#fff";
   visit.style.fontSize = "13px";
   visit.style.fontWeight = "950";
@@ -168,7 +167,6 @@ const statCard = (label, value) => {
   c.style.border = "1px solid rgba(24,181,213,.20)";
   c.style.borderRadius = "14px";
   c.style.background = "#373737";
-  c.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
   c.style.padding = "12px";
   c.style.display = "flex";
   c.style.flexDirection = "column";
@@ -225,7 +223,6 @@ const renderUploadRow = (rec) => {
   wrap.style.borderRadius = "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.25)";
   wrap.style.background = "#373737";
-  wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
 
   const row = document.createElement("div");
   row.style.display = "flex";
@@ -309,8 +306,6 @@ const renderUploadRow = (rec) => {
     fill.style.width = String(pct) + "%";
     fill.style.borderRadius = "999px";
     fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.35) 0%, rgba(24,181,213,.95) 50%, rgba(255,255,255,.55) 100%)";
-    fill.style.boxShadow = "0 12px 22px rgba(24,181,213,.18)";
-    fill.style.transition = "width .12s ease";
 
     bar.appendChild(fill);
     wrap.appendChild(bar);

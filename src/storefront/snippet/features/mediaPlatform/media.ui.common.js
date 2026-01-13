@@ -19,7 +19,6 @@ const setFabVisible = (btn, on) => {
   try {
     btn.style.opacity = on ? "1" : "0";
     btn.style.pointerEvents = on ? "auto" : "none";
-    btn.style.transform = on ? "translateY(0)" : "translateY(10px)";
   } catch {}
 };
 `,
@@ -88,24 +87,14 @@ const createFab = () => {
   btn.style.borderRadius = "999px";
   btn.style.background = "#373737";
   btn.style.color = "#fff";
-  btn.style.boxShadow = "0 14px 34px rgba(0,0,0,.28)";
   btn.style.display = "grid";
   btn.style.placeItems = "center";
   btn.style.userSelect = "none";
   btn.style.webkitUserSelect = "none";
   btn.style.lineHeight = "1";
   btn.style.fontWeight = "900";
-  btn.style.transition = "opacity .18s ease,transform .18s ease,filter .18s ease";
   btn.style.opacity = "1";
   btn.style.pointerEvents = "auto";
-  btn.style.transform = "translateY(0)";
-
-  btn.onmouseenter = () => {
-    btn.style.filter = "brightness(1.05)";
-  };
-  btn.onmouseleave = () => {
-    btn.style.filter = "";
-  };
 
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24");
@@ -159,7 +148,6 @@ const buildSheet = () => {
   panel.style.background = "#303030";
   panel.style.borderRadius = "16px";
   panel.style.border = "1px solid rgba(24,181,213,.18)";
-  panel.style.boxShadow = "0 22px 60px rgba(0,0,0,.45)";
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
@@ -243,13 +231,12 @@ const pill = (label, active) => {
   b.textContent = label;
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
-  b.style.color = active ? "#292929" : "#fff";
+  b.style.color = active ? "#303030" : "#fff";
   b.style.padding = "9px 12px";
   b.style.borderRadius = "999px";
   b.style.fontSize = "13px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
-  b.style.boxShadow = active ? "0 14px 30px rgba(24,181,213,.3)" : "0 10px 24px rgba(0,0,0,.2)";
   return b;
 };
 `,
@@ -263,10 +250,9 @@ const btnPrimary = (label) => {
   b.style.padding = "10px 12px";
   b.style.borderRadius = "12px";
   b.style.background = "#18b5d5";
-  b.style.color = "#292929";
+  b.style.color = "#303030";
   b.style.fontWeight = "900";
   b.style.fontSize = "13px";
-  b.style.boxShadow = "0 18px 40px rgba(24,181,213,.25)";
   return b;
 };
 `,
@@ -283,7 +269,6 @@ const btnGhost = (label) => {
   b.style.color = "#18b5d5";
   b.style.fontWeight = "900";
   b.style.fontSize = "13px";
-  b.style.boxShadow = "0 10px 24px rgba(0,0,0,.2)";
   return b;
 };
 `,
@@ -333,42 +318,37 @@ const planLabel = (k) => {
   `
 const renderDropzone = ({ disabled, onPick, onFiles }) => {
   const z = document.createElement("div");
-  z.style.border = "1px dashed rgba(24,181,213,.45)";
-  z.style.borderRadius = "16px";
-  z.style.background = "rgba(24,181,213,.06)";
-  z.style.padding = "16px";
+  z.style.border = "1px dashed rgba(255,255,255,.12)";
+  z.style.borderRadius = "12px";
+  z.style.background = "#373737";
+  z.style.padding = "32px 20px";
   z.style.display = "flex";
   z.style.flexDirection = "column";
+  z.style.alignItems = "center";
+  z.style.justifyContent = "center";
   z.style.gap = "10px";
-  z.style.boxShadow = "0 12px 30px rgba(0,0,0,.18)";
   z.style.cursor = disabled ? "not-allowed" : "pointer";
-  z.style.opacity = disabled ? "0.65" : "1";
+  z.style.opacity = disabled ? "0.5" : "1";
+
+  const icon = document.createElement("div");
+  icon.style.color = "rgba(255,255,255,.40)";
+  icon.style.fontSize = "32px";
+  icon.style.lineHeight = "1";
+  icon.textContent = "📁";
 
   const t1 = document.createElement("div");
-  t1.style.fontSize = "14px";
-  t1.style.fontWeight = "950";
-  t1.style.color = "#fff";
-  t1.textContent = isArabic() ? "ارفع ملفاتك هنا" : "Upload your files here";
+  t1.style.color = "rgba(255,255,255,.70)";
+  t1.style.fontSize = "13px";
+  t1.style.fontWeight = "900";
+  t1.style.textAlign = "center";
+  t1.textContent = isArabic() ? "اسحب الملفات هنا أو اضغط للاختيار" : "Drag files here or click to select";
 
   const t2 = document.createElement("div");
-  t2.style.fontSize = "12px";
+  t2.style.color = "rgba(255,255,255,.45)";
+  t2.style.fontSize = "11px";
   t2.style.fontWeight = "900";
-  t2.style.color = "rgba(255,255,255,.78)";
-  t2.textContent = isArabic() ? "اسحب وافلت أو اضغط للاختيار" : "Drag & drop or click to choose";
-
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = isArabic() ? "اختيار ملف" : "Choose files";
-  b.style.border = "0";
-  b.style.cursor = disabled ? "not-allowed" : "pointer";
-  b.style.padding = "10px 12px";
-  b.style.borderRadius = "12px";
-  b.style.background = "#18b5d5";
-  b.style.color = "#292929";
-  b.style.fontWeight = "950";
-  b.style.fontSize = "13px";
-  b.style.boxShadow = "0 18px 40px rgba(24,181,213,.25)";
-  b.disabled = Boolean(disabled);
+  t2.style.textAlign = "center";
+  t2.textContent = isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type";
 
   const pick = () => {
     try {
@@ -387,13 +367,6 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
   };
 
   z.onclick = () => pick();
-  b.onclick = (e) => {
-    try {
-      e.preventDefault();
-      e.stopPropagation();
-    } catch {}
-    pick();
-  };
 
   const onDrag = (ev) => {
     try {
@@ -402,32 +375,55 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
       ev.stopPropagation();
     } catch {}
   };
-  z.addEventListener("dragenter", onDrag);
-  z.addEventListener("dragover", onDrag);
-  z.addEventListener("dragleave", onDrag);
+  z.addEventListener("dragenter", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(24,181,213,.5)";
+      z.style.background = "#373737";
+    } catch {}
+  });
+  z.addEventListener("dragover", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(24,181,213,.5)";
+      z.style.background = "#373737";
+    } catch {}
+  });
+  z.addEventListener("dragleave", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(255,255,255,.12)";
+      z.style.background = "#373737";
+    } catch {}
+  });
   z.addEventListener("drop", (ev) => {
     try {
       if (disabled) return;
       ev.preventDefault();
       ev.stopPropagation();
+      z.style.borderColor = "rgba(255,255,255,.12)";
+      z.style.background = "#373737";
       emit(ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : []);
     } catch {}
   });
 
+  z.appendChild(icon);
   z.appendChild(t1);
   z.appendChild(t2);
-  z.appendChild(b);
   return z;
 };
 `,
   `
 const renderEmpty = () => {
   const wrap = document.createElement("div");
-  wrap.style.border = "1px dashed rgba(24,181,213,.3)";
+  wrap.style.border = "1px dashed rgba(255,255,255,.14)";
   wrap.style.borderRadius = "14px";
   wrap.style.padding = "16px";
-  wrap.style.background = "rgba(24,181,213,.05)";
-  wrap.style.color = "#18b5d5";
+  wrap.style.background = "#373737";
+  wrap.style.color = "rgba(255,255,255,.72)";
   wrap.style.fontSize = "13px";
   wrap.style.fontWeight = "900";
   wrap.textContent = isArabic() ? "مفيش ملفات مرفوعة لحد دلوقتي." : "No media uploaded yet.";
@@ -450,18 +446,6 @@ const renderError = (msg) => {
 `,
   `
 const renderLoading = () => {
-  try {
-    const id = "bundle-app-media-loading-style";
-    if (!document.getElementById(id)) {
-      const s = document.createElement("style");
-      s.id = id;
-      s.textContent =
-        "@keyframes bundleAppMediaIndeterminate{0%{transform:translateX(-120%)}100%{transform:translateX(220%)}}" +
-        "@keyframes bundleAppMediaPulse{0%,100%{opacity:.55}50%{opacity:1}}";
-      document.head.appendChild(s);
-    }
-  } catch {}
-
   const wrap = document.createElement("div");
   wrap.style.border = "1px solid rgba(24,181,213,.3)";
   wrap.style.borderRadius = "14px";
@@ -484,8 +468,6 @@ const renderLoading = () => {
   dot.style.height = "10px";
   dot.style.borderRadius = "999px";
   dot.style.background = "#18b5d5";
-  dot.style.boxShadow = "0 0 0 6px rgba(24,181,213,.12), 0 14px 30px rgba(24,181,213,.18)";
-  dot.style.animation = "bundleAppMediaPulse 1.2s ease-in-out infinite";
 
   const t = document.createElement("div");
   t.style.color = "#fff";
@@ -519,11 +501,9 @@ const renderLoading = () => {
   fill.style.top = "0";
   fill.style.bottom = "0";
   fill.style.left = "0";
-  fill.style.width = "46%";
+  fill.style.width = "100%";
   fill.style.borderRadius = "999px";
-  fill.style.background = "linear-gradient(90deg, rgba(24,181,213,0) 0%, rgba(24,181,213,.92) 40%, rgba(255,255,255,.55) 60%, rgba(24,181,213,.92) 80%, rgba(24,181,213,0) 100%)";
-  fill.style.filter = "drop-shadow(0 14px 22px rgba(24,181,213,.25))";
-  fill.style.animation = "bundleAppMediaIndeterminate 1.05s ease-in-out infinite";
+  fill.style.background = "rgba(24,181,213,.45)";
 
   bar.appendChild(fill);
   wrap.appendChild(title);
@@ -575,7 +555,6 @@ const renderLinkBlock = (url) => {
   wrap.style.borderRadius = "12px";
   wrap.style.border = "1px solid rgba(24,181,213,.35)";
   wrap.style.background = "#373737";
-  wrap.style.boxShadow = "0 10px 22px rgba(0,0,0,.14)";
 
   const a = document.createElement("a");
   a.href = u;
@@ -604,18 +583,14 @@ const renderLinkBlock = (url) => {
   copy.style.padding = "10px 14px";
   copy.style.borderRadius = "10px";
   copy.style.background = "#18b5d5";
-  copy.style.color = "#292929";
+  copy.style.color = "#303030";
   copy.style.fontSize = "13px";
   copy.style.fontWeight = "950";
-  copy.style.boxShadow = "0 12px 26px rgba(24,181,213,.3)";
   copy.onclick = () => {
     try {
       const prev = isArabic() ? "انسخ الرابط" : "Copy link";
       copyText(u, (done) => {
         copy.textContent = done ? (isArabic() ? "تم النسخ" : "Copied") : prev;
-        setTimeout(() => {
-          copy.textContent = prev;
-        }, 1200);
       });
     } catch {}
   };

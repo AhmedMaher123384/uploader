@@ -91,12 +91,10 @@ const renderThumbActions = (opts) => {
     el.style.height = String(size) + "px";
     el.style.borderRadius = "12px";
     el.style.cursor = "pointer";
-    el.style.boxShadow = "0 12px 26px rgba(0,0,0,.22)";
     el.style.flex = "0 0 auto";
     el.style.padding = "0";
     el.style.fontSize = "18px";
     el.style.lineHeight = "1";
-    el.style.transition = "transform .12s ease, box-shadow .12s ease, background .12s ease, opacity .12s ease";
     if (tone === "brand") {
       el.style.border = "1px solid rgba(24,181,213,.45)";
       el.style.background = "#18b5d5";
@@ -109,35 +107,13 @@ const renderThumbActions = (opts) => {
       el.style.color = "#0b1220";
       return;
     }
-    el.style.border = "1px solid rgba(255,255,255,.14)";
-    el.style.background = "rgba(255,255,255,.06)";
+    el.style.border = "1px solid rgba(255,255,255,.12)";
+    el.style.background = "#303030";
     el.style.color = "#fff";
   };
 
   const wireHover = (el) => {
-    try {
-      el.onmouseenter = () => {
-        try {
-          if (el.disabled) return;
-          el.style.transform = "translateY(-1px)";
-          el.style.boxShadow = "0 16px 34px rgba(0,0,0,.28)";
-          el.style.opacity = "1";
-        } catch {}
-      };
-      el.onmouseleave = () => {
-        try {
-          el.style.transform = "translateY(0)";
-          el.style.boxShadow = "0 12px 26px rgba(0,0,0,.22)";
-          el.style.opacity = el.disabled ? "0.55" : "1";
-        } catch {}
-      };
-      el.onmousedown = () => {
-        try {
-          if (el.disabled) return;
-          el.style.transform = "translateY(0)";
-        } catch {}
-      };
-    } catch {}
+    try {} catch {}
   };
 
   const open = document.createElement("a");
@@ -158,13 +134,6 @@ const renderThumbActions = (opts) => {
   copy.onclick = () => {
     try {
       copyText(uCopy, () => {});
-      const prevBg = copy.style.background;
-      copy.style.background = "rgba(24,181,213,.78)";
-      setTimeout(() => {
-        try {
-          copy.style.background = prevBg;
-        } catch {}
-      }, 650);
     } catch {}
   };
 
@@ -375,22 +344,6 @@ const renderGrid = (items, opts) => {
     card.style.borderRadius = "16px";
     card.style.overflow = "hidden";
     card.style.background = "#373737";
-    card.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
-    card.style.transition = "transform .14s ease, box-shadow .14s ease, border-color .14s ease";
-    card.onmouseenter = () => {
-      try {
-        card.style.transform = "translateY(-2px)";
-        card.style.boxShadow = "0 22px 62px rgba(0,0,0,.28)";
-        card.style.borderColor = "rgba(24,181,213,.30)";
-      } catch {}
-    };
-    card.onmouseleave = () => {
-      try {
-        card.style.transform = "translateY(0)";
-        card.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
-        card.style.borderColor = "rgba(255,255,255,.10)";
-      } catch {}
-    };
 
     const media = document.createElement("div");
     media.style.width = "100%";
@@ -633,7 +586,6 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     b.style.fontWeight = "950";
     b.style.cursor = disabled ? "not-allowed" : "pointer";
     b.style.opacity = disabled ? "0.6" : "1";
-    b.style.boxShadow = active ? "0 14px 30px rgba(24,181,213,.18)" : "0 10px 24px rgba(0,0,0,.2)";
     return b;
   };
 

@@ -99,7 +99,6 @@ const renderConversionPlatform = (opts) => {
     b.style.userSelect = "none";
     b.style.webkitUserSelect = "none";
     b.style.cursor = "pointer";
-    b.style.boxShadow = active ? "0 12px 30px rgba(24,181,213,.22)" : "0 10px 22px rgba(0,0,0,.18)";
     b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.12)";
     b.style.background = active ? "#18b5d5" : "#373737";
     b.style.color = active ? "#303030" : "rgba(255,255,255,.92)";
