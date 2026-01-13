@@ -352,7 +352,7 @@ const guessResourceType = (file) => {
   if (t.indexOf("video/") === 0) return "video";
   if (t.indexOf("image/") === 0) return "image";
   const ext = getExt(file && file.name);
-  if (ext === "mp4" || ext === "webm") return "video";
+  if (["mp4", "webm", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
   if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
   return "raw";
 };
@@ -953,7 +953,22 @@ const mount = () => {
             return "";
           }
           let candidates = [];
-          if (f === "mp4") {
+          if (f === "auto") {
+            candidates = [
+              "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+              "video/mp4;codecs=avc1,mp4a.40.2",
+              "video/mp4;codecs=avc1",
+              "video/mp4",
+              "video/webm;codecs=vp9,opus",
+              "video/webm;codecs=vp9",
+              "video/webm;codecs=vp8,opus",
+              "video/webm;codecs=vp8",
+              "video/webm",
+              "video/ogg;codecs=theora,opus",
+              "video/ogg;codecs=theora",
+              "video/ogg"
+            ];
+          } else if (f === "mp4") {
             candidates = [
               "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
               "video/mp4;codecs=avc1,mp4a.40.2",
@@ -962,6 +977,14 @@ const mount = () => {
             ];
           } else if (f === "ogg") {
             candidates = ["video/ogg;codecs=theora,opus", "video/ogg;codecs=theora", "video/ogg"];
+          } else if (f === "webm_local") {
+            candidates = [
+              "video/webm;codecs=vp8,opus",
+              "video/webm;codecs=vp8",
+              "video/webm;codecs=vp9,opus",
+              "video/webm;codecs=vp9",
+              "video/webm"
+            ];
           } else {
             candidates = [
               "video/webm;codecs=vp9,opus",
@@ -1006,7 +1029,7 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm" && format !== "mp4" && format !== "ogg") throw new Error("Unsupported format");
+          if (format !== "auto" && format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "ogg") throw new Error("Unsupported format");
 
           let srcUrl = "";
           let video = null;
@@ -1068,6 +1091,7 @@ const mount = () => {
           try {
             const mimeType = pickBestRecorderMime(format);
             if (!mimeType) {
+              if (format === "auto") throw new Error("This browser does not support video conversion");
               if (format === "mp4") throw new Error("MP4 local conversion is not supported in this browser");
               if (format === "ogg") throw new Error("OGG local conversion is not supported in this browser");
               throw new Error("MediaRecorder not supported");
@@ -1088,13 +1112,13 @@ const mount = () => {
 
             await new Promise((resolve, reject) => {
               const onOk = () => resolve(true);
-              const onErr = () => reject(new Error("Failed to load video"));
+              const onErr = () => reject(new Error("Unsupported video format"));
               try {
                 video.onloadedmetadata = onOk;
                 video.onerror = onErr;
-                setTimeout(() => reject(new Error("Failed to load video")), 15_000);
+                setTimeout(() => reject(new Error("Unsupported video format")), 15_000);
               } catch {
-                reject(new Error("Failed to load video"));
+                reject(new Error("Unsupported video format"));
               }
             });
 
@@ -1399,15 +1423,15 @@ const mount = () => {
             if (rt === "video") {
               state.convertKind = "video";
               try {
-                convertInput.accept = "video/mp4,video/webm";
+                convertInput.accept = "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv";
               } catch {}
-              state.convertFormat = "mp4";
+              state.convertFormat = "auto";
             } else {
               state.convertKind = "image";
               try {
                 convertInput.accept = "image/*";
               } catch {}
-              if (["mp4", "webm", "webm_local"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
+              if (["mp4", "webm", "webm_local", "ogg"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "auto";
             }
           } catch {}
           state.convertPreset = "";
@@ -1433,7 +1457,7 @@ const mount = () => {
           if (next === state.convertKind) return;
           state.convertKind = next;
           try {
-            convertInput.accept = next === "video" ? "video/mp4,video/webm" : "image/*";
+            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv" : "image/*";
           } catch {}
           try {
             const rt = state.convertFile ? guessResourceType(state.convertFile) : "";
@@ -1442,7 +1466,7 @@ const mount = () => {
             state.convertFile = null;
           }
           if (next === "video") {
-            state.convertFormat = "mp4";
+            state.convertFormat = "auto";
             state.convertPreset = "";
             state.convertWidth = "";
             state.convertHeight = "";

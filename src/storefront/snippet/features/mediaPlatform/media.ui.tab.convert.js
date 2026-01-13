@@ -39,24 +39,45 @@ const renderConversionPlatform = (opts) => {
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "منصة التحويل" : "Conversion Platform";
 
-  const hint = document.createElement("div");
-  hint.style.color = "rgba(255,255,255,.70)";
-  hint.style.fontSize = "12px";
-  hint.style.fontWeight = "900";
-  hint.style.lineHeight = "1.6";
-
   const convertIsVideoKind = String(state.convertKind || "image") === "video";
-  const videoFmt = String(state.convertFormat || "").trim().toLowerCase();
-  hint.textContent = planBlocked
-    ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
-    : convertIsVideoKind
-      ? (isArabic()
-          ? "ارفع فيديو (MP4 أو WebM) وسيتم تحويله محليًا على جهازك بدون رفع للسيرفر (قد لا تدعم بعض المتصفحات MP4)"
-          : "Upload a video (MP4/WebM) and it will be converted locally in your browser (some browsers may not support MP4)")
-      : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا" : "Upload an image, choose format/quality/speed, then download instantly");
+  const hintWrap = document.createElement("div");
+  hintWrap.style.display = "flex";
+  hintWrap.style.flexDirection = "column";
+  hintWrap.style.gap = "2px";
+
+  const hint1 = document.createElement("div");
+  hint1.style.color = "rgba(255,255,255,.78)";
+  hint1.style.fontSize = "12px";
+  hint1.style.fontWeight = "900";
+  hint1.style.lineHeight = "1.6";
+
+  const hint2 = document.createElement("div");
+  hint2.style.color = "rgba(255,255,255,.60)";
+  hint2.style.fontSize = "12px";
+  hint2.style.fontWeight = "900";
+  hint2.style.lineHeight = "1.6";
+
+  if (planBlocked) {
+    hint1.textContent = isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only";
+    hint2.textContent = "";
+  } else if (convertIsVideoKind) {
+    hint1.textContent = isArabic()
+      ? "المدخل: أي فيديو يدعمه متصفحك (MP4 / WebM / MOV / AVI ...)"
+      : "Input: any video your browser can play (MP4 / WebM / MOV / AVI ...)";
+    hint2.textContent = isArabic()
+      ? "الناتج: تلقائي / MP4 / WebM / OGG — حسب دعم المتصفح"
+      : "Output: Auto / MP4 / WebM / OGG — depending on browser support";
+  } else {
+    hint1.textContent = isArabic()
+      ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا"
+      : "Upload an image, choose format/quality/speed, then download instantly";
+    hint2.textContent = "";
+  }
 
   titleWrap.appendChild(title);
-  titleWrap.appendChild(hint);
+  hintWrap.appendChild(hint1);
+  if (hint2.textContent) hintWrap.appendChild(hint2);
+  titleWrap.appendChild(hintWrap);
 
   const kindRow = document.createElement("div");
   kindRow.style.display = "flex";
@@ -96,7 +117,7 @@ const renderConversionPlatform = (opts) => {
       if (pickBtn.disabled) return;
       const isVid = String(state.convertKind || "image") === "video";
       try {
-        convertInput.accept = isVid ? "video/mp4,video/webm" : "image/*";
+        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv" : "image/*";
       } catch {}
       convertInput.click();
     } catch {}
@@ -438,11 +459,15 @@ const renderConversionPlatform = (opts) => {
               ? "mp4"
               : state.convertFormat === "webm"
                 ? "webm"
-                : state.convertFormat === "avif"
-                  ? "avif"
-                  : state.convertFormat === "webp"
-                    ? "webp"
-                    : state.convertFormat === "jpeg"
+                : state.convertFormat === "webm_local"
+                  ? "webm"
+                  : state.convertFormat === "ogg"
+                    ? "ogg"
+                  : state.convertFormat === "avif"
+                    ? "avif"
+                    : state.convertFormat === "webp"
+                      ? "webp"
+                      : state.convertFormat === "jpeg"
                       ? "jpeg"
                       : state.convertFormat === "png"
                         ? "png"
@@ -459,7 +484,7 @@ const renderConversionPlatform = (opts) => {
       outMeta.appendChild(dl);
 
       const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
-      const isVideoOut = outFmt === "mp4" || outFmt === "webm";
+      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "ogg";
 
       let preview = null;
       if (isVideoOut) {
@@ -506,17 +531,18 @@ const renderConversionPlatform = (opts) => {
     );
     const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج" : "Output format",
-      String(state.convertFormat || "mp4"),
+      String(state.convertFormat || "auto"),
       [
-        { value: "mp4", label: isArabic() ? "MP4 — محلي (قد لا يعمل بكل المتصفحات)" : "MP4 — local (may not work everywhere)" },
-        { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — محلي" : "WebM (VP9/VP8) — local" },
-        { value: "webm_local", label: isArabic() ? "WebM (سريع) — محلي" : "WebM (fast) — local" },
-        { value: "ogg", label: isArabic() ? "OGG (Theora) — محلي (فايرفوكس غالبًا)" : "OGG (Theora) — local (often Firefox)" }
+        { value: "auto", label: isArabic() ? "تلقائي — الأفضل حسب دعم المتصفح" : "Auto — best supported by your browser" },
+        { value: "mp4", label: isArabic() ? "MP4 (H.264) — مناسب للمتاجر" : "MP4 (H.264) — store-friendly" },
+        { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — حجم أقل غالبًا" : "WebM (VP9/VP8) — usually smaller" },
+        { value: "webm_local", label: isArabic() ? "WebM (سريع) — أولوية للسرعة" : "WebM (fast) — prioritize speed" },
+        { value: "ogg", label: isArabic() ? "OGG (Theora) — فايرفوكس غالبًا" : "OGG (Theora) — often Firefox" }
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          state.convertFormat = String(v || "mp4");
+          state.convertFormat = String(v || "auto");
           if (onRender) onRender();
         } catch {}
       }
