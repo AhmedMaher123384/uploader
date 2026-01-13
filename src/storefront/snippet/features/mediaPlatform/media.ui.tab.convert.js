@@ -50,13 +50,9 @@ const renderConversionPlatform = (opts) => {
   hint.textContent = planBlocked
     ? (isArabic() ? "الميزة متاحة في Pro و Business فقط" : "Available in Pro and Business only")
     : convertIsVideoKind
-      ? (videoFmt === "webm_local"
-          ? (isArabic()
-              ? "ارفع فيديو (MP4 أو WebM) وسيتم تحويله محليًا إلى WebM على جهازك بدون رفع للسيرفر"
-              : "Upload a video (MP4/WebM) and it will be converted locally to WebM without server upload")
-          : (isArabic()
-              ? "ارفع فيديو (MP4 أو WebM) واختر الصيغة: MP4 (H.264) للمتاجر أو WebM (VP9) لحجم أصغر"
-              : "Upload a video (MP4/WebM) then choose MP4 (H.264) for stores or WebM (VP9) for smaller size"))
+      ? (isArabic()
+          ? "ارفع فيديو (MP4 أو WebM) وسيتم تحويله محليًا على جهازك بدون رفع للسيرفر (قد لا تدعم بعض المتصفحات MP4)"
+          : "Upload a video (MP4/WebM) and it will be converted locally in your browser (some browsers may not support MP4)")
       : (isArabic() ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا" : "Upload an image, choose format/quality/speed, then download instantly");
 
   titleWrap.appendChild(title);
@@ -512,9 +508,10 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "صيغة الناتج" : "Output format",
       String(state.convertFormat || "mp4"),
       [
-        { value: "mp4", label: isArabic() ? "MP4 (H.264) — الأفضل للمتاجر" : "MP4 (H.264) — best for stores" },
-        { value: "webm", label: isArabic() ? "WebM (VP9) — حجم أخف" : "WebM (VP9) — smaller size" },
-        { value: "webm_local", label: isArabic() ? "WebM (سريع) — محلي بدون رفع" : "WebM (fast) — local no upload" }
+        { value: "mp4", label: isArabic() ? "MP4 — محلي (قد لا يعمل بكل المتصفحات)" : "MP4 — local (may not work everywhere)" },
+        { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — محلي" : "WebM (VP9/VP8) — local" },
+        { value: "webm_local", label: isArabic() ? "WebM (سريع) — محلي" : "WebM (fast) — local" },
+        { value: "ogg", label: isArabic() ? "OGG (Theora) — محلي (فايرفوكس غالبًا)" : "OGG (Theora) — local (often Firefox)" }
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {

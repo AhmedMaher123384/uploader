@@ -945,19 +945,32 @@ const mount = () => {
           });
         };
 
-        const pickBestRecorderMime = () => {
+        const pickBestRecorderMime = (format) => {
+          const f = String(format || "webm").trim().toLowerCase();
           try {
             if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
           } catch {
             return "";
           }
-          const candidates = [
-            "video/webm;codecs=vp9,opus",
-            "video/webm;codecs=vp9",
-            "video/webm;codecs=vp8,opus",
-            "video/webm;codecs=vp8",
-            "video/webm"
-          ];
+          let candidates = [];
+          if (f === "mp4") {
+            candidates = [
+              "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+              "video/mp4;codecs=avc1,mp4a.40.2",
+              "video/mp4;codecs=avc1",
+              "video/mp4"
+            ];
+          } else if (f === "ogg") {
+            candidates = ["video/ogg;codecs=theora,opus", "video/ogg;codecs=theora", "video/ogg"];
+          } else {
+            candidates = [
+              "video/webm;codecs=vp9,opus",
+              "video/webm;codecs=vp9",
+              "video/webm;codecs=vp8,opus",
+              "video/webm;codecs=vp8",
+              "video/webm"
+            ];
+          }
           for (let i = 0; i < candidates.length; i += 1) {
             const t = candidates[i];
             try {
@@ -993,7 +1006,7 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm") throw new Error("Client conversion supports WebM only");
+          if (format !== "webm" && format !== "mp4" && format !== "ogg") throw new Error("Unsupported format");
 
           let srcUrl = "";
           let video = null;
@@ -1053,8 +1066,12 @@ const mount = () => {
           };
 
           try {
-            const mimeType = pickBestRecorderMime();
-            if (!mimeType) throw new Error("MediaRecorder not supported");
+            const mimeType = pickBestRecorderMime(format);
+            if (!mimeType) {
+              if (format === "mp4") throw new Error("MP4 local conversion is not supported in this browser");
+              if (format === "ogg") throw new Error("OGG local conversion is not supported in this browser");
+              throw new Error("MediaRecorder not supported");
+            }
 
             srcUrl = URL.createObjectURL(f);
             video = document.createElement("video");
@@ -1175,12 +1192,14 @@ const mount = () => {
             } catch {}
             await ended;
 
-            const out = new Blob(chunks, { type: "video/webm" });
+            const outType = String(mimeType || "").split(";")[0] || (format === "mp4" ? "video/mp4" : format === "ogg" ? "video/ogg" : "video/webm");
+            const out = new Blob(chunks, { type: outType });
             if (!out || !out.size) throw new Error("Empty response");
             try {
               if (typeof onProgress === "function") onProgress(100);
             } catch {}
-            return { blob: out, format: "webm" };
+            const fmt = outType.indexOf("mp4") >= 0 ? "mp4" : outType.indexOf("ogg") >= 0 ? "ogg" : "webm";
+            return { blob: out, format: fmt };
           } finally {
             cleanup();
           }
@@ -1327,28 +1346,14 @@ const mount = () => {
             const targetFmt = isVideo ? String(state.convertFormat || "mp4").trim().toLowerCase() : String(state.convertFormat || "").trim().toLowerCase();
 
             const out = isVideo
-              ? targetFmt === "webm_local"
-                ? await convertVideoOnClient(
-                    f,
-                    { format: "webm", speed: state.convertSpeed, quality: q, name: f.name },
-                    (p) => {
-                      state.convertProgress = Number(p || 0) || 0;
-                      render();
-                    }
-                  )
-                : await convertOnBackend(
-                    f,
-                    {
-                      format: targetFmt === "webm" ? "webm" : "mp4",
-                      speed: state.convertSpeed,
-                      quality: q,
-                      name: f.name
-                    },
-                    (p) => {
-                      state.convertProgress = Number(p || 0) || 0;
-                      render();
-                    }
-                  )
+              ? await convertVideoOnClient(
+                  f,
+                  { format: targetFmt === "webm_local" ? "webm" : targetFmt, speed: state.convertSpeed, quality: q, name: f.name },
+                  (p) => {
+                    state.convertProgress = Number(p || 0) || 0;
+                    render();
+                  }
+                )
               : await convertOnBackend(
                   f,
                   {
