@@ -12,10 +12,9 @@ const renderConversionPlatform = (opts) => {
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
 
   const card = document.createElement("div");
-  card.style.border = "1px solid rgba(255,255,255,.12)";
+  card.style.border = "1px solid rgba(255,255,255,.06)";
   card.style.borderRadius = "16px";
-  card.style.background = "#292929";
-  card.style.boxShadow = "0 18px 50px rgba(0,0,0,.28)";
+  card.style.background = "#0a0a0a";
   card.style.padding = "14px";
   card.style.display = "flex";
   card.style.flexDirection = "column";
@@ -34,7 +33,7 @@ const renderConversionPlatform = (opts) => {
   titleWrap.style.minWidth = "0";
 
   const title = document.createElement("div");
-  title.style.color = "#fff";
+  title.style.color = "rgba(255,255,255,.95)";
   title.style.fontSize = "14px";
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "منصة التحويل" : "Conversion Platform";
@@ -46,13 +45,13 @@ const renderConversionPlatform = (opts) => {
   hintWrap.style.gap = "2px";
 
   const hint1 = document.createElement("div");
-  hint1.style.color = "rgba(255,255,255,.78)";
+  hint1.style.color = "rgba(255,255,255,.65)";
   hint1.style.fontSize = "12px";
   hint1.style.fontWeight = "900";
   hint1.style.lineHeight = "1.6";
 
   const hint2 = document.createElement("div");
-  hint2.style.color = "rgba(255,255,255,.60)";
+  hint2.style.color = "rgba(255,255,255,.50)";
   hint2.style.fontSize = "12px";
   hint2.style.fontWeight = "900";
   hint2.style.lineHeight = "1.6";
@@ -84,8 +83,8 @@ const renderConversionPlatform = (opts) => {
   kindRow.style.alignItems = "center";
   kindRow.style.padding = "6px";
   kindRow.style.borderRadius = "999px";
-  kindRow.style.border = "1px solid rgba(255,255,255,.12)";
-  kindRow.style.background = "rgba(2,6,23,.18)";
+  kindRow.style.border = "1px solid rgba(255,255,255,.06)";
+  kindRow.style.background = "#0f0f0f";
 
   const imgKindBtn = pill(isArabic() ? "صور" : "Images", !convertIsVideoKind);
   const vidKindBtn = pill(isArabic() ? "فيديو" : "Videos", convertIsVideoKind);
@@ -132,9 +131,9 @@ const renderConversionPlatform = (opts) => {
 
   const mkStep = (n, t, sub) => {
     const w = document.createElement("div");
-    w.style.border = "1px solid rgba(255,255,255,.10)";
+    w.style.border = "1px solid rgba(255,255,255,.06)";
     w.style.borderRadius = "14px";
-    w.style.background = "rgba(2,6,23,.18)";
+    w.style.background = "#0f0f0f";
     w.style.padding = "12px";
     w.style.display = "flex";
     w.style.flexDirection = "column";
@@ -147,13 +146,13 @@ const renderConversionPlatform = (opts) => {
     left.style.minWidth = "0";
 
     const tt = document.createElement("div");
-    tt.style.color = "#fff";
+    tt.style.color = "rgba(255,255,255,.95)";
     tt.style.fontSize = "12px";
     tt.style.fontWeight = "950";
     tt.textContent = String(n) + ". " + String(t || "");
 
     const ss = document.createElement("div");
-    ss.style.color = "rgba(255,255,255,.66)";
+    ss.style.color = "rgba(255,255,255,.55)";
     ss.style.fontSize = "12px";
     ss.style.fontWeight = "900";
     ss.style.lineHeight = "1.6";
@@ -172,7 +171,7 @@ const renderConversionPlatform = (opts) => {
     wrap.style.gap = "8px";
 
     const l = document.createElement("div");
-    l.style.color = "rgba(255,255,255,.82)";
+    l.style.color = "rgba(255,255,255,.75)";
     l.style.fontSize = "12px";
     l.style.fontWeight = "950";
     l.textContent = String(labelText || "");
@@ -182,9 +181,9 @@ const renderConversionPlatform = (opts) => {
     s.style.width = "100%";
     s.style.padding = "10px 12px";
     s.style.borderRadius = "12px";
-    s.style.border = "1px solid rgba(255,255,255,.14)";
-    s.style.background = "rgba(255,255,255,.06)";
-    s.style.color = "#fff";
+    s.style.border = "1px solid rgba(255,255,255,.06)";
+    s.style.background = "#0f0f0f";
+    s.style.color = "rgba(255,255,255,.90)";
     s.style.fontSize = "12px";
     s.style.fontWeight = "900";
     s.onchange = () => {
@@ -227,7 +226,7 @@ const renderConversionPlatform = (opts) => {
   fileMeta.style.minWidth = "0";
 
   const fileName = document.createElement("div");
-  fileName.style.color = "#fff";
+  fileName.style.color = "rgba(255,255,255,.95)";
   fileName.style.fontSize = "13px";
   fileName.style.fontWeight = "950";
   fileName.style.overflow = "hidden";
@@ -236,7 +235,7 @@ const renderConversionPlatform = (opts) => {
   fileName.textContent = state.convertFile ? String(state.convertFile.name || "") : (isArabic() ? "لم يتم اختيار ملف" : "No file selected");
 
   const fileSize = document.createElement("div");
-  fileSize.style.color = "rgba(255,255,255,.66)";
+  fileSize.style.color = "rgba(255,255,255,.55)";
   fileSize.style.fontSize = "12px";
   fileSize.style.fontWeight = "900";
   fileSize.textContent = state.convertFile ? fmtBytes(Number(state.convertFile.size || 0) || 0) : "";
@@ -245,26 +244,90 @@ const renderConversionPlatform = (opts) => {
   fileMeta.appendChild(fileSize);
   s1.appendChild(fileMeta);
 
-  const dz = renderDropzone({
-    disabled: Boolean(state.converting) || planBlocked || !convertInput,
-    onPick: () => {
+  // الدروب زون بتصميم مطابق للصورة
+  const dzWrap = document.createElement("div");
+  dzWrap.style.border = "1px dashed rgba(255,255,255,.15)";
+  dzWrap.style.borderRadius = "12px";
+  dzWrap.style.background = "#0a0a0a";
+  dzWrap.style.padding = "32px 20px";
+  dzWrap.style.display = "flex";
+  dzWrap.style.flexDirection = "column";
+  dzWrap.style.alignItems = "center";
+  dzWrap.style.justifyContent = "center";
+  dzWrap.style.gap = "10px";
+  dzWrap.style.cursor = Boolean(state.converting) || planBlocked || !convertInput ? "not-allowed" : "pointer";
+  dzWrap.style.opacity = Boolean(state.converting) || planBlocked ? "0.5" : "1";
+
+  const dzIcon = document.createElement("div");
+  dzIcon.style.color = "rgba(255,255,255,.40)";
+  dzIcon.style.fontSize = "32px";
+  dzIcon.style.lineHeight = "1";
+  dzIcon.textContent = "📁";
+
+  const dzText = document.createElement("div");
+  dzText.style.color = "rgba(255,255,255,.70)";
+  dzText.style.fontSize = "13px";
+  dzText.style.fontWeight = "900";
+  dzText.style.textAlign = "center";
+  dzText.textContent = isArabic() ? "اسحب الملف هنا أو اضغط للاختيار" : "Drag file here or click to select";
+
+  const dzHint = document.createElement("div");
+  dzHint.style.color = "rgba(255,255,255,.45)";
+  dzHint.style.fontSize = "11px";
+  dzHint.style.fontWeight = "900";
+  dzHint.style.textAlign = "center";
+  dzHint.textContent = isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type";
+
+  dzWrap.appendChild(dzIcon);
+  dzWrap.appendChild(dzText);
+  dzWrap.appendChild(dzHint);
+
+  dzWrap.onclick = () => {
+    try {
+      if (Boolean(state.converting) || planBlocked || !convertInput) return;
+      const isVid = String(state.convertKind || "image") === "video";
       try {
-        if (!convertInput) return;
-        try {
-          convertInput.accept = convertIsVideo ? "video/mp4,video/webm" : "image/*";
-        } catch {}
-        convertInput.click();
+        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
       } catch {}
-    },
-    onFiles: (fs) => {
-      try {
-        const list = Array.isArray(fs) ? fs : [];
-        const f = list && list[0] ? list[0] : null;
-        if (f && onSetConvertFile) onSetConvertFile(f);
-      } catch {}
-    }
-  });
-  s1.appendChild(dz);
+      convertInput.click();
+    } catch {}
+  };
+
+  dzWrap.ondragover = (e) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!Boolean(state.converting) && !planBlocked) {
+        dzWrap.style.borderColor = "rgba(24,181,213,.5)";
+        dzWrap.style.background = "#0f0f0f";
+      }
+    } catch {}
+  };
+
+  dzWrap.ondragleave = (e) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      dzWrap.style.borderColor = "rgba(255,255,255,.15)";
+      dzWrap.style.background = "#0a0a0a";
+    } catch {}
+  };
+
+  dzWrap.ondrop = (e) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      dzWrap.style.borderColor = "rgba(255,255,255,.15)";
+      dzWrap.style.background = "#0a0a0a";
+      if (Boolean(state.converting) || planBlocked) return;
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0 && onSetConvertFile) {
+        onSetConvertFile(files[0]);
+      }
+    } catch {}
+  };
+
+  s1.appendChild(dzWrap);
 
   const buildQualityStep = (n) => {
     const s = mkStep(n, isArabic() ? "تحديد الجودة" : "Adjust quality", isArabic() ? "توازن بين الحجم والجودة" : "Balance quality vs size");
@@ -281,7 +344,7 @@ const renderConversionPlatform = (opts) => {
     qHead.style.gap = "10px";
 
     const qLabel = document.createElement("div");
-    qLabel.style.color = "rgba(255,255,255,.82)";
+    qLabel.style.color = "rgba(255,255,255,.75)";
     qLabel.style.fontSize = "12px";
     qLabel.style.fontWeight = "950";
     qLabel.textContent = isArabic() ? "الجودة" : "Quality";
@@ -395,15 +458,14 @@ const renderConversionPlatform = (opts) => {
 
     if (state.converting) {
       const prog = document.createElement("div");
-      prog.style.border = "1px solid rgba(255,255,255,.10)";
+      prog.style.border = "1px solid rgba(255,255,255,.06)";
       prog.style.borderRadius = "14px";
-      prog.style.background = "rgba(2,6,23,.28)";
+      prog.style.background = "#0a0a0a";
       prog.style.overflow = "hidden";
       const bar = document.createElement("div");
       bar.style.height = "10px";
       bar.style.width = Math.max(0, Math.min(100, Number(state.convertProgress || 0) || 0)) + "%";
-      bar.style.background = "linear-gradient(90deg,#18b5d5,rgba(24,181,213,.35))";
-      bar.style.transition = "width .12s ease";
+      bar.style.background = "#18b5d5";
       prog.appendChild(bar);
       s.appendChild(prog);
     }
@@ -431,13 +493,13 @@ const renderConversionPlatform = (opts) => {
       outLeft.style.gap = "4px";
 
       const outTitle = document.createElement("div");
-      outTitle.style.color = "#fff";
+      outTitle.style.color = "rgba(255,255,255,.95)";
       outTitle.style.fontSize = "13px";
       outTitle.style.fontWeight = "950";
       outTitle.textContent = isArabic() ? "النتيجة جاهزة" : "Result is ready";
 
       const outHint = document.createElement("div");
-      outHint.style.color = "rgba(255,255,255,.70)";
+      outHint.style.color = "rgba(255,255,255,.60)";
       outHint.style.fontSize = "12px";
       outHint.style.fontWeight = "900";
       const fmt = String(state.convertResultFormat || state.convertFormat || "").toUpperCase();
@@ -500,8 +562,8 @@ const renderConversionPlatform = (opts) => {
         v.style.maxHeight = "260px";
         v.style.objectFit = "contain";
         v.style.borderRadius = "14px";
-        v.style.border = "1px solid rgba(255,255,255,.10)";
-        v.style.background = "rgba(2,6,23,.28)";
+        v.style.border = "1px solid rgba(255,255,255,.06)";
+        v.style.background = "#0a0a0a";
         preview = v;
       } else {
         const img = document.createElement("img");
@@ -513,8 +575,8 @@ const renderConversionPlatform = (opts) => {
         img.style.maxHeight = "260px";
         img.style.objectFit = "contain";
         img.style.borderRadius = "14px";
-        img.style.border = "1px solid rgba(255,255,255,.10)";
-        img.style.background = "rgba(2,6,23,.28)";
+        img.style.border = "1px solid rgba(255,255,255,.06)";
+        img.style.background = "#0a0a0a";
         preview = img;
       }
 
@@ -658,9 +720,9 @@ const renderConversionPlatform = (opts) => {
       i.style.width = "min(140px,48%)";
       i.style.padding = "10px 12px";
       i.style.borderRadius = "12px";
-      i.style.border = "1px solid rgba(255,255,255,.14)";
-      i.style.background = "rgba(255,255,255,.06)";
-      i.style.color = "#fff";
+      i.style.border = "1px solid rgba(255,255,255,.06)";
+      i.style.background = "#0f0f0f";
+      i.style.color = "rgba(255,255,255,.90)";
       i.style.fontSize = "12px";
       i.style.fontWeight = "900";
       i.oninput = () => {
