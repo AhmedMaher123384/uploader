@@ -132,6 +132,268 @@ const createFab = () => {
 };
 `,
   `
+const openLegalSheet = (kind) => {
+  try {
+    const k = String(kind || "").trim().toLowerCase() || "terms";
+    const ar = isArabic();
+
+    const overlay = document.createElement("div");
+    overlay.className = "bundle-app-bottomsheet";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.padding = "14px";
+    overlay.style.background = "rgba(0,0,0,.55)";
+    overlay.style.zIndex = "100004";
+
+    const panel = document.createElement("div");
+    panel.className = "bundle-app-bottomsheet__panel";
+    panel.style.width = "min(760px,100%)";
+    panel.style.maxHeight = "85vh";
+    panel.style.overflow = "auto";
+    panel.style.background = "#303030";
+    panel.style.borderRadius = "16px";
+    panel.style.border = "1px solid rgba(24,181,213,.18)";
+
+    const head = document.createElement("div");
+    head.className = "bundle-app-bottomsheet__head";
+    head.style.padding = "16px 14px";
+    head.style.display = "flex";
+    head.style.alignItems = "center";
+    head.style.justifyContent = "space-between";
+    head.style.borderBottom = "1px solid rgba(24,181,213,.2)";
+
+    const title = document.createElement("div");
+    title.className = "bundle-app-bottomsheet__title";
+    title.textContent = ar ? (k === "privacy" ? "سياسة الخصوصية" : "شروط الاستخدام") : (k === "privacy" ? "Privacy Policy" : "Terms of Use");
+    title.style.fontSize = "18px";
+    title.style.fontWeight = "900";
+    title.style.color = "#fff";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = ar ? "إغلاق" : "Close";
+    close.style.padding = "6px 10px";
+    close.style.borderRadius = "10px";
+    close.style.border = "1px solid rgba(24,181,213,.3)";
+    close.style.background = "#373737";
+    close.style.color = "#18b5d5";
+    close.style.fontSize = "13px";
+    close.style.fontWeight = "900";
+    close.style.cursor = "pointer";
+
+    head.appendChild(title);
+    head.appendChild(close);
+
+    const body = document.createElement("div");
+    body.style.padding = "14px";
+    body.style.display = "flex";
+    body.style.flexDirection = "column";
+    body.style.gap = "10px";
+    try {
+      const rtl = typeof isRtl === "function" && isRtl();
+      body.style.direction = rtl ? "rtl" : "ltr";
+    } catch {}
+
+    const mkSection = (h, t) => {
+      const box = document.createElement("div");
+      box.style.border = "1px solid rgba(255,255,255,.08)";
+      box.style.background = "#373737";
+      box.style.borderRadius = "14px";
+      box.style.padding = "12px";
+
+      const hh = document.createElement("div");
+      hh.style.fontSize = "13px";
+      hh.style.fontWeight = "950";
+      hh.style.color = "rgba(255,255,255,.92)";
+      hh.textContent = String(h || "");
+
+      const tt = document.createElement("div");
+      tt.style.marginTop = "6px";
+      tt.style.fontSize = "12px";
+      tt.style.fontWeight = "850";
+      tt.style.color = "rgba(255,255,255,.72)";
+      tt.style.lineHeight = "1.75";
+      tt.style.whiteSpace = "pre-wrap";
+      tt.textContent = String(t || "");
+
+      box.appendChild(hh);
+      box.appendChild(tt);
+      return box;
+    };
+
+    const intro = document.createElement("div");
+    intro.style.fontSize = "12px";
+    intro.style.fontWeight = "900";
+    intro.style.color = "rgba(255,255,255,.70)";
+    intro.style.lineHeight = "1.75";
+    intro.textContent = ar
+      ? "المستند ده بيشرح القواعد الأساسية لاستخدام مركز الرفع، وإزاي بنتعامل مع بياناتك."
+      : "This document explains how Upload Center works and how your data is handled.";
+
+    body.appendChild(intro);
+
+    const sections = (() => {
+      if (k === "privacy") {
+        return ar
+          ? [
+              {
+                h: "المعلومات اللي بنجمعها",
+                t: "بيانات فنية مرتبطة بالملف (زي النوع/الحجم) ومعرّفات تشغيل داخلية مرتبطة بمتجرك.\nقد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."
+              },
+              {
+                h: "استخدام المعلومات",
+                t: "رفع وإدارة الملفات، تحسين الأداء، منع إساءة الاستخدام، وحماية الخدمة."
+              },
+              {
+                h: "المشاركة مع أطراف خارجية",
+                t: "قد نستخدم مزوّدي بنية تحتية (مثل التخزين أو الشبكات) لتنفيذ الخدمة.\nلا نقوم ببيع بياناتك."
+              },
+              {
+                h: "الاحتفاظ والحذف",
+                t: "نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية.\nيمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك."
+              },
+              {
+                h: "حقوقك",
+                t: "يمكنك طلب حذف/مراجعة بيانات مرتبطة باستخدامك للخدمة عبر فريق الدعم."
+              }
+            ]
+          : [
+              {
+                h: "Information We Collect",
+                t: "Technical file metadata (e.g., type/size) and internal operational identifiers tied to your store.\nWe may log technical events for security and diagnostics."
+              },
+              {
+                h: "How We Use It",
+                t: "To upload and manage files, improve performance, prevent abuse, and protect the service."
+              },
+              {
+                h: "Sharing",
+                t: "We may rely on infrastructure providers (storage/network) to deliver the service.\nWe do not sell your data."
+              },
+              {
+                h: "Retention & Deletion",
+                t: "We retain data as needed to provide the service or for legal/security needs.\nYou can delete your files from the “My files” tab when available."
+              },
+              {
+                h: "Your Rights",
+                t: "You can request deletion/review of data related to your usage through support."
+              }
+            ];
+      }
+
+      return ar
+        ? [
+            {
+              h: "الاستخدام المسموح",
+              t: "ارفع فقط المحتوى اللي تملكه أو لديك حق استخدامه.\nاستخدم الخدمة لأغراض مشروعة ومتوافقة مع أنظمة منصتك."
+            },
+            {
+              h: "المحتوى المحظور",
+              t: "ممنوع رفع محتوى ينتهك حقوق الملكية، أو غير قانوني، أو ضار/خبيث، أو يحتوي برمجيات ضارة."
+            },
+            {
+              h: "المسؤولية",
+              t: "أنت مسؤول عن الملفات التي ترفعها واستخدامك لها.\nقد تتعطل الخدمة مؤقتًا لأسباب تقنية أو صيانة."
+            },
+            {
+              h: "الحذف والاحتفاظ",
+              t: "يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك.\nقد نحتفظ بنسخ مؤقتة لأسباب تشغيلية/أمنية ضمن حدود معقولة."
+            }
+          ]
+        : [
+            {
+              h: "Permitted Use",
+              t: "Upload only content you own or have rights to use.\nUse the service lawfully and in compliance with your platform policies."
+            },
+            {
+              h: "Prohibited Content",
+              t: "Do not upload content that infringes IP rights, is illegal, harmful, or contains malware."
+            },
+            {
+              h: "Responsibility",
+              t: "You are responsible for the files you upload and how you use them.\nService availability may be impacted by maintenance or technical issues."
+            },
+            {
+              h: "Retention & Deletion",
+              t: "You can delete your files from the “My files” tab when available.\nWe may keep temporary operational/security copies within reasonable limits."
+            }
+          ];
+    })();
+
+    for (let i = 0; i < sections.length; i += 1) {
+      const s = sections[i];
+      body.appendChild(mkSection(s.h, s.t));
+    }
+
+    panel.appendChild(head);
+    panel.appendChild(body);
+    overlay.appendChild(panel);
+
+    const done = () => {
+      try {
+        overlay.remove();
+      } catch {}
+    };
+    close.onclick = done;
+    overlay.addEventListener("click", (ev) => {
+      try {
+        if (ev.target === overlay) done();
+      } catch {}
+    });
+    panel.addEventListener("click", (ev) => {
+      try {
+        ev.stopPropagation();
+      } catch {}
+    });
+
+    document.body.appendChild(overlay);
+  } catch {}
+};
+
+const buildLegalFooter = () => {
+  const wrap = document.createElement("div");
+  wrap.style.marginTop = "12px";
+  wrap.style.paddingTop = "10px";
+  wrap.style.borderTop = "1px solid rgba(255,255,255,.08)";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+  wrap.style.userSelect = "none";
+  wrap.style.webkitUserSelect = "none";
+
+  const mkLink = (label, kind) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = String(label || "");
+    b.style.border = "0";
+    b.style.background = "transparent";
+    b.style.padding = "0";
+    b.style.margin = "0";
+    b.style.cursor = "pointer";
+    b.style.fontSize = "12px";
+    b.style.fontWeight = "950";
+    b.style.color = "#18b5d5";
+    b.style.textDecoration = "underline";
+    b.style.textDecorationThickness = "2px";
+    b.style.textUnderlineOffset = "3px";
+    b.onclick = () => openLegalSheet(kind);
+    return b;
+  };
+
+  const sep = document.createElement("span");
+  sep.textContent = " | ";
+  sep.style.color = "rgba(255,255,255,.55)";
+  sep.style.fontWeight = "900";
+
+  wrap.appendChild(mkLink(isArabic() ? "شروط الاستخدام" : "Terms of Use", "terms"));
+  wrap.appendChild(sep);
+  wrap.appendChild(mkLink(isArabic() ? "سياسة الخصوصية" : "Privacy Policy", "privacy"));
+  return wrap;
+};
+
 const buildSheet = () => {
   const overlay = document.createElement("div");
   overlay.className = "bundle-app-bottomsheet";
@@ -181,6 +443,8 @@ const buildSheet = () => {
 
   const body = document.createElement("div");
   body.style.padding = "0 14px 14px";
+  body.style.display = "flex";
+  body.style.flexDirection = "column";
 
   const topRow = document.createElement("div");
   topRow.style.display = "flex";
@@ -217,6 +481,7 @@ const buildSheet = () => {
   body.appendChild(topRow);
   body.appendChild(uploads);
   body.appendChild(content);
+  body.appendChild(buildLegalFooter());
   panel.appendChild(head);
   panel.appendChild(body);
   overlay.appendChild(panel);
