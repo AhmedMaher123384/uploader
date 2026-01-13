@@ -241,7 +241,7 @@ const openLegalSheet = (kind) => {
           ? [
               {
                 h: "المعلومات اللي بنجمعها",
-                t: "بيانات فنية مرتبطة بالملف (زي النوع/الحجم) ومعرّفات تشغيل داخلية مرتبطة بمتجرك.\nقد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."
+                t: "بيانات فنية مرتبطة بالملف (زي النوع/الحجم) ومعرّفات تشغيل داخلية مرتبطة بمتجرك. قد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."
               },
               {
                 h: "استخدام المعلومات",
@@ -249,11 +249,11 @@ const openLegalSheet = (kind) => {
               },
               {
                 h: "المشاركة مع أطراف خارجية",
-                t: "قد نستخدم مزوّدي بنية تحتية (مثل التخزين أو الشبكات) لتنفيذ الخدمة.\nلا نقوم ببيع بياناتك."
+                t: "قد نستخدم مزوّدي بنية تحتية (مثل التخزين أو الشبكات) لتنفيذ الخدمة. لا نقوم ببيع بياناتك."
               },
               {
                 h: "الاحتفاظ والحذف",
-                t: "نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية.\nيمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك."
+                t: "نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية. يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك."
               },
               {
                 h: "حقوقك",
@@ -263,7 +263,7 @@ const openLegalSheet = (kind) => {
           : [
               {
                 h: "Information We Collect",
-                t: "Technical file metadata (e.g., type/size) and internal operational identifiers tied to your store.\nWe may log technical events for security and diagnostics."
+                t: "Technical file metadata (e.g., type/size) and internal operational identifiers tied to your store. We may log technical events for security and diagnostics."
               },
               {
                 h: "How We Use It",
@@ -271,11 +271,11 @@ const openLegalSheet = (kind) => {
               },
               {
                 h: "Sharing",
-                t: "We may rely on infrastructure providers (storage/network) to deliver the service.\nWe do not sell your data."
+                t: "We may rely on infrastructure providers (storage/network) to deliver the service. We do not sell your data."
               },
               {
                 h: "Retention & Deletion",
-                t: "We retain data as needed to provide the service or for legal/security needs.\nYou can delete your files from the “My files” tab when available."
+                t: "We retain data as needed to provide the service or for legal/security needs. You can delete your files from the 'My files' tab when available."
               },
               {
                 h: "Your Rights",
@@ -288,7 +288,7 @@ const openLegalSheet = (kind) => {
         ? [
             {
               h: "الاستخدام المسموح",
-              t: "ارفع فقط المحتوى اللي تملكه أو لديك حق استخدامه.\nاستخدم الخدمة لأغراض مشروعة ومتوافقة مع أنظمة منصتك."
+              t: "ارفع فقط المحتوى اللي تملكه أو لديك حق استخدامه. استخدم الخدمة لأغراض مشروعة ومتوافقة مع أنظمة منصتك."
             },
             {
               h: "المحتوى المحظور",
@@ -296,17 +296,17 @@ const openLegalSheet = (kind) => {
             },
             {
               h: "المسؤولية",
-              t: "أنت مسؤول عن الملفات التي ترفعها واستخدامك لها.\nقد تتعطل الخدمة مؤقتًا لأسباب تقنية أو صيانة."
+              t: "أنت مسؤول عن الملفات التي ترفعها واستخدامك لها. قد تتعطل الخدمة مؤقتًا لأسباب تقنية أو صيانة."
             },
             {
               h: "الحذف والاحتفاظ",
-              t: "يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك.\nقد نحتفظ بنسخ مؤقتة لأسباب تشغيلية/أمنية ضمن حدود معقولة."
+              t: "يمكنك حذف ملفاتك من تبويب (ملفاتي) متى توفر ذلك. قد نحتفظ بنسخ مؤقتة لأسباب تشغيلية/أمنية ضمن حدود معقولة."
             }
           ]
         : [
             {
               h: "Permitted Use",
-              t: "Upload only content you own or have rights to use.\nUse the service lawfully and in compliance with your platform policies."
+              t: "Upload only content you own or have rights to use. Use the service lawfully and in compliance with your platform policies."
             },
             {
               h: "Prohibited Content",
@@ -314,11 +314,11 @@ const openLegalSheet = (kind) => {
             },
             {
               h: "Responsibility",
-              t: "You are responsible for the files you upload and how you use them.\nService availability may be impacted by maintenance or technical issues."
+              t: "You are responsible for the files you upload and how you use them. Service availability may be impacted by maintenance or technical issues."
             },
             {
               h: "Retention & Deletion",
-              t: "You can delete your files from the “My files” tab when available.\nWe may keep temporary operational/security copies within reasonable limits."
+              t: "You can delete your files from the 'My files' tab when available. We may keep temporary operational/security copies within reasonable limits."
             }
           ];
     })();
