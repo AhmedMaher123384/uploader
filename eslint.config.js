@@ -1,7 +1,7 @@
 const js = require("@eslint/js");
 
 module.exports = [
-  { ignores: ["node_modules/**", "frontend/**", "icomoon-v1.0/**"] },
+  { ignores: ["node_modules/**", "frontend/**", "icomoon-v1.0/**", "icomoon-v1.0 2/**"] },
   js.configs.recommended,
   {
     languageOptions: {

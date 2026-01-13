@@ -122,7 +122,26 @@ const renderUploadHero = (dash) => {
   plan.style.color = "#18b5d5";
   plan.style.fontWeight = "950";
   plan.style.fontSize = "12px";
-  plan.textContent = (isArabic() ? "الباقة: " : "Plan: ") + planLabel(d.planKey);
+  plan.style.display = "inline-flex";
+  plan.style.alignItems = "center";
+  plan.style.gap = "8px";
+
+  const planKey = String(d.planKey || "").trim().toLowerCase();
+  const planIconClass = planKey === "business" ? "sicon-award-ribbon" : planKey === "pro" ? "sicon-star-o" : "sicon-user";
+  const planIcon = document.createElement("i");
+  planIcon.className = planIconClass;
+  planIcon.setAttribute("aria-hidden", "true");
+  planIcon.style.display = "block";
+  planIcon.style.fontSize = "14px";
+  planIcon.style.lineHeight = "1";
+  planIcon.style.color = "currentColor";
+
+  const planTxt = document.createElement("span");
+  planTxt.style.whiteSpace = "nowrap";
+  planTxt.textContent = (isArabic() ? "" : "Plan: ") + planLabel(d.planKey);
+
+  plan.appendChild(planIcon);
+  plan.appendChild(planTxt);
 
   const visit = document.createElement("a");
   const rawUrl = String(store.url || d.storeUrl || store.domain || "").trim();
