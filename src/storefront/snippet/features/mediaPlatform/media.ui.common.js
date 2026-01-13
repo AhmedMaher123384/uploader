@@ -358,7 +358,7 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
 
   const b = document.createElement("button");
   b.type = "button";
-  b.textContent = isArabic() ? "اختيار ملفات" : "Choose files";
+  b.textContent = isArabic() ? "اختيار ملف" : "Choose files";
   b.style.border = "0";
   b.style.cursor = disabled ? "not-allowed" : "pointer";
   b.style.padding = "10px 12px";
