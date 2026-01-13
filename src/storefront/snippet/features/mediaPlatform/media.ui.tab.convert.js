@@ -7,6 +7,8 @@ const renderConversionPlatform = (opts) => {
   const convertInput = o.convertInput || null;
   const onRender = typeof o.onRender === "function" ? o.onRender : null;
   const onRunConvert = typeof o.onRunConvert === "function" ? o.onRunConvert : null;
+  const onUploadConverted = typeof o.onUploadConverted === "function" ? o.onUploadConverted : null;
+  const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
   const onSetConvertFile = typeof o.onSetConvertFile === "function" ? o.onSetConvertFile : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
@@ -458,7 +460,7 @@ const renderConversionPlatform = (opts) => {
     actions.style.flexWrap = "wrap";
 
     const convertBtn = btnPrimary(isArabic() ? "تحويل الآن" : "Convert now");
-    convertBtn.disabled = Boolean(state.converting) || planBlocked || !state.convertFile || !onRunConvert;
+    convertBtn.disabled = Boolean(state.converting) || Boolean(state.convertUploading) || planBlocked || !state.convertFile || !onRunConvert;
     convertBtn.onclick = () => {
       try {
         if (convertBtn.disabled) return;
@@ -467,7 +469,7 @@ const renderConversionPlatform = (opts) => {
     };
 
     const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
-    resetBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
+    resetBtn.disabled = Boolean(state.converting) || Boolean(state.convertUploading) || planBlocked || !onReset;
     resetBtn.onclick = () => {
       try {
         if (resetBtn.disabled) return;
@@ -531,9 +533,20 @@ const renderConversionPlatform = (opts) => {
       outLeft.appendChild(outTitle);
       outLeft.appendChild(outHint);
 
+      const rightActions = document.createElement("div");
+      rightActions.style.display = "flex";
+      rightActions.style.alignItems = "center";
+      rightActions.style.gap = "10px";
+      rightActions.style.flexWrap = "wrap";
+      rightActions.style.flex = "0 0 auto";
+
       const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
+      dl.disabled = Boolean(state.convertUploading);
+      dl.style.opacity = dl.disabled ? "0.7" : "1";
+      dl.style.cursor = dl.disabled ? "not-allowed" : "pointer";
       dl.onclick = () => {
         try {
+          if (dl.disabled) return;
           const a = document.createElement("a");
           const raw = state.convertFile ? String(state.convertFile.name || "") : "converted";
           let baseName = raw;
@@ -569,7 +582,135 @@ const renderConversionPlatform = (opts) => {
       };
 
       outMeta.appendChild(outLeft);
-      outMeta.appendChild(dl);
+      rightActions.appendChild(dl);
+
+      const upLabel = Boolean(state.convertUploading)
+        ? (isArabic() ? "جاري الرفع…" : "Uploading…")
+        : state.convertUploadUrl
+          ? (isArabic() ? "تم الرفع" : "Uploaded")
+          : (isArabic() ? "رفع على المنصة" : "Upload to platform");
+
+      const up = btnGhost(upLabel);
+      up.disabled = Boolean(state.convertUploading) || !onUploadConverted;
+      up.style.opacity = up.disabled ? "0.7" : "1";
+      up.style.cursor = up.disabled ? "not-allowed" : "pointer";
+      up.onclick = () => {
+        try {
+          if (up.disabled) return;
+          onUploadConverted();
+        } catch {}
+      };
+      rightActions.appendChild(up);
+
+      outMeta.appendChild(rightActions);
+
+      if (state.convertUploading || state.convertUploadError || state.convertUploadUrl) {
+        const upBox = document.createElement("div");
+        upBox.style.border = "1px solid rgba(24,181,213,.25)";
+        upBox.style.borderRadius = "14px";
+        upBox.style.background = "#373737";
+        upBox.style.padding = "12px";
+        upBox.style.display = "flex";
+        upBox.style.flexDirection = "column";
+        upBox.style.gap = "10px";
+
+        const upRow = document.createElement("div");
+        upRow.style.display = "flex";
+        upRow.style.alignItems = "center";
+        upRow.style.justifyContent = "space-between";
+        upRow.style.gap = "10px";
+        upRow.style.flexWrap = "wrap";
+
+        const upLeft = document.createElement("div");
+        upLeft.style.display = "flex";
+        upLeft.style.flexDirection = "column";
+        upLeft.style.gap = "4px";
+        upLeft.style.minWidth = "0";
+
+        const upTitle = document.createElement("div");
+        upTitle.style.fontSize = "12px";
+        upTitle.style.fontWeight = "950";
+        upTitle.style.color = "#fff";
+        upTitle.textContent = isArabic() ? "رفع على المنصة" : "Upload to platform";
+
+        const upSub = document.createElement("div");
+        upSub.style.fontSize = "12px";
+        upSub.style.fontWeight = "900";
+        upSub.style.color = state.convertUploadError ? "#ef4444" : "rgba(24,181,213,.9)";
+
+        const pct = (() => {
+          try {
+            const p = Number(state && state.convertUploadProgress);
+            if (!Number.isFinite(p)) return 0;
+            return Math.max(0, Math.min(100, Math.round(p)));
+          } catch {
+            return 0;
+          }
+        })();
+
+        upSub.textContent = state.convertUploadError
+          ? String(state.convertUploadError || "")
+          : state.convertUploading
+            ? (isArabic() ? "جاري الرفع " : "Uploading ") + String(pct) + "%"
+            : state.convertUploadUrl
+              ? (isArabic() ? "تم الرفع بنجاح" : "Uploaded successfully")
+              : "";
+
+        upLeft.appendChild(upTitle);
+        if (upSub.textContent) upLeft.appendChild(upSub);
+
+        const upRight = document.createElement("div");
+        upRight.style.display = "flex";
+        upRight.style.alignItems = "center";
+        upRight.style.gap = "10px";
+        upRight.style.flexWrap = "wrap";
+        upRight.style.flex = "0 0 auto";
+
+        if (state.convertUploadUrl) {
+          const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتي" : "Open in My files");
+          openFilesBtn.disabled = !onOpenFiles;
+          openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.7" : "1";
+          openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";
+          openFilesBtn.onclick = () => {
+            try {
+              if (openFilesBtn.disabled) return;
+              onOpenFiles();
+            } catch {}
+          };
+
+          const openLinkBtn = btnPrimary(isArabic() ? "فتح الرابط" : "Open link");
+          openLinkBtn.style.padding = "10px 12px";
+          openLinkBtn.onclick = () => {
+            try {
+              const u = String(state.convertUploadUrl || "").trim();
+              if (!u) return;
+              window.open(u, "_blank", "noopener,noreferrer");
+            } catch {}
+          };
+          upRight.appendChild(openFilesBtn);
+          upRight.appendChild(openLinkBtn);
+        }
+
+        upRow.appendChild(upLeft);
+        if (upRight.childNodes && upRight.childNodes.length) upRow.appendChild(upRight);
+        upBox.appendChild(upRow);
+
+        if (state.convertUploading) {
+          const prog = document.createElement("div");
+          prog.style.height = "10px";
+          prog.style.borderRadius = "999px";
+          prog.style.background = "rgba(255,255,255,.08)";
+          prog.style.overflow = "hidden";
+          const bar = document.createElement("div");
+          bar.style.height = "10px";
+          bar.style.width = Math.max(0, Math.min(100, Number(state.convertUploadProgress || 0) || 0)) + "%";
+          bar.style.background = "#18b5d5";
+          prog.appendChild(bar);
+          upBox.appendChild(prog);
+        }
+
+        outWrap.appendChild(upBox);
+      }
 
       const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
       const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "mov";

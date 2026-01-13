@@ -738,7 +738,14 @@ const mount = () => {
           convertError: "",
           convertResultUrl: "",
           convertResultBytes: 0,
-          convertResultFormat: ""
+          convertResultFormat: "",
+          convertUploading: false,
+          convertUploadProgress: 0,
+          convertUploadLoaded: 0,
+          convertUploadTotal: 0,
+          convertUploadError: "",
+          convertUploadUrl: "",
+          convertUploadPublicId: ""
         };
 
         const refreshDashboard = async (force) => {
@@ -1347,6 +1354,13 @@ const mount = () => {
           state.converting = true;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
+          state.convertUploading = false;
+          state.convertUploadProgress = 0;
+          state.convertUploadLoaded = 0;
+          state.convertUploadTotal = 0;
+          state.convertUploadError = "";
+          state.convertUploadUrl = "";
+          state.convertUploadPublicId = "";
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1404,6 +1418,166 @@ const mount = () => {
           }
         };
 
+        const uploadConverted = async () => {
+          if (state.convertUploading) return;
+          if (!state.convertResultUrl) return;
+          if (isSandbox) {
+            state.convertUploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
+            render();
+            return;
+          }
+
+          state.convertUploadError = "";
+          state.convertUploading = true;
+          state.convertUploadProgress = 0;
+          state.convertUploadLoaded = 0;
+          state.convertUploadTotal = 0;
+          state.convertUploadUrl = "";
+          state.convertUploadPublicId = "";
+          render();
+
+          try {
+            const raw = state.convertFile ? String(state.convertFile.name || "") : "converted";
+            let baseName = raw;
+            const dot = baseName.lastIndexOf(".");
+            if (dot > 0) baseName = baseName.slice(0, dot);
+            baseName = baseName.slice(0, 120) || "converted";
+
+            const rf = String(state.convertResultFormat || "").trim().toLowerCase();
+            const ext =
+              (rf ? rf : "") ||
+              (state.convertFormat === "mp4"
+                ? "mp4"
+                : state.convertFormat === "mov"
+                  ? "mov"
+                : state.convertFormat === "webm"
+                  ? "webm"
+                  : state.convertFormat === "webm_local"
+                    ? "webm"
+                    : state.convertFormat === "avif"
+                      ? "avif"
+                      : state.convertFormat === "webp"
+                        ? "webp"
+                        : state.convertFormat === "jpeg"
+                        ? "jpeg"
+                        : state.convertFormat === "png"
+                          ? "png"
+                          : "webp");
+
+            const mime =
+              ext === "mp4"
+                ? "video/mp4"
+                : ext === "mov"
+                  ? "video/quicktime"
+                : ext === "webm"
+                  ? "video/webm"
+                  : ext === "png"
+                    ? "image/png"
+                    : ext === "jpeg" || ext === "jpg"
+                      ? "image/jpeg"
+                      : ext === "avif"
+                        ? "image/avif"
+                        : ext === "webp"
+                          ? "image/webp"
+                          : "";
+
+            const outBlob = await new Promise((resolve, reject) => {
+              let xhr = null;
+              try {
+                xhr = new XMLHttpRequest();
+              } catch {
+                xhr = null;
+              }
+              if (!xhr) {
+                reject(new Error("Upload not supported"));
+                return;
+              }
+              try {
+                xhr.open("GET", String(state.convertResultUrl || ""), true);
+                xhr.responseType = "blob";
+              } catch {
+                reject(new Error("Upload not supported"));
+                return;
+              }
+              xhr.onerror = () => reject(new Error("Failed to read output"));
+              xhr.onabort = () => reject(new Error("Aborted"));
+              xhr.onload = () => {
+                const status = Number(xhr.status || 0) || 0;
+                if (status >= 200 && status < 300) {
+                  resolve(xhr.response || null);
+                  return;
+                }
+                reject(new Error("Failed to read output"));
+              };
+              try {
+                xhr.send();
+              } catch (e) {
+                reject(e);
+              }
+            });
+
+            if (!outBlob || !outBlob.size) throw new Error("Empty output");
+
+            let file = null;
+            const fname = baseName + "." + ext;
+            try {
+              file = new File([outBlob], fname, { type: mime || String(outBlob.type || "") });
+            } catch {
+              file = outBlob;
+              try {
+                file.name = fname;
+              } catch {}
+              try {
+                if (mime) file.type = mime;
+              } catch {}
+            }
+
+            const rt = guessResourceType(file);
+            const sign = await getSignature(rt, file);
+            const uploaded = await uploadToCloudinary(file, sign, (pct, loaded, total) => {
+              try {
+                state.convertUploadProgress = Number.isFinite(pct) ? pct : state.convertUploadProgress;
+                state.convertUploadLoaded = Number.isFinite(loaded) ? loaded : state.convertUploadLoaded;
+                state.convertUploadTotal = Number.isFinite(total) ? total : state.convertUploadTotal;
+                render();
+              } catch {}
+            });
+
+            await recordAsset(uploaded);
+            try {
+              clearMediaApiCache();
+            } catch {}
+            try {
+              refreshDashboard();
+            } catch {}
+
+            const delivery = buildDeliveryUrlFromItem({ storeId: merchantId, publicId: uploaded && uploaded.public_id });
+            state.convertUploadUrl = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
+            state.convertUploadPublicId = String((uploaded && uploaded.public_id) || "");
+            state.convertUploading = false;
+            state.convertUploadProgress = 100;
+            render();
+          } catch (e) {
+            state.convertUploading = false;
+            state.convertUploadProgress = 0;
+            state.convertUploadError = String((e && e.message) || e || "");
+            render();
+          }
+        };
+
+        const openFilesFromConvert = async () => {
+          try {
+            state.view = "files";
+            state.type = "";
+            state.page = 1;
+            state.items = [];
+            state.total = 0;
+            state.error = "";
+            render();
+            fetchAndRender(true);
+          } catch {}
+        };
+
         const setConvertFile = (f) => {
           const file = f || null;
           if (!file) return;
@@ -1433,6 +1607,13 @@ const mount = () => {
           state.convertProgress = 0;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
+          state.convertUploading = false;
+          state.convertUploadProgress = 0;
+          state.convertUploadLoaded = 0;
+          state.convertUploadTotal = 0;
+          state.convertUploadError = "";
+          state.convertUploadUrl = "";
+          state.convertUploadPublicId = "";
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1474,6 +1655,13 @@ const mount = () => {
           state.convertProgress = 0;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
+          state.convertUploading = false;
+          state.convertUploadProgress = 0;
+          state.convertUploadLoaded = 0;
+          state.convertUploadTotal = 0;
+          state.convertUploadError = "";
+          state.convertUploadUrl = "";
+          state.convertUploadPublicId = "";
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1494,6 +1682,13 @@ const mount = () => {
           state.convertProgress = 0;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
+          state.convertUploading = false;
+          state.convertUploadProgress = 0;
+          state.convertUploadLoaded = 0;
+          state.convertUploadTotal = 0;
+          state.convertUploadError = "";
+          state.convertUploadUrl = "";
+          state.convertUploadPublicId = "";
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1593,6 +1788,8 @@ const mount = () => {
                 convertInput,
                 onRender: render,
                 onRunConvert: runConvert,
+                onUploadConverted: uploadConverted,
+                onOpenFiles: openFilesFromConvert,
                 onSetConvertFile: setConvertFile,
                 onSetKind: setConvertKind,
                 onReset: resetConvert
