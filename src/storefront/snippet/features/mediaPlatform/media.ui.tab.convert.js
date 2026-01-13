@@ -62,11 +62,11 @@ const renderConversionPlatform = (opts) => {
     hint2.textContent = "";
   } else if (convertIsVideoKind) {
     hint1.textContent = isArabic()
-      ? "المدخل: أي فيديو يدعمه متصفحك (MP4 / WebM / MOV / AVI ...)"
-      : "Input: any video your browser can play (MP4 / WebM / MOV / AVI ...)";
+      ? "المدخل: MP4 / WebM / MOV / AVI … (أي فيديو يدعمه المتصفح)"
+      : "Input: MP4 / WebM / MOV / AVI … (any browser-supported video)";
     hint2.textContent = isArabic()
-      ? "الناتج: تلقائي / MP4 / WebM / OGG — حسب دعم المتصفح"
-      : "Output: Auto / MP4 / WebM / OGG — depending on browser support";
+      ? "الناتج: تلقائي / MP4 / WebM / MOV / AVF … (حسب الدعم)"
+      : "Output: Auto / MP4 / WebM / MOV / AVF … (depending on support)";
   } else {
     hint1.textContent = isArabic()
       ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا"
@@ -453,16 +453,19 @@ const renderConversionPlatform = (opts) => {
           const dot = baseName.lastIndexOf(".");
           if (dot > 0) baseName = baseName.slice(0, dot);
           baseName = baseName.slice(0, 120) || "converted";
+          const rf = String(state.convertResultFormat || "").trim().toLowerCase();
           const ext =
-            String(state.convertResultFormat || "").trim() ||
+            (rf ? (rf === "avf" ? "mp4" : rf) : "") ||
             (state.convertFormat === "mp4"
               ? "mp4"
+              : state.convertFormat === "mov"
+                ? "mov"
+                : state.convertFormat === "avf"
+                  ? "mp4"
               : state.convertFormat === "webm"
                 ? "webm"
                 : state.convertFormat === "webm_local"
                   ? "webm"
-                  : state.convertFormat === "ogg"
-                    ? "ogg"
                   : state.convertFormat === "avif"
                     ? "avif"
                     : state.convertFormat === "webp"
@@ -484,7 +487,7 @@ const renderConversionPlatform = (opts) => {
       outMeta.appendChild(dl);
 
       const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
-      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "ogg";
+      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "mov" || outFmt === "avf";
 
       let preview = null;
       if (isVideoOut) {
@@ -537,7 +540,8 @@ const renderConversionPlatform = (opts) => {
         { value: "mp4", label: isArabic() ? "MP4 (H.264) — مناسب للمتاجر" : "MP4 (H.264) — store-friendly" },
         { value: "webm", label: isArabic() ? "WebM (VP9/VP8) — حجم أقل غالبًا" : "WebM (VP9/VP8) — usually smaller" },
         { value: "webm_local", label: isArabic() ? "WebM (سريع) — أولوية للسرعة" : "WebM (fast) — prioritize speed" },
-        { value: "ogg", label: isArabic() ? "OGG (Theora) — فايرفوكس غالبًا" : "OGG (Theora) — often Firefox" }
+        { value: "mov", label: isArabic() ? "MOV — للـ QuickTime (حسب دعم المتصفح)" : "MOV — for QuickTime (browser dependent)" },
+        { value: "avf", label: isArabic() ? "AVF (AV1) — لو مدعوم" : "AVF (AV1) — if supported" }
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {
