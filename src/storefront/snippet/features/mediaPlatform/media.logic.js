@@ -1575,7 +1575,7 @@ const mount = () => {
               } catch {}
             });
 
-            await recordAsset(uploaded);
+            const saved = await recordAsset(uploaded);
             try {
               clearMediaApiCache();
             } catch {}
@@ -1583,7 +1583,8 @@ const mount = () => {
               refreshDashboard();
             } catch {}
 
-            const delivery = buildDeliveryUrlFromItem({ storeId: merchantId, publicId: uploaded && uploaded.public_id });
+            const savedAsset = saved && typeof saved === "object" ? saved.asset : null;
+            const delivery = buildDeliveryUrlFromItem(savedAsset || { storeId: merchantId, publicId: uploaded && uploaded.public_id });
             state.convertUploadUrl = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
             state.convertUploadPublicId = String((uploaded && uploaded.public_id) || "");
             state.convertUploading = false;
@@ -1981,11 +1982,12 @@ const mount = () => {
                   render();
                 } catch {}
               });
-              await recordAsset(uploaded);
+              const saved = await recordAsset(uploaded);
               try {
                 clearMediaApiCache();
               } catch {}
-              const delivery = buildDeliveryUrlFromItem({ storeId: merchantId, publicId: uploaded && uploaded.public_id });
+              const savedAsset = saved && typeof saved === "object" ? saved.asset : null;
+              const delivery = buildDeliveryUrlFromItem(savedAsset || { storeId: merchantId, publicId: uploaded && uploaded.public_id });
               rec.url = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
               rec.status = "done";
               render();

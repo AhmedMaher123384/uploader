@@ -3800,10 +3800,31 @@ function createApiRouter(config) {
             context: ctx || null,
             cloudinaryCreatedAt,
             cloudinary: c
+          },
+          $setOnInsert: {
+            shortCode: randomShortCode(12)
           }
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
+
+      if (doc && !doc.shortCode) {
+        for (let i = 0; i < 4; i += 1) {
+          const sc = randomShortCode(12);
+          try {
+            const r = await MediaAsset.updateOne(
+              { _id: doc._id, deletedAt: null, $or: [{ shortCode: null }, { shortCode: { $exists: false } }] },
+              { $set: { shortCode: sc } }
+            );
+            if (r && (r.modifiedCount || r.nModified)) {
+              doc.shortCode = sc;
+              break;
+            }
+          } catch (e) {
+            void e;
+          }
+        }
+      }
 
       const rt = String(c.resource_type || "").trim().toLowerCase();
       if (process.env.NODE_ENV !== "test" && planKey === "basic" && (rt === "image" || rt === "video")) {
