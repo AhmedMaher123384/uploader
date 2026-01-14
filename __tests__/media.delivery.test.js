@@ -469,7 +469,7 @@ describe("GET /api/m/:storeId/:leaf", () => {
   });
 });
 
-describe("GET /m/:code", () => {
+describe("GET /cdn/:code", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -510,7 +510,7 @@ describe("GET /m/:code", () => {
       data: Readable.from(Buffer.from("abc"))
     });
 
-    const res = await request(app).get(`/m/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
+    const res = await request(app).get(`/cdn/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
     expect(res.status).toBe(200);
     expect(res.headers.location).toBeUndefined();
     expect(res.headers["content-type"]).toBe("image/png");
@@ -547,7 +547,7 @@ describe("GET /m/:code", () => {
       lean: jest.fn().mockResolvedValue(asset)
     }));
 
-    const res = await request(app).get(`/m/${code}`).set("referer", "https://evil.com/x");
+    const res = await request(app).get(`/cdn/${code}`).set("referer", "https://evil.com/x");
     expect(res.status).toBe(403);
   });
 
@@ -590,21 +590,21 @@ describe("GET /m/:code", () => {
     const token = issueStorefrontTokenForTest("123", "secret");
 
     const r0 = await request(app)
-      .get(`/m/${code}?token=${encodeURIComponent(token)}`)
+      .get(`/cdn/${code}?token=${encodeURIComponent(token)}`)
       .set("referer", "https://myshop.com/p/1")
       .set("accept", "text/html")
       .set("user-agent", "jest")
       .redirects(0);
 
     expect(r0.status).toBe(302);
-    expect(r0.headers.location).toBe(`/m/${code}`);
+    expect(r0.headers.location).toBe(`/cdn/${code}`);
     expect(Array.isArray(r0.headers["set-cookie"])).toBe(true);
     expect(String(r0.headers["set-cookie"][0] || "")).toContain("Path=/");
 
     const cookieHeader = String(r0.headers["set-cookie"][0] || "").split(";")[0];
 
     const r1 = await request(app)
-      .get(`/m/${code}`)
+      .get(`/cdn/${code}`)
       .set("cookie", cookieHeader)
       .set("user-agent", "jest")
       .buffer(true)
@@ -653,12 +653,12 @@ describe("GET /m/:code", () => {
 
     const agent = request.agent(app);
 
-    const r0 = await agent.get(`/m/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
+    const r0 = await agent.get(`/cdn/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
     expect(r0.status).toBe(200);
     expect(Array.isArray(r0.headers["set-cookie"])).toBe(true);
     expect(String(r0.headers["set-cookie"][0] || "")).toContain("Path=/");
 
-    const r1 = await agent.get(`/m/${code}`).buffer(true).parse(binaryParser);
+    const r1 = await agent.get(`/cdn/${code}`).buffer(true).parse(binaryParser);
     expect(r1.status).toBe(200);
     expect(r1.headers.location).toBeUndefined();
     expect(r1.body.toString("utf8")).toBe("abc");
