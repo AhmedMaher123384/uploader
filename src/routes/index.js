@@ -982,7 +982,7 @@ function createApiRouter(config) {
       const h = originHost || refererHost;
 
       const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
-      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+      const allowedHostOk = Boolean(h) && (allowedHosts.some((a) => hostEquals(h, a)) || hostEquals(h, req.headers.host));
 
       const cookies = parseCookies(req.headers.cookie);
       const sessionToken = String(cookies[MEDIA_SESSION_COOKIE] || "").trim();
@@ -1006,7 +1006,7 @@ function createApiRouter(config) {
       }
 
       let setSessionCookie = null;
-      if (token && allowedHostOk && !sessionOk) {
+      if (allowedHostOk && !sessionOk) {
         try {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
@@ -1240,7 +1240,7 @@ function createApiRouter(config) {
       const h = originHost || refererHost;
 
       const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
-      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+      const allowedHostOk = Boolean(h) && (allowedHosts.some((a) => hostEquals(h, a)) || hostEquals(h, req.headers.host));
 
       const cookies = parseCookies(req.headers.cookie);
       const sessionToken = String(cookies[MEDIA_SESSION_COOKIE] || "").trim();
@@ -1264,7 +1264,7 @@ function createApiRouter(config) {
       }
 
       let setSessionCookie = null;
-      if (token && allowedHostOk && !sessionOk) {
+      if (allowedHostOk && !sessionOk) {
         try {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();

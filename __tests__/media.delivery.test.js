@@ -119,11 +119,11 @@ describe("GET /api/m/:storeId/:leaf", () => {
       lean: jest.fn().mockResolvedValue(asset)
     }));
 
-    axios.get.mockResolvedValue({
+    axios.get.mockImplementation(async () => ({
       status: 200,
       headers: { "content-type": "image/png", "content-length": "3" },
       data: Readable.from(Buffer.from("abc"))
-    });
+    }));
 
     const res = await request(app)
       .get(`/api/m/123/${leaf}`)
@@ -190,11 +190,11 @@ describe("GET /api/m/:storeId/:leaf", () => {
       lean: jest.fn().mockResolvedValue(asset)
     }));
 
-    axios.get.mockResolvedValue({
+    axios.get.mockImplementation(async () => ({
       status: 200,
       headers: { "content-type": "image/png", "content-length": "3" },
       data: Readable.from(Buffer.from("abc"))
-    });
+    }));
 
     const app = createApp(makeConfig());
     const js = await request(app).get("/api/storefront/snippet.js?merchantId=123");
@@ -610,6 +610,55 @@ describe("GET /m/:code", () => {
       .buffer(true)
       .parse(binaryParser);
 
+    expect(r1.status).toBe(200);
+    expect(r1.headers.location).toBeUndefined();
+    expect(r1.body.toString("utf8")).toBe("abc");
+  });
+
+  it("يسمح بفتح الرابط في تبويب جديد بنفس المتصفح بعد أول فتح", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "installed",
+      updatedAt: new Date(),
+      storeDomain: "myshop.com",
+      storeUrl: "https://myshop.com",
+      accessToken: "tok",
+      tokenExpiresAt: new Date(Date.now() + 60_000),
+      save: jest.fn()
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+    getStoreInfo.mockResolvedValue({ data: { store: { id: 123, domain: "myshop.com", url: "https://myshop.com" } } });
+
+    const app = createApp(makeConfig());
+    const code = "abcdEF12";
+    const asset = {
+      storeId: "123",
+      shortCode: code,
+      publicId: `bundle_app/123/abcdef`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+    };
+
+    MediaAsset.findOne.mockImplementation(() => ({
+      lean: jest.fn().mockResolvedValue(asset)
+    }));
+
+    axios.get.mockImplementation(async () => ({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "3" },
+      data: Readable.from(Buffer.from("abc"))
+    }));
+
+    const agent = request.agent(app);
+
+    const r0 = await agent.get(`/m/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
+    expect(r0.status).toBe(200);
+    expect(Array.isArray(r0.headers["set-cookie"])).toBe(true);
+    expect(String(r0.headers["set-cookie"][0] || "")).toContain("Path=/");
+
+    const r1 = await agent.get(`/m/${code}`).buffer(true).parse(binaryParser);
     expect(r1.status).toBe(200);
     expect(r1.headers.location).toBeUndefined();
     expect(r1.body.toString("utf8")).toBe("abc");
