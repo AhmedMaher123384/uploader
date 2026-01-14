@@ -470,6 +470,7 @@ function createApiRouter(config) {
       publicId: doc.publicId,
       assetId: doc.assetId || null,
       folder: doc.folder || null,
+      shortCode: doc.shortCode || null,
       originalFilename: doc.originalFilename || null,
       format: doc.format || null,
       bytes: doc.bytes != null ? Number(doc.bytes) : null,
@@ -572,6 +573,11 @@ function createApiRouter(config) {
       out.push(chunk);
     }
     return out.join("").slice(0, len);
+  }
+
+  function randomShortCode(length) {
+    const len = Math.max(8, Math.min(24, Number(length || 0) || 0));
+    return randomLeaf(len);
   }
 
   async function getStoreUsedBytesCached(storeId) {
@@ -913,6 +919,10 @@ function createApiRouter(config) {
     leaf: Joi.string().trim().min(6).max(64).required()
   });
 
+  const mediaDeliveryCodeParamsSchema = Joi.object({
+    code: Joi.string().trim().min(8).max(24).required()
+  });
+
   const mediaDeliveryBuckets = new Map();
   function rateLimitMediaDeliveryOrThrow(req, storeId) {
     const windowMs = Math.max(1000, Number(config?.security?.rateLimitWindowMs || 60_000));
@@ -928,6 +938,267 @@ function createApiRouter(config) {
     existing.count += 1;
     if (existing.count > maxRequests) throw new ApiError(429, "Too many requests", { code: "RATE_LIMITED" });
   }
+
+  router.get("/p/:code", validate(mediaDeliveryCodeParamsSchema, "params"), async (req, res, next) => {
+    try {
+      const code = String(req.params.code);
+      const asset0 = await MediaAsset.findOne({ shortCode: code, deletedAt: null }).lean();
+      if (!asset0) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+      const storeId = String(asset0.storeId || "").trim();
+      if (!storeId) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      rateLimitMediaDeliveryOrThrow(req, storeId);
+
+      const merchant = await findMerchantByMerchantId(storeId);
+      if (!merchant) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      let stage = "normal";
+      if (merchant.appStatus !== "installed") {
+        const startMs = merchant.updatedAt ? new Date(merchant.updatedAt).getTime() : Date.now();
+        const elapsed = Math.max(0, Date.now() - (Number.isFinite(startMs) ? startMs : Date.now()));
+        const d14 = 14 * 24 * 60 * 60 * 1000;
+        const d30 = 30 * 24 * 60 * 60 * 1000;
+        const d45 = 45 * 24 * 60 * 60 * 1000;
+        if (elapsed < d14) stage = "normal";
+        else if (elapsed < d14 + d30) stage = "watermark";
+        else if (elapsed < d14 + d30 + d45) stage = "placeholder";
+        else stage = "blocked";
+      }
+
+      if (stage === "blocked") {
+        return res.status(410).type("text/plain; charset=utf-8").send("Gone");
+      }
+
+      const storeInfo = await getPublicStoreInfo(storeId);
+      const domain =
+        (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") ||
+        (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
+      const storeUrlHost =
+        (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") ||
+        (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
+
+      const originHost = pickHostFromUrlLike(req.headers.origin);
+      const refererHost = pickHostFromUrlLike(req.headers.referer);
+      const h = originHost || refererHost;
+
+      const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
+      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+
+      const cookies = parseCookies(req.headers.cookie);
+      const sessionToken = String(cookies[MEDIA_SESSION_COOKIE] || "").trim();
+      let sessionOk = false;
+      if (sessionToken) {
+        try {
+          ensureValidMediaSessionToken(sessionToken, storeId, req.headers["user-agent"]);
+          sessionOk = true;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      if (!allowedHostOk && !sessionOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
+      const token = String(req.query?.token || "").trim();
+      if (storeId === "sandbox" && token === "sandbox") {
+        void token;
+      } else if (token) {
+        ensureValidStorefrontToken(token, storeId);
+      }
+
+      let setSessionCookie = null;
+      if (token && allowedHostOk && !sessionOk) {
+        try {
+          const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
+          const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
+          const secure = Boolean(req.secure) || xf.indexOf("https") >= 0;
+          const base = `${MEDIA_SESSION_COOKIE}=${t}; Path=/; Max-Age=${12 * 60 * 60}; HttpOnly; SameSite=Lax`;
+          setSessionCookie = secure ? `${base}; Secure` : base;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      const accept = String(req.headers.accept || "");
+      const wantsHtml = /text\/html/i.test(accept);
+      if (token && wantsHtml) {
+        try {
+          const origin = externalOriginFromReq(req);
+          const u = new URL(String(req.originalUrl || req.url || ""), origin || "http://localhost");
+          u.searchParams.delete("token");
+          if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+          res.setHeader("Cache-Control", "private, no-store, max-age=0");
+          res.setHeader("Vary", "Origin, Referer, Cookie");
+          res.redirect(302, u.pathname + (u.search ? u.search : ""));
+          return;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      let asset = asset0;
+      let publicId = String(asset?.publicId || "").trim();
+      if (!publicId) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      if (stage === "placeholder") {
+        const rt = String(asset.resourceType || "");
+        const placeholderId =
+          rt === "image"
+            ? String(merchant?.mediaPlaceholderImageAssetId || "").trim()
+            : rt === "video"
+              ? String(merchant?.mediaPlaceholderVideoAssetId || "").trim()
+              : "";
+        let placeholderAsset = null;
+        if (placeholderId) {
+          try {
+            const ph = await MediaAsset.findOne({ _id: placeholderId, storeId, deletedAt: null }).lean();
+            if (ph && String(ph.resourceType) === rt) placeholderAsset = ph;
+          } catch (e) {
+            void e;
+          }
+        }
+        if (!placeholderAsset) {
+          res.status(200);
+          res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+          res.setHeader("Cache-Control", "public, max-age=60");
+          return res.send(placeholderSvg());
+        }
+        asset = placeholderAsset;
+        publicId = String(asset?.publicId || "").trim();
+        if (!publicId) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+      }
+
+      const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
+
+      if (provider === "r2") {
+        const key = String(asset.publicId || publicId).trim() || publicId;
+        if (!key) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+        const range = String(req.headers.range || "").trim();
+        const wantsRange = Boolean(range);
+
+        if (stage === "watermark" && String(asset.resourceType) === "image") {
+          const { bucket } = requireR2Config();
+          const client = getR2Client();
+          let obj = null;
+          try {
+            obj = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+          } catch {
+            throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+          }
+
+          const body = obj && obj.Body ? await streamToBuffer(obj.Body, 25 * 1024 * 1024) : Buffer.from("");
+          if (!body || !body.length) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+          const ext = String(asset.format || "").trim().toLowerCase();
+          const fmt = ext === "png" ? "png" : ext === "webp" ? "webp" : ext === "avif" ? "avif" : "jpeg";
+
+          const wmPng = await loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth: 260 });
+          const wmInput = wmPng && wmPng.length ? wmPng : Buffer.from(bundleAppMarkSvg(260, 0.9));
+
+          let out = null;
+          try {
+            out = await sharp(body).composite([{ input: wmInput, gravity: "southeast" }]).toFormat(fmt).toBuffer();
+          } catch (e) {
+            void e;
+            out = body;
+          }
+
+          if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+          res.status(200);
+          res.setHeader("Content-Type", fmt === "png" ? "image/png" : fmt === "webp" ? "image/webp" : fmt === "avif" ? "image/avif" : "image/jpeg");
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          res.setHeader("Vary", "Origin, Referer, Cookie");
+          return res.send(out);
+        }
+
+        const { bucket } = requireR2Config();
+        const client = getR2Client();
+        let obj = null;
+        try {
+          obj = await client.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              ...(wantsRange ? { Range: range } : {})
+            })
+          );
+        } catch {
+          throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+        }
+
+        if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+        if (wantsRange && obj && obj.ContentRange) res.setHeader("Content-Range", String(obj.ContentRange));
+        if (wantsRange && obj && obj.AcceptRanges) res.setHeader("Accept-Ranges", String(obj.AcceptRanges));
+        if (wantsRange && obj && obj.ContentLength != null) res.setHeader("Content-Length", String(obj.ContentLength));
+        if (obj && obj.ContentType) res.setHeader("Content-Type", String(obj.ContentType));
+        res.status(wantsRange ? 206 : 200);
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Vary", "Origin, Referer, Cookie");
+        return obj && obj.Body ? obj.Body.pipe(res) : res.end();
+      }
+
+      const secureUrl = String(asset.secureUrl || asset.url || "").trim();
+      if (!secureUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      if (stage === "watermark" && String(asset.resourceType) === "image") {
+        let buf = null;
+        try {
+          const r = await axios.get(secureUrl, { responseType: "arraybuffer", timeout: 20_000, maxContentLength: 25 * 1024 * 1024 });
+          buf = Buffer.from(r.data);
+        } catch {
+          throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+        }
+
+        const ext = String(asset.format || "").trim().toLowerCase();
+        const fmt = ext === "png" ? "png" : ext === "webp" ? "webp" : ext === "avif" ? "avif" : "jpeg";
+
+        const wmPng = await loadMerchantWatermarkLogoPng({ merchant, storeId, maxWidth: 260 });
+        const wmInput = wmPng && wmPng.length ? wmPng : Buffer.from(bundleAppMarkSvg(260, 0.9));
+
+        let out = null;
+        try {
+          out = await sharp(buf).composite([{ input: wmInput, gravity: "southeast" }]).toFormat(fmt).toBuffer();
+        } catch (e) {
+          void e;
+          out = buf;
+        }
+
+        if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+        res.status(200);
+        res.setHeader("Content-Type", fmt === "png" ? "image/png" : fmt === "webp" ? "image/webp" : fmt === "avif" ? "image/avif" : "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Vary", "Origin, Referer, Cookie");
+        return res.send(out);
+      }
+
+      try {
+        const resp = await axios.get(secureUrl, {
+          responseType: "stream",
+          timeout: 20_000,
+          validateStatus: () => true,
+          headers: {
+            ...(req.headers.range ? { range: String(req.headers.range) } : {})
+          }
+        });
+
+        if (!resp || resp.status < 200 || resp.status >= 400) throw new Error("upstream");
+
+        if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
+        res.status(resp.status === 206 ? 206 : 200);
+        if (resp.headers && resp.headers["content-type"]) res.setHeader("Content-Type", String(resp.headers["content-type"]));
+        if (resp.headers && resp.headers["content-length"]) res.setHeader("Content-Length", String(resp.headers["content-length"]));
+        if (resp.headers && resp.headers["content-range"]) res.setHeader("Content-Range", String(resp.headers["content-range"]));
+        if (resp.headers && resp.headers["accept-ranges"]) res.setHeader("Accept-Ranges", String(resp.headers["accept-ranges"]));
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Vary", "Origin, Referer, Cookie");
+        return resp.data.pipe(res);
+      } catch {
+        throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+      }
+    } catch (err) {
+      return next(err);
+    }
+  });
 
   router.get("/m/:storeId/:leaf", validate(mediaDeliveryParamsSchema, "params"), async (req, res, next) => {
     try {
@@ -998,7 +1269,7 @@ function createApiRouter(config) {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
           const secure = Boolean(req.secure) || xf.indexOf("https") >= 0;
-          const base = `${MEDIA_SESSION_COOKIE}=${t}; Path=/api/m; Max-Age=${12 * 60 * 60}; HttpOnly; SameSite=Lax`;
+          const base = `${MEDIA_SESSION_COOKIE}=${t}; Path=/; Max-Age=${12 * 60 * 60}; HttpOnly; SameSite=Lax`;
           setSessionCookie = secure ? `${base}; Secure` : base;
         } catch (e) {
           void e;
@@ -1646,10 +1917,31 @@ function createApiRouter(config) {
             context: ctx || null,
             cloudinaryCreatedAt,
             cloudinary: c
+          },
+          $setOnInsert: {
+            shortCode: randomShortCode(12)
           }
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
+
+      if (doc && !doc.shortCode) {
+        for (let i = 0; i < 4; i += 1) {
+          const sc = randomShortCode(12);
+          try {
+            const r = await MediaAsset.updateOne(
+              { _id: doc._id, deletedAt: null, $or: [{ shortCode: null }, { shortCode: { $exists: false } }] },
+              { $set: { shortCode: sc } }
+            );
+            if (r && (r.modifiedCount || r.nModified)) {
+              doc.shortCode = sc;
+              break;
+            }
+          } catch (e) {
+            void e;
+          }
+        }
+      }
 
       const rt = String(c.resource_type || "").trim().toLowerCase();
       if (process.env.NODE_ENV !== "test" && planKey === "basic" && (rt === "image" || rt === "video")) {
@@ -2721,6 +3013,31 @@ function createApiRouter(config) {
         MediaAsset.countDocuments(filter),
         MediaAsset.find(filter).sort({ cloudinaryCreatedAt: -1, createdAt: -1 }).skip(skip).limit(limit)
       ]);
+
+      try {
+        await Promise.all(
+          docs.map(async (d) => {
+            if (!d || d.shortCode) return;
+            for (let i = 0; i < 4; i += 1) {
+              const sc = randomShortCode(12);
+              try {
+                const r = await MediaAsset.updateOne(
+                  { _id: d._id, deletedAt: null, $or: [{ shortCode: null }, { shortCode: { $exists: false } }] },
+                  { $set: { shortCode: sc } }
+                );
+                if (r && (r.modifiedCount || r.nModified)) {
+                  d.shortCode = sc;
+                  return;
+                }
+              } catch (e) {
+                void e;
+              }
+            }
+          })
+        );
+      } catch (e) {
+        void e;
+      }
 
       return res.json({
         ok: true,

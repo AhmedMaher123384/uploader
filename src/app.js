@@ -358,7 +358,20 @@ function createApp(config) {
   app.use("/api/webhooks", createWebhookRouter(config));
 
   app.use(express.json({ limit: "1mb" }));
-  app.use("/api", createApiRouter(config));
+  const apiRouter = createApiRouter(config);
+  app.use("/api", apiRouter);
+
+  app.get("/m/:code", (req, res, next) => {
+    try {
+      const code = String(req.params.code || "");
+      const qIndex = String(req.originalUrl || "").indexOf("?");
+      const qs = qIndex >= 0 ? String(req.originalUrl || "").slice(qIndex) : "";
+      req.url = `/p/${encodeURIComponent(code)}${qs}`;
+      return apiRouter.handle(req, res, next);
+    } catch (e) {
+      return next(e);
+    }
+  });
 
   app.use(notFound);
   app.use(errorHandler);

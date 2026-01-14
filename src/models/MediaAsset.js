@@ -9,6 +9,7 @@ const MediaAssetSchema = new mongoose.Schema(
     publicId: { type: String, required: true, index: true },
     assetId: { type: String, default: null, index: true },
     folder: { type: String, default: null, index: true },
+    shortCode: { type: String, default: null, index: true },
 
     originalFilename: { type: String, default: null },
     format: { type: String, default: null },
@@ -34,6 +35,6 @@ const MediaAssetSchema = new mongoose.Schema(
 
 MediaAssetSchema.index({ storeId: 1, resourceType: 1, deletedAt: 1, cloudinaryCreatedAt: -1, createdAt: -1 });
 MediaAssetSchema.index({ storeId: 1, publicId: 1, deletedAt: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+MediaAssetSchema.index({ shortCode: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, shortCode: { $type: "string" } } });
 
 module.exports = mongoose.model("MediaAsset", MediaAssetSchema);
-
