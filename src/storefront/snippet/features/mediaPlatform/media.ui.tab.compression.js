@@ -340,8 +340,8 @@ const renderCompressionPlatform = (opts) => {
 
   const range = document.createElement("input");
   range.type = "range";
-  range.min = "40";
-  range.max = "95";
+  range.min = "1";
+  range.max = "100";
   range.step = "1";
   range.value = String(qVal.textContent || qDefault);
   range.disabled = busy;
