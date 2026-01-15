@@ -33,13 +33,6 @@ const renderConversionPlatform = (opts) => {
       const v = Number(range.value);
       return Number.isFinite(v) ? v : min;
     };
-    const writeVal = (v) => {
-      const vv = snap(v);
-      range.value = String(vv);
-      try {
-        if (onValue) onValue(vv);
-      } catch {}
-    };
     const thumbX = (rect) => {
       const v = readVal();
       const frac = max > min ? (v - min) / (max - min) : 0;
@@ -51,64 +44,19 @@ const renderConversionPlatform = (opts) => {
     const onDown = (e) => {
       try {
         if (shouldBlock()) return;
-        try {
-          e.preventDefault();
-        } catch {}
         const rect = range.getBoundingClientRect();
         const tx = thumbX(rect);
         const dx = Math.abs(Number(e.clientX || 0) - tx);
-        if (dx > thumbPx * 0.95) return;
-
-        const inset = thumbPx / 2;
-        const move = (clientX) => {
+        if (dx > thumbPx * 2.2) {
+          range.__blockClick = true;
           try {
-            if (shouldBlock()) return;
-            const r = range.getBoundingClientRect();
-            const usable = Math.max(1, r.width - inset * 2);
-            const x = Math.max(r.left + inset, Math.min(r.right - inset, Number(clientX || 0)));
-            const frac = usable > 0 ? (x - (r.left + inset)) / usable : 0;
-            const v = min + frac * (max - min);
-            writeVal(v);
-          } catch {}
-        };
-
-        if (typeof PointerEvent !== "undefined" && e.pointerId != null) {
-          try {
-            range.setPointerCapture(e.pointerId);
-          } catch {}
-          const onMove = (ev) => move(ev.clientX);
-          const onUp = () => {
-            try {
-              window.removeEventListener("pointermove", onMove);
-            } catch {}
-            try {
-              window.removeEventListener("pointerup", onUp);
-            } catch {}
-          };
-          try {
-            window.addEventListener("pointermove", onMove, { passive: true });
+            e.preventDefault();
           } catch {}
           try {
-            window.addEventListener("pointerup", onUp, { passive: true });
+            e.stopPropagation();
           } catch {}
           return;
         }
-
-        const onMove = (ev) => move(ev.clientX);
-        const onUp = () => {
-          try {
-            window.removeEventListener("mousemove", onMove);
-          } catch {}
-          try {
-            window.removeEventListener("mouseup", onUp);
-          } catch {}
-        };
-        try {
-          window.addEventListener("mousemove", onMove, { passive: true });
-        } catch {}
-        try {
-          window.addEventListener("mouseup", onUp, { passive: true });
-        } catch {}
       } catch {}
     };
 
@@ -116,13 +64,22 @@ const renderConversionPlatform = (opts) => {
       range.style.touchAction = "none";
     } catch {}
     try {
-      if (typeof PointerEvent !== "undefined") range.addEventListener("pointerdown", onDown);
-      else range.addEventListener("mousedown", onDown);
+      if (typeof PointerEvent !== "undefined") range.addEventListener("pointerdown", onDown, { passive: false });
+      else range.addEventListener("mousedown", onDown, { passive: false });
     } catch {}
     range.addEventListener("click", (e) => {
       try {
+        if (!range.__blockClick) return;
+        range.__blockClick = false;
         e.preventDefault();
         e.stopPropagation();
+      } catch {}
+    });
+    range.addEventListener("input", () => {
+      try {
+        const v = snap(Number(range.value));
+        range.value = String(v);
+        if (onValue) onValue(v);
       } catch {}
     });
   };
