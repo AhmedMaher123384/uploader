@@ -204,23 +204,42 @@ const renderConversionPlatform = (opts) => {
     l.style.color = "rgba(255,255,255,.75)";
     l.style.fontSize = "11px";
     l.style.fontWeight = "950";
-    l.textContent = String(labelText || "") + " ▾";
+    l.textContent = String(labelText || "");
+
+    const box = document.createElement("div");
+    box.style.position = "relative";
+    box.style.width = "100%";
 
     const s = document.createElement("select");
     s.disabled = Boolean(disabled);
     s.style.width = "100%";
-    s.style.padding = "9px 10px";
+    s.style.padding = "9px 28px 9px 10px";
     s.style.borderRadius = "12px";
     s.style.border = "1px solid rgba(255,255,255,.08)";
     s.style.background = "#373737";
     s.style.color = "rgba(255,255,255,.90)";
     s.style.fontSize = "11px";
     s.style.fontWeight = "900";
+    s.style.appearance = "none";
+    s.style.webkitAppearance = "none";
+    s.style.mozAppearance = "none";
     s.onchange = () => {
       try {
         if (typeof onChange === "function") onChange(String(s.value || ""));
       } catch {}
     };
+
+    const arrow = document.createElement("div");
+    arrow.textContent = "▾";
+    arrow.style.position = "absolute";
+    arrow.style.right = "10px";
+    arrow.style.top = "50%";
+    arrow.style.transform = "translateY(-50%)";
+    arrow.style.pointerEvents = "none";
+    arrow.style.color = "rgba(255,255,255,.75)";
+    arrow.style.fontSize = "11px";
+    arrow.style.fontWeight = "950";
+    arrow.style.lineHeight = "1";
 
     const list = Array.isArray(options) ? options : [];
     const desired = String(value == null ? "" : value);
@@ -237,7 +256,9 @@ const renderConversionPlatform = (opts) => {
     } catch {}
 
     wrap.appendChild(l);
-    wrap.appendChild(s);
+    box.appendChild(s);
+    box.appendChild(arrow);
+    wrap.appendChild(box);
     return wrap;
   };
 
@@ -288,7 +309,7 @@ const renderConversionPlatform = (opts) => {
     const list = document.createElement("div");
     list.style.display = "flex";
     list.style.flexDirection = "column";
-    list.style.gap = "0";
+    list.style.gap = "6px";
     list.style.maxHeight = "160px";
     list.style.overflow = "auto";
     list.style.padding = "2px";
@@ -348,15 +369,18 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "5px 7px";
+      fmt.style.padding = "4px 18px 4px 6px";
       fmt.style.borderRadius = "10px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "10px";
+      fmt.style.fontSize = "9px";
       fmt.style.fontWeight = "950";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
+      fmt.style.appearance = "none";
+      fmt.style.webkitAppearance = "none";
+      fmt.style.mozAppearance = "none";
       fmt.title = isArabic() ? "صيغة الإخراج" : "Output format";
       const opts = convertIsVideo
         ? [
@@ -406,14 +430,18 @@ const renderConversionPlatform = (opts) => {
       right.appendChild(size);
       if (showPerFileFormat) {
         const fmtWrap = document.createElement("div");
-        fmtWrap.style.display = "inline-flex";
-        fmtWrap.style.alignItems = "center";
-        fmtWrap.style.gap = "6px";
+        fmtWrap.style.position = "relative";
+        fmtWrap.style.display = "inline-block";
 
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
+        arrow.style.position = "absolute";
+        arrow.style.right = "7px";
+        arrow.style.top = "50%";
+        arrow.style.transform = "translateY(-50%)";
+        arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "10px";
+        arrow.style.fontSize = "9px";
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
@@ -619,7 +647,7 @@ const renderConversionPlatform = (opts) => {
       const upAllLabel = Boolean(state.convertUploadingAll)
         ? (isArabic() ? "جاري الرفع…" : "Uploading…")
         : (isArabic() ? "رفع الكل" : "Upload all");
-      const upAll = btnGhost(upAllLabel);
+      const upAll = btnPrimary(upAllLabel);
       upAll.disabled = Boolean(state.converting) || planBlocked || !onUploadAll || Boolean(state.convertUploadingAll) || !anyCanUpload;
       upAll.style.opacity = upAll.disabled ? "0.65" : "1";
       upAll.style.cursor = upAll.disabled ? "not-allowed" : "pointer";
