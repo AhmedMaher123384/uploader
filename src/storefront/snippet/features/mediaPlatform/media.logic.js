@@ -811,10 +811,17 @@ const mount = () => {
 
         const convertInput = document.createElement("input");
         convertInput.type = "file";
-        convertInput.multiple = false;
+        convertInput.multiple = true;
         convertInput.accept = "image/*,video/mp4,video/webm";
         convertInput.style.display = "none";
         document.body.appendChild(convertInput);
+
+        const compressInput = document.createElement("input");
+        compressInput.type = "file";
+        compressInput.multiple = true;
+        compressInput.accept = "image/*";
+        compressInput.style.display = "none";
+        document.body.appendChild(compressInput);
 
         let convertObjUrl = "";
 
@@ -823,7 +830,13 @@ const mount = () => {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
           try {
+            if (typeof revokeConvertObjectUrls === "function") revokeConvertObjectUrls();
+          } catch {}
+          try {
             if (typeof revokeMediaObjectUrls === "function") revokeMediaObjectUrls();
+          } catch {}
+          try {
+            if (typeof revokeCompressObjectUrls === "function") revokeCompressObjectUrls();
           } catch {}
           try {
             if (sheetEl) sheetEl.remove();
@@ -833,6 +846,9 @@ const mount = () => {
           } catch {}
           try {
             if (convertInput && convertInput.remove) convertInput.remove();
+          } catch {}
+          try {
+            if (compressInput && compressInput.remove) compressInput.remove();
           } catch {}
           sheetEl = null;
         };
@@ -858,9 +874,11 @@ const mount = () => {
           dash: null,
           uploads: [],
           uploading: false,
+          uploadError: "",
           deletingId: "",
           convertKind: "image",
           convertFile: null,
+          convertFiles: [],
           convertFormat: "webp",
           convertSpeed: "fast",
           convertQuality: "",
@@ -871,6 +889,7 @@ const mount = () => {
           convertPosition: "center",
           converting: false,
           convertProgress: 0,
+          convertOverallProgress: 0,
           convertError: "",
           convertResultUrl: "",
           convertResultBytes: 0,
@@ -881,7 +900,17 @@ const mount = () => {
           convertUploadTotal: 0,
           convertUploadError: "",
           convertUploadUrl: "",
-          convertUploadPublicId: ""
+          convertUploadPublicId: "",
+          convertItems: [],
+          compressFiles: [],
+          compressFormat: "auto",
+          compressSpeed: "balanced",
+          compressQuality: "",
+          compressRunning: false,
+          compressOverallProgress: 0,
+          compressError: "",
+          compressItems: [],
+          compressUploadingAny: false
         };
 
         const refreshDashboard = async (force) => {
@@ -1472,22 +1501,65 @@ const mount = () => {
           });
         };
 
-        const runConvert = async (file) => {
-          const f = file || null;
-          if (!f) return;
-          if (state.converting) return;
+        const maxConvertFilesForPlan = (k) => {
+          const plan = String(k || "").trim().toLowerCase();
+          if (plan === "business") return 50;
+          if (plan === "pro") return 10;
+          return 0;
+        };
 
-          const plan = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
-          if (plan !== "pro" && plan !== "business") {
+        const maxUploadFilesForPlan = (k) => {
+          const plan = String(k || "").trim().toLowerCase();
+          if (plan === "business") return 50;
+          if (plan === "pro") return 10;
+          return 1;
+        };
+
+        const revokeConvertObjectUrls = () => {
+          try {
+            const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+            for (let i = 0; i < items.length; i += 1) {
+              const u = String((items[i] && items[i].resultUrl) || "");
+              if (!u) continue;
+              try {
+                URL.revokeObjectURL(u);
+              } catch {}
+              try {
+                const set = window.__bundleAppMediaBlobUrls;
+                if (set && set.delete) set.delete(u);
+              } catch {}
+            }
+          } catch {}
+        };
+
+        const setConvertFiles = (files) => {
+          const fs = Array.isArray(files) ? files : [];
+          const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          const maxFiles = maxConvertFilesForPlan(planKey || "basic");
+          if (!maxFiles) {
             state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
             render();
             return;
           }
 
-          state.convertFile = f;
-          state.convertError = "";
+          const kind = String(state.convertKind || "image") === "video" ? "video" : "image";
+          const keep = [];
+          for (let i = 0; i < fs.length; i += 1) {
+            const f = fs[i];
+            if (!f) continue;
+            try {
+              if (guessResourceType(f) === kind) keep.push(f);
+            } catch {}
+          }
+
+          const chosen = keep.slice(0, maxFiles);
+          state.convertFiles = chosen;
+          state.convertFile = chosen[0] || null;
+          state.convertItems = [];
+          state.converting = false;
           state.convertProgress = 0;
-          state.converting = true;
+          state.convertOverallProgress = 0;
+          state.convertResultUrl = "";
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
           state.convertUploading = false;
@@ -1501,121 +1573,218 @@ const mount = () => {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
           convertObjUrl = "";
-          state.convertResultUrl = "";
-          render();
 
-          try {
-            const q = state.convertQuality ? Number(state.convertQuality) : null;
-            const isVideo = guessResourceType(f) === "video";
-            const targetFmt = isVideo ? String(state.convertFormat || "mp4").trim().toLowerCase() : String(state.convertFormat || "").trim().toLowerCase();
-
-            const out = isVideo
-              ? await convertVideoOnClient(
-                  f,
-                  { format: targetFmt, speed: state.convertSpeed, quality: q, name: f.name },
-                  (p) => {
-                    state.convertProgress = Number(p || 0) || 0;
-                    render();
-                  }
-                )
-              : await convertOnBackend(
-                  f,
-                  {
-                    format: state.convertFormat,
-                    speed: state.convertSpeed,
-                    quality: q,
-                    name: f.name,
-                    preset: state.convertPreset,
-                    width: state.convertWidth,
-                    height: state.convertHeight,
-                    mode: state.convertMode,
-                    position: state.convertPosition
-                  },
-                  (p) => {
-                    state.convertProgress = Number(p || 0) || 0;
-                    render();
-                  }
-                );
-            const b = out && out.blob ? out.blob : null;
-            if (!b) throw new Error("Empty response");
-            const obj = URL.createObjectURL(b);
-            convertObjUrl = obj;
-            state.convertResultUrl = obj;
-            state.convertResultBytes = Number(b.size || 0) || 0;
-            state.convertResultFormat = String(out.format || "").trim();
-            state.converting = false;
-            state.convertProgress = 100;
-            render();
-          } catch (e) {
-            state.converting = false;
-            state.convertProgress = 0;
-            state.convertError = String((e && e.message) || e || "");
-            render();
+          if (!chosen.length && fs.length) {
+            state.convertError = isArabic()
+              ? kind === "video"
+                ? "اختر فيديو فقط"
+                : "اختر صور فقط"
+              : kind === "video"
+                ? "Please select videos only"
+                : "Please select images only";
+          } else if (keep.length > maxFiles) {
+            state.convertError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " ملف فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be used";
+          } else {
+            state.convertError = "";
           }
+
+          render();
         };
 
-        const uploadConverted = async () => {
-          if (state.convertUploading) return;
-          if (!state.convertResultUrl) return;
-          if (isSandbox) {
-            state.convertUploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
+        const runConvert = async () => {
+          if (state.converting) return;
+
+          const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          const maxFiles = maxConvertFilesForPlan(planKey || "basic");
+          if (!maxFiles) {
+            state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
             render();
             return;
           }
 
-          state.convertUploadError = "";
-          state.convertUploading = true;
-          state.convertUploadProgress = 0;
-          state.convertUploadLoaded = 0;
-          state.convertUploadTotal = 0;
-          state.convertUploadUrl = "";
-          state.convertUploadPublicId = "";
+          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          if (!fs.length) {
+            state.convertError = isArabic() ? "اختر ملفات أولاً" : "Pick files first";
+            render();
+            return;
+          }
+
+          state.convertError = "";
+          state.converting = true;
+          state.convertProgress = 0;
+          state.convertOverallProgress = 0;
+          try {
+            revokeConvertObjectUrls();
+          } catch {}
+          state.convertItems = [];
+          render();
+
+          const chosen = fs.slice(0, maxFiles);
+          if (fs.length !== chosen.length) state.convertFiles = chosen;
+
+          const items = [];
+          for (let i = 0; i < chosen.length; i += 1) {
+            const f = chosen[i];
+            const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
+            items.push({
+              id,
+              file: f,
+              name: String((f && f.name) || ""),
+              inBytes: Number((f && f.size) || 0) || 0,
+              outBytes: 0,
+              outFormat: "",
+              status: "queued",
+              progress: 0,
+              error: "",
+              resultUrl: "",
+              uploading: false,
+              uploadProgress: 0,
+              uploadError: "",
+              uploadUrl: ""
+            });
+          }
+          state.convertItems = items;
+          render();
+
+          const q = state.convertQuality ? Number(state.convertQuality) : null;
+          for (let i = 0; i < items.length; i += 1) {
+            const it = items[i];
+            const f = it.file;
+            if (!f) continue;
+            it.status = "running";
+            it.progress = 0;
+            render();
+            try {
+              const isVideo = guessResourceType(f) === "video";
+              const targetFmt = isVideo ? String(state.convertFormat || "mp4").trim().toLowerCase() : String(state.convertFormat || "").trim().toLowerCase();
+              const out = isVideo
+                ? await convertVideoOnClient(
+                    f,
+                    { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name },
+                    (p) => {
+                      try {
+                        const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                        it.progress = pct;
+                        state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                        render();
+                      } catch {}
+                    }
+                  )
+                : await convertOnBackend(
+                    f,
+                    {
+                      format: state.convertFormat,
+                      speed: state.convertSpeed,
+                      quality: q,
+                      name: it.name,
+                      preset: String(state.convertPreset || "original"),
+                      width: "",
+                      height: "",
+                      mode: "fit",
+                      position: ""
+                    },
+                    (p) => {
+                      try {
+                        const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                        it.progress = pct;
+                        state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                        render();
+                      } catch {}
+                    }
+                  );
+              const b = out && out.blob ? out.blob : null;
+              if (!b || !b.size) throw new Error("Empty response");
+              const obj = URL.createObjectURL(b);
+              try {
+                if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
+              } catch {}
+              try {
+                if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
+              } catch {}
+
+              it.resultUrl = obj;
+              it.outBytes = Number(b.size || 0) || 0;
+              it.outFormat = String((out && out.format) || "").trim().toLowerCase();
+              it.progress = 100;
+              it.status = "done";
+              state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
+              render();
+            } catch (e) {
+              it.status = "error";
+              it.progress = 0;
+              it.error = String((e && e.message) || e || "");
+              state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
+              render();
+            }
+          }
+
+          state.converting = false;
+          state.convertOverallProgress = 100;
+          render();
+        };
+
+        const uploadConvertedById = async (id) => {
+          const targetId = String(id || "").trim();
+          if (!targetId) return;
+          const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+          const it = items.find((x) => x && String(x.id || "") === targetId) || null;
+          if (!it || it.uploading || it.uploadUrl || !it.resultUrl) return;
+          if (isSandbox) {
+            it.uploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
+            render();
+            return;
+          }
+
+          it.uploadError = "";
+          it.uploading = true;
+          it.uploadProgress = 0;
           render();
 
           try {
-            const raw = state.convertFile ? String(state.convertFile.name || "") : "converted";
+            const raw = String((it.file && it.file.name) || it.name || "converted");
             let baseName = raw;
             const dot = baseName.lastIndexOf(".");
             if (dot > 0) baseName = baseName.slice(0, dot);
             baseName = baseName.slice(0, 120) || "converted";
 
-            const rf = String(state.convertResultFormat || "").trim().toLowerCase();
+            const rf = String(it.outFormat || "").trim().toLowerCase();
+            const fmt = String(state.convertFormat || "").trim().toLowerCase();
             const ext =
               (rf ? rf : "") ||
-              (state.convertFormat === "mp4"
+              (fmt === "mp4"
                 ? "mp4"
-                : state.convertFormat === "mov"
+                : fmt === "mov"
                   ? "mov"
-                : state.convertFormat === "webm"
-                  ? "webm"
-                  : state.convertFormat === "webm_local"
+                  : fmt === "webm" || fmt === "webm_local"
                     ? "webm"
-                    : state.convertFormat === "avif"
+                    : fmt === "avif"
                       ? "avif"
-                      : state.convertFormat === "webp"
+                      : fmt === "webp"
                         ? "webp"
-                        : state.convertFormat === "jpeg"
-                        ? "jpeg"
-                        : state.convertFormat === "png"
-                          ? "png"
-                          : "webp");
+                        : fmt === "jpeg"
+                          ? "jpeg"
+                          : fmt === "png"
+                            ? "png"
+                            : "webp");
 
             const mime =
               ext === "mp4"
                 ? "video/mp4"
                 : ext === "mov"
                   ? "video/quicktime"
-                : ext === "webm"
-                  ? "video/webm"
-                  : ext === "png"
-                    ? "image/png"
-                    : ext === "jpeg" || ext === "jpg"
-                      ? "image/jpeg"
-                      : ext === "avif"
-                        ? "image/avif"
-                        : ext === "webp"
-                          ? "image/webp"
-                          : "";
+                  : ext === "webm"
+                    ? "video/webm"
+                    : ext === "png"
+                      ? "image/png"
+                      : ext === "jpeg" || ext === "jpg"
+                        ? "image/jpeg"
+                        : ext === "avif"
+                          ? "image/avif"
+                          : ext === "webp"
+                            ? "image/webp"
+                            : "";
 
             const outBlob = await new Promise((resolve, reject) => {
               let xhr = null;
@@ -1629,7 +1798,7 @@ const mount = () => {
                 return;
               }
               try {
-                xhr.open("GET", String(state.convertResultUrl || ""), true);
+                xhr.open("GET", String(it.resultUrl || ""), true);
                 xhr.responseType = "blob";
               } catch {
                 reject(new Error("Upload not supported"));
@@ -1670,11 +1839,9 @@ const mount = () => {
 
             const rt = guessResourceType(file);
             const sign = await getSignature(rt, file);
-            const uploaded = await uploadToCloudinary(file, sign, (pct, loaded, total) => {
+            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
               try {
-                state.convertUploadProgress = Number.isFinite(pct) ? pct : state.convertUploadProgress;
-                state.convertUploadLoaded = Number.isFinite(loaded) ? loaded : state.convertUploadLoaded;
-                state.convertUploadTotal = Number.isFinite(total) ? total : state.convertUploadTotal;
+                it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
                 render();
               } catch {}
             });
@@ -1689,15 +1856,14 @@ const mount = () => {
 
             const savedAsset = saved && typeof saved === "object" ? saved.asset : null;
             const delivery = buildDeliveryUrlFromItem(savedAsset || { storeId: merchantId, publicId: uploaded && uploaded.public_id });
-            state.convertUploadUrl = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
-            state.convertUploadPublicId = String((uploaded && uploaded.public_id) || "");
-            state.convertUploading = false;
-            state.convertUploadProgress = 100;
+            it.uploadUrl = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
+            it.uploading = false;
+            it.uploadProgress = 100;
             render();
           } catch (e) {
-            state.convertUploading = false;
-            state.convertUploadProgress = 0;
-            state.convertUploadError = friendlyApiErrorMessage(e);
+            it.uploading = false;
+            it.uploadProgress = 0;
+            it.uploadError = friendlyApiErrorMessage(e);
             render();
           }
         };
@@ -1715,50 +1881,6 @@ const mount = () => {
           } catch {}
         };
 
-        const setConvertFile = (f) => {
-          const file = f || null;
-          if (!file) return;
-          state.convertFile = file;
-          try {
-            const rt = guessResourceType(file);
-            if (rt === "video") {
-              state.convertKind = "video";
-              try {
-                convertInput.accept = "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2";
-              } catch {}
-              state.convertFormat = "mp4";
-            } else {
-              state.convertKind = "image";
-              try {
-                convertInput.accept = "image/*";
-              } catch {}
-              if (["mp4", "webm", "webm_local", "mov"].indexOf(String(state.convertFormat || "").toLowerCase()) >= 0) state.convertFormat = "webp";
-            }
-          } catch {}
-          state.convertPreset = "";
-          state.convertWidth = "";
-          state.convertHeight = "";
-          state.convertMode = "fit";
-          state.convertPosition = "center";
-          state.convertError = "";
-          state.convertProgress = 0;
-          state.convertResultBytes = 0;
-          state.convertResultFormat = "";
-          state.convertUploading = false;
-          state.convertUploadProgress = 0;
-          state.convertUploadLoaded = 0;
-          state.convertUploadTotal = 0;
-          state.convertUploadError = "";
-          state.convertUploadUrl = "";
-          state.convertUploadPublicId = "";
-          try {
-            if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
-          } catch {}
-          convertObjUrl = "";
-          state.convertResultUrl = "";
-          render();
-        };
-
         const setConvertKind = (k) => {
           const next = String(k || "image");
           if (next !== "image" && next !== "video") return;
@@ -1767,29 +1889,22 @@ const mount = () => {
           try {
             convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
           } catch {}
-          try {
-            const rt = state.convertFile ? guessResourceType(state.convertFile) : "";
-            if (rt && rt !== next) state.convertFile = null;
-          } catch {
-            state.convertFile = null;
-          }
           if (next === "video") {
             state.convertFormat = "mp4";
             state.convertPreset = "";
-            state.convertWidth = "";
-            state.convertHeight = "";
-            state.convertMode = "fit";
-            state.convertPosition = "center";
           } else {
             state.convertFormat = "webp";
-            state.convertPreset = "";
-            state.convertWidth = "";
-            state.convertHeight = "";
-            state.convertMode = "fit";
-            state.convertPosition = "center";
+            state.convertPreset = "original";
           }
+          state.convertFile = null;
+          state.convertFiles = [];
+          try {
+            revokeConvertObjectUrls();
+          } catch {}
+          state.convertItems = [];
           state.convertError = "";
           state.convertProgress = 0;
+          state.convertOverallProgress = 0;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
           state.convertUploading = false;
@@ -1809,14 +1924,16 @@ const mount = () => {
 
         const resetConvert = () => {
           state.convertFile = null;
+          state.convertFiles = [];
           state.convertError = "";
           state.convertQuality = "";
-          state.convertPreset = "";
+          state.convertPreset = String(state.convertKind || "image") === "video" ? "" : "original";
           state.convertWidth = "";
           state.convertHeight = "";
           state.convertMode = "fit";
-          state.convertPosition = "center";
+          state.convertPosition = "";
           state.convertProgress = 0;
+          state.convertOverallProgress = 0;
           state.convertResultBytes = 0;
           state.convertResultFormat = "";
           state.convertUploading = false;
@@ -1827,11 +1944,412 @@ const mount = () => {
           state.convertUploadUrl = "";
           state.convertUploadPublicId = "";
           try {
+            revokeConvertObjectUrls();
+          } catch {}
+          state.convertItems = [];
+          try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
           convertObjUrl = "";
           state.convertResultUrl = "";
           render();
+        };
+
+        const maxCompressFilesForPlan = (k) => {
+          const plan = String(k || "").trim().toLowerCase();
+          if (plan === "business") return 50;
+          if (plan === "pro") return 10;
+          return 1;
+        };
+
+        const revokeCompressObjectUrls = () => {
+          try {
+            const items = Array.isArray(state.compressItems) ? state.compressItems : [];
+            for (let i = 0; i < items.length; i += 1) {
+              const u = String((items[i] && items[i].resultUrl) || "");
+              if (!u) continue;
+              try {
+                URL.revokeObjectURL(u);
+              } catch {}
+              try {
+                const set = window.__bundleAppMediaBlobUrls;
+                if (set && set.delete) set.delete(u);
+              } catch {}
+            }
+          } catch {}
+        };
+
+        const resetCompress = () => {
+          try {
+            revokeCompressObjectUrls();
+          } catch {}
+          state.compressFiles = [];
+          state.compressError = "";
+          state.compressItems = [];
+          state.compressRunning = false;
+          state.compressOverallProgress = 0;
+          state.compressUploadingAny = false;
+          render();
+        };
+
+        const setCompressFiles = (files) => {
+          const fs = Array.isArray(files) ? files : [];
+          const imgs = [];
+          for (let i = 0; i < fs.length; i += 1) {
+            const f = fs[i];
+            if (!f) continue;
+            try {
+              if (guessResourceType(f) === "image") imgs.push(f);
+            } catch {}
+          }
+          const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          const maxFiles = maxCompressFilesForPlan(planKey || "basic");
+          const chosen = imgs.slice(0, maxFiles);
+          state.compressFiles = chosen;
+          state.compressItems = [];
+          state.compressRunning = false;
+          state.compressOverallProgress = 0;
+          state.compressUploadingAny = false;
+          if (!chosen.length && fs.length) {
+            state.compressError = isArabic() ? "اختر صور فقط" : "Please select images only";
+          } else if (imgs.length > maxFiles) {
+            state.compressError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " صورة فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " images will be used";
+          } else {
+            state.compressError = "";
+          }
+          render();
+        };
+
+        const compressOnBackend = async (file, opts, onProgress) => {
+          if (isSandbox) throw new Error("Sandbox mode: compress disabled");
+          const f = file || null;
+          if (!f) throw new Error("Missing file");
+          const format = String((opts && opts.format) || "webp").trim().toLowerCase();
+          const speed = String((opts && opts.speed) || "balanced").trim().toLowerCase();
+          const quality = opts && opts.quality != null ? Number(opts.quality) : null;
+          const name = String((opts && opts.name) || (f && f.name) || "").trim();
+
+          const url = buildUrl("/api/proxy/tools/compress", {
+            format,
+            speed,
+            quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
+            name
+          });
+          if (!url) throw new Error("Missing backend origin");
+
+          return await new Promise((resolve, reject) => {
+            let xhr = null;
+            try {
+              xhr = new XMLHttpRequest();
+            } catch {
+              xhr = null;
+            }
+            if (!xhr) {
+              reject(new Error("Compress not supported"));
+              return;
+            }
+
+            try {
+              xhr.open("POST", url, true);
+              try {
+                xhr.responseType = "blob";
+              } catch {}
+              try {
+                xhr.setRequestHeader("X-File-Name", String((f && f.name) || ""));
+              } catch {}
+              try {
+                const t = String((f && f.type) || "").trim();
+                if (t) xhr.setRequestHeader("Content-Type", t);
+              } catch {}
+            } catch (e) {
+              reject(e);
+              return;
+            }
+
+            try {
+              if (xhr.upload) {
+                xhr.upload.onprogress = (ev) => {
+                  try {
+                    if (typeof onProgress !== "function") return;
+                    const loaded = Number(ev && ev.loaded) || 0;
+                    const total = Number(ev && ev.total) || 0;
+                    if (total > 0) onProgress(Math.max(0, Math.min(70, Math.round((loaded / total) * 70))));
+                    else onProgress(0);
+                  } catch {}
+                };
+              }
+            } catch {}
+
+            xhr.onerror = () => reject(new Error("Compress failed"));
+            xhr.onabort = () => reject(new Error("Compress aborted"));
+            xhr.onload = async () => {
+              const status = Number(xhr.status || 0) || 0;
+              const resp = xhr.response || null;
+              if (typeof onProgress === "function") {
+                try {
+                  onProgress(100);
+                } catch {}
+              }
+              if (status >= 200 && status < 300) {
+                const fmt = String(xhr.getResponseHeader("x-converted-format") || "").trim();
+                resolve({ blob: resp, format: fmt });
+                return;
+              }
+              try {
+                const t = await blobToText(resp);
+                let j = null;
+                try {
+                  j = t ? JSON.parse(t) : null;
+                } catch {
+                  j = null;
+                }
+                reject(new Error(String((j && (j.message || j.error)) || t || ("HTTP " + String(status)))));
+              } catch {
+                reject(new Error("Compress failed"));
+              }
+            };
+
+            try {
+              xhr.send(f);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        };
+
+        const runCompress = async () => {
+          if (state.compressRunning) return;
+          const fs = Array.isArray(state.compressFiles) ? state.compressFiles : [];
+          if (!fs.length) return;
+
+          state.compressError = "";
+          state.compressItems = [];
+          state.compressRunning = true;
+          state.compressOverallProgress = 0;
+          state.compressUploadingAny = false;
+          render();
+
+          const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          const maxFiles = maxCompressFilesForPlan(planKey || "basic");
+          const chosen = fs.slice(0, maxFiles);
+          if (fs.length !== chosen.length) state.compressFiles = chosen;
+
+          const items = [];
+          for (let i = 0; i < chosen.length; i += 1) {
+            const f = chosen[i];
+            const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
+            items.push({
+              id,
+              file: f,
+              name: String((f && f.name) || ""),
+              inBytes: Number((f && f.size) || 0) || 0,
+              outBytes: 0,
+              outFormat: "",
+              status: "queued",
+              progress: 0,
+              error: "",
+              resultUrl: "",
+              uploading: false,
+              uploadProgress: 0,
+              uploadError: "",
+              uploadUrl: ""
+            });
+          }
+          state.compressItems = items;
+          render();
+
+          const q = state.compressQuality ? Number(state.compressQuality) : null;
+          const format = String(state.compressFormat || "webp").trim().toLowerCase();
+          const speed = String(state.compressSpeed || "balanced").trim().toLowerCase();
+
+          for (let i = 0; i < items.length; i += 1) {
+            const it = items[i];
+            const f = it && it.file ? it.file : null;
+            if (!f) continue;
+            try {
+              it.status = "compressing";
+              it.error = "";
+              it.progress = 0;
+              render();
+
+              const out = await compressOnBackend(
+                f,
+                { format, speed, quality: q, name: it.name },
+                (p) => {
+                  try {
+                    it.progress = Number(p || 0) || 0;
+                    const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                    state.compressOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                    render();
+                  } catch {}
+                }
+              );
+              const b = out && out.blob ? out.blob : null;
+              if (!b || !b.size) throw new Error("Empty response");
+              const obj = URL.createObjectURL(b);
+              try {
+                if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
+              } catch {}
+              try {
+                if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
+              } catch {}
+
+              it.resultUrl = obj;
+              it.outBytes = Number(b.size || 0) || 0;
+              it.outFormat = String((out && out.format) || "").trim().toLowerCase();
+              it.progress = 100;
+              it.status = "done";
+              state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
+              render();
+            } catch (e) {
+              it.status = "error";
+              it.progress = 0;
+              it.error = String((e && e.message) || e || "");
+              state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
+              render();
+            }
+          }
+
+          state.compressRunning = false;
+          state.compressOverallProgress = 100;
+          render();
+        };
+
+        const uploadCompressedById = async (id) => {
+          const targetId = String(id || "").trim();
+          if (!targetId) return;
+          const items = Array.isArray(state.compressItems) ? state.compressItems : [];
+          const it = items.find((x) => x && String(x.id || "") === targetId) || null;
+          if (!it || it.uploading || it.uploadUrl || !it.resultUrl) return;
+          if (isSandbox) {
+            it.uploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
+            render();
+            return;
+          }
+
+          it.uploadError = "";
+          it.uploading = true;
+          it.uploadProgress = 0;
+          state.compressUploadingAny = true;
+          render();
+
+          try {
+            const raw = String(it.name || "compressed");
+            let baseName = raw;
+            const dot = baseName.lastIndexOf(".");
+            if (dot > 0) baseName = baseName.slice(0, dot);
+            baseName = baseName.slice(0, 120) || "compressed";
+
+            const ext = String(it.outFormat || "").trim().toLowerCase() || "webp";
+            const mime =
+              ext === "png"
+                ? "image/png"
+                : ext === "jpeg" || ext === "jpg"
+                  ? "image/jpeg"
+                  : ext === "avif"
+                    ? "image/avif"
+                    : ext === "webp"
+                      ? "image/webp"
+                      : "";
+
+            const outBlob = await new Promise((resolve, reject) => {
+              let xhr = null;
+              try {
+                xhr = new XMLHttpRequest();
+              } catch {
+                xhr = null;
+              }
+              if (!xhr) {
+                reject(new Error("Upload not supported"));
+                return;
+              }
+              try {
+                xhr.open("GET", String(it.resultUrl || ""), true);
+                xhr.responseType = "blob";
+              } catch {
+                reject(new Error("Upload not supported"));
+                return;
+              }
+              xhr.onerror = () => reject(new Error("Failed to read output"));
+              xhr.onabort = () => reject(new Error("Aborted"));
+              xhr.onload = () => {
+                const status = Number(xhr.status || 0) || 0;
+                if (status >= 200 && status < 300) {
+                  resolve(xhr.response || null);
+                  return;
+                }
+                reject(new Error("Failed to read output"));
+              };
+              try {
+                xhr.send();
+              } catch (e) {
+                reject(e);
+              }
+            });
+
+            if (!outBlob || !outBlob.size) throw new Error("Empty output");
+
+            let file = null;
+            const fname = baseName + "." + ext;
+            try {
+              file = new File([outBlob], fname, { type: mime || String(outBlob.type || "") });
+            } catch {
+              file = outBlob;
+              try {
+                file.name = fname;
+              } catch {}
+              try {
+                if (mime) file.type = mime;
+              } catch {}
+            }
+
+            const rt = guessResourceType(file);
+            const sign = await getSignature(rt, file);
+            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
+              try {
+                it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
+                render();
+              } catch {}
+            });
+
+            const saved = await recordAsset(uploaded);
+            try {
+              clearMediaApiCache();
+            } catch {}
+            try {
+              refreshDashboard();
+            } catch {}
+
+            const savedAsset = saved && typeof saved === "object" ? saved.asset : null;
+            const delivery = buildDeliveryUrlFromItem(savedAsset || { storeId: merchantId, publicId: uploaded && uploaded.public_id });
+            it.uploadUrl = delivery || String((uploaded && (uploaded.secure_url || uploaded.url)) || "");
+            it.uploading = false;
+            it.uploadProgress = 100;
+            it.uploadError = "";
+            state.compressUploadingAny = items.some((x) => x && x.uploading);
+            render();
+          } catch (e) {
+            it.uploading = false;
+            it.uploadProgress = 0;
+            it.uploadError = friendlyApiErrorMessage(e);
+            state.compressUploadingAny = items.some((x) => x && x.uploading);
+            render();
+          }
+        };
+
+        const openFilesFromCompress = async () => {
+          try {
+            state.view = "files";
+            state.type = "";
+            state.page = 1;
+            state.items = [];
+            state.total = 0;
+            state.error = "";
+            render();
+            fetchAndRender(true);
+          } catch {}
         };
 
         const render = () => {
@@ -1842,14 +2360,15 @@ const mount = () => {
             sheet.content.innerHTML = "";
 
             const labels = isArabic()
-              ? { upload: "مركز الرفع", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
-              : { upload: "Upload Center", convert: "Conversion Platform", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
+              ? { upload: "مركز الرفع", compress: "ضغط الصور", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              : { upload: "Upload Center", compress: "Compression", convert: "Conversion Platform", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
 
             const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
             const allowConvert = planKey === "pro" || planKey === "business";
             if (!allowConvert && state.view === "convert") state.view = "upload";
 
             const uploadTab = pill(labels.upload, state.view === "upload");
+            const compressTab = pill(labels.compress, state.view === "compress");
             const convertTab = pill(labels.convert, state.view === "convert");
             const filesTab = pill(labels.files, state.view === "files");
 
@@ -1861,13 +2380,16 @@ const mount = () => {
               render();
               if (state.view === "files") fetchAndRender();
               if (state.view === "upload") refreshDashboard();
+              if (state.view === "compress") refreshDashboard();
               if (state.view === "convert") refreshDashboard();
             };
 
             uploadTab.onclick = () => setView("upload");
+            compressTab.onclick = () => setView("compress");
             convertTab.onclick = () => setView("convert");
             filesTab.onclick = () => setView("files");
             sheet.tabs.appendChild(uploadTab);
+            sheet.tabs.appendChild(compressTab);
             if (allowConvert) sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
@@ -1897,20 +2419,59 @@ const mount = () => {
             if (state.view === "upload") {
               if (state.dashLoading) sheet.content.appendChild(renderLoading());
               if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
+            if (!state.dashLoading && !state.dashError) {
+              const maxFiles = maxUploadFilesForPlan(planKey || "basic");
+              try {
+                input.multiple = maxFiles > 1;
+              } catch {}
+              sheet.content.appendChild(renderUploadHero(state.dash));
+              sheet.content.appendChild(renderSmartStats(state.dash));
+              sheet.content.appendChild(
+                renderDropzone({
+                  disabled: state.uploading,
+                  onPick: () => {
+                    try {
+                      input.click();
+                    } catch {}
+                  },
+                  onFiles: (fs) => runUploads(fs)
+                })
+              );
+              if (state.uploadError) sheet.content.appendChild(renderError(state.uploadError));
+            }
+            return;
+          }
+
+            if (state.view === "compress") {
+              if (state.dashLoading) sheet.content.appendChild(renderLoading());
+              if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
               if (!state.dashLoading && !state.dashError) {
-                sheet.content.appendChild(renderUploadHero(state.dash));
-                sheet.content.appendChild(renderSmartStats(state.dash));
-                sheet.content.appendChild(
-                  renderDropzone({
-                    disabled: state.uploading,
-                    onPick: () => {
+                const planKey2 = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+                const maxFiles = maxCompressFilesForPlan(planKey2 || "basic");
+                try {
+                  compressInput.multiple = maxFiles > 1;
+                } catch {}
+                const card = renderCompressionPlatform({
+                  state,
+                  maxFiles,
+                  compressInput,
+                  onRender: render,
+                  onPick: () => {
+                    try {
+                      if (!compressInput) return;
                       try {
-                        input.click();
+                        compressInput.accept = "image/*";
                       } catch {}
-                    },
-                    onFiles: (fs) => runUploads(fs)
-                  })
-                );
+                      compressInput.click();
+                    } catch {}
+                  },
+                  onSetFiles: (fs) => setCompressFiles(fs),
+                  onRunCompress: runCompress,
+                  onReset: resetCompress,
+                  onUploadItem: uploadCompressedById,
+                  onOpenFiles: openFilesFromCompress
+                });
+                if (card) sheet.content.appendChild(card);
               }
               return;
             }
@@ -1919,15 +2480,21 @@ const mount = () => {
               if (state.dashLoading) sheet.content.appendChild(renderLoading());
               if (state.dashError) sheet.content.appendChild(renderError(state.dashError));
               const planBlocked = !allowConvert;
+              const planKey2 = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+              const maxFiles = maxConvertFilesForPlan(planKey2 || "basic");
+              try {
+                convertInput.multiple = maxFiles > 1;
+              } catch {}
               const card = renderConversionPlatform({
                 state,
                 planBlocked,
+                maxFiles,
                 convertInput,
                 onRender: render,
                 onRunConvert: runConvert,
-                onUploadConverted: uploadConverted,
+                onUploadItem: uploadConvertedById,
                 onOpenFiles: openFilesFromConvert,
-                onSetConvertFile: setConvertFile,
+                onSetConvertFiles: setConvertFiles,
                 onSetKind: setConvertKind,
                 onReset: resetConvert
               });
@@ -2044,11 +2611,22 @@ const mount = () => {
 
         const runUploads = async (files) => {
           if (state.uploading) return;
+          const fs0 = Array.isArray(files) ? files : [];
+          const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          const maxFiles = maxUploadFilesForPlan(planKey || "basic");
+          const chosen = fs0.slice(0, maxFiles);
+          if (fs0.length > chosen.length) {
+            state.uploadError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم رفع أول " + String(maxFiles) + " ملف فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be uploaded";
+          } else {
+            state.uploadError = "";
+          }
           state.uploading = true;
           state.uploads = [];
 
-          for (let i = 0; i < files.length; i += 1) {
-            const f = files[i];
+          for (let i = 0; i < chosen.length; i += 1) {
+            const f = chosen[i];
             if (!f) continue;
             state.uploads.push({
               name: String(f.name || ""),
@@ -2064,8 +2642,8 @@ const mount = () => {
 
           render();
 
-          for (let i = 0; i < files.length; i += 1) {
-            const file = files[i];
+          for (let i = 0; i < chosen.length; i += 1) {
+            const file = chosen[i];
             if (!file) continue;
             const rec = state.uploads[i];
             try {
@@ -2127,10 +2705,19 @@ const mount = () => {
 
         convertInput.onchange = () => {
           try {
-            const f = convertInput.files && convertInput.files[0] ? convertInput.files[0] : null;
+            const fs = convertInput.files ? Array.from(convertInput.files) : [];
             convertInput.value = "";
-            if (!f) return;
-            setConvertFile(f);
+            if (!fs.length) return;
+            setConvertFiles(fs);
+          } catch {}
+        };
+
+        compressInput.onchange = () => {
+          try {
+            const fs = compressInput.files ? Array.from(compressInput.files) : [];
+            compressInput.value = "";
+            if (!fs.length) return;
+            setCompressFiles(fs);
           } catch {}
         };
 

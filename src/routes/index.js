@@ -3123,6 +3123,154 @@ function createApiRouter(config) {
     }
   });
 
+  const proxyToolsCompressQuerySchema = Joi.object({
+    merchantId: Joi.string().trim().min(1).max(80).required(),
+    token: Joi.string().trim().min(10),
+    signature: Joi.string().trim().min(8),
+    hmac: Joi.string().trim().min(8),
+    format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
+    quality: Joi.number().integer().min(1).max(100),
+    speed: Joi.string().trim().valid("fast", "balanced", "small").default("balanced"),
+    name: Joi.string().trim().min(1).max(180).allow("")
+  })
+    .or("signature", "hmac", "token")
+    .unknown(true);
+
+  router.post("/proxy/tools/compress", express.raw({ type: () => true, limit: "55mb" }), async (req, res, next) => {
+    try {
+      const { error: qErr, value: qValue } = proxyToolsCompressQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: false });
+      if (qErr) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: qErr.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      ensureValidProxyAuth(qValue, qValue.merchantId);
+
+      const merchant = await findMerchantByMerchantId(String(qValue.merchantId));
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      const planKey = getPlanKey(merchant);
+
+      const storeId = String(qValue.merchantId);
+      const storeInfo = await getPublicStoreInfo(storeId);
+      const domain =
+        (storeInfo && storeInfo.domain ? String(storeInfo.domain).trim() : "") || (merchant && merchant.storeDomain ? String(merchant.storeDomain).trim() : "");
+      const storeUrlHost =
+        (storeInfo && storeInfo.url ? pickHostFromUrlLike(storeInfo.url) : "") || (merchant && merchant.storeUrl ? pickHostFromUrlLike(merchant.storeUrl) : "");
+      const originHost = pickHostFromUrlLike(req.headers.origin);
+      const refererHost = pickHostFromUrlLike(req.headers.referer);
+      const h = originHost || refererHost;
+      const allowedHosts = buildAllowedHosts({ domainHost: domain, urlHost: storeUrlHost });
+      const allowedHostOk = Boolean(h) && allowedHosts.some((a) => hostEquals(h, a));
+      if (!allowedHostOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
+      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+      if (!body.length) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+
+      const limits = getPlanLimits(planKey);
+      if (body.length > limits.maxFileBytes) {
+        throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
+      }
+
+      const maxInputPixels = planKey === "business" ? 70_000_000 : 45_000_000;
+      const base = sharp(body, { sequentialRead: true, failOn: "none", limitInputPixels: maxInputPixels });
+      const meta = await base.metadata().catch(() => ({}));
+
+      const srcW = Number(meta && meta.width) || 0;
+      const srcH = Number(meta && meta.height) || 0;
+      const srcPixels = srcW > 0 && srcH > 0 ? srcW * srcH : 0;
+
+      let targetFormat = String(qValue.format || "auto").trim().toLowerCase();
+      if (targetFormat === "auto") {
+        targetFormat = srcPixels && srcPixels >= 14_000_000 ? "webp" : "avif";
+      }
+
+      const speed = String(qValue.speed || "balanced").trim().toLowerCase();
+      const effort = speed === "small" ? 6 : speed === "balanced" ? 4 : 2;
+
+      const qRaw = qValue.quality != null ? Number(qValue.quality) : null;
+      const quality =
+        qRaw && Number.isFinite(qRaw)
+          ? Math.max(1, Math.min(100, Math.round(qRaw)))
+          : targetFormat === "avif"
+            ? speed === "small"
+              ? 50
+              : 55
+            : speed === "small"
+              ? 76
+              : 82;
+
+      let img = base.rotate();
+      const targetPixels = planKey === "business" ? 18_000_000 : 12_000_000;
+      if (srcPixels && srcPixels > targetPixels && srcW > 0 && srcH > 0) {
+        const scale = Math.sqrt(targetPixels / srcPixels);
+        const w = Math.max(1, Math.floor(srcW * scale));
+        const hh = Math.max(1, Math.floor(srcH * scale));
+        img = img.resize({ width: w, height: hh, fit: "inside", withoutEnlargement: true });
+      }
+
+      let out = null;
+      let contentType = "application/octet-stream";
+      let ext = "bin";
+
+      if (targetFormat === "webp") {
+        out = await img.webp({ quality, effort, smartSubsample: true }).toBuffer();
+        contentType = "image/webp";
+        ext = "webp";
+      } else if (targetFormat === "avif") {
+        out = await img.avif({ quality, effort }).toBuffer();
+        contentType = "image/avif";
+        ext = "avif";
+      } else if (targetFormat === "jpeg") {
+        out = await img.jpeg({ quality, mozjpeg: true }).toBuffer();
+        contentType = "image/jpeg";
+        ext = "jpeg";
+      } else if (targetFormat === "png") {
+        const compressionLevel = speed === "small" ? 9 : speed === "balanced" ? 7 : 6;
+        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: speed === "small", quality }).toBuffer();
+        contentType = "image/png";
+        ext = "png";
+      } else {
+        throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+      }
+
+      const headerName = String(req.headers["x-file-name"] || "").trim();
+      const baseNameRaw = String(qValue.name || headerName || "compressed").trim();
+      let baseName = "";
+      for (let i = 0; i < baseNameRaw.length; i += 1) {
+        const ch = baseNameRaw[i];
+        const code = ch.charCodeAt(0);
+        if (code < 32) continue;
+        if (ch === '"') continue;
+        if (ch === "/" || ch === "\\") {
+          baseName += "_";
+          continue;
+        }
+        baseName += ch;
+      }
+      baseName = baseName.replace(/\s+/g, " ").trim().slice(0, 120);
+      let baseNoExt = baseName;
+      const dot = baseNoExt.lastIndexOf(".");
+      if (dot > 0) baseNoExt = baseNoExt.slice(0, dot);
+      const fileName = (baseNoExt || "compressed") + "." + ext;
+
+      res.status(200);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.setHeader("X-Converted-Format", ext);
+      return res.send(out);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   const proxyToolsConvertQuerySchema = Joi.object({
     merchantId: Joi.string().trim().min(1).max(80).required(),
     token: Joi.string().trim().min(10),

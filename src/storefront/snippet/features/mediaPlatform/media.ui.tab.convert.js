@@ -4,12 +4,13 @@ const renderConversionPlatform = (opts) => {
   const o = opts && typeof opts === "object" ? opts : {};
   const state = o.state && typeof o.state === "object" ? o.state : {};
   const planBlocked = Boolean(o.planBlocked);
+  const maxFiles = Number(o.maxFiles || 0) || 0;
   const convertInput = o.convertInput || null;
   const onRender = typeof o.onRender === "function" ? o.onRender : null;
   const onRunConvert = typeof o.onRunConvert === "function" ? o.onRunConvert : null;
-  const onUploadConverted = typeof o.onUploadConverted === "function" ? o.onUploadConverted : null;
+  const onUploadItem = typeof o.onUploadItem === "function" ? o.onUploadItem : null;
   const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
-  const onSetConvertFile = typeof o.onSetConvertFile === "function" ? o.onSetConvertFile : null;
+  const onSetConvertFiles = typeof o.onSetConvertFiles === "function" ? o.onSetConvertFiles : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
 
@@ -46,6 +47,7 @@ const renderConversionPlatform = (opts) => {
   hintWrap.style.flexDirection = "column";
   hintWrap.style.gap = "2px";
 
+
   const hint1 = document.createElement("div");
   hint1.style.color = "rgba(255,255,255,.65)";
   hint1.style.fontSize = "12px";
@@ -68,8 +70,8 @@ const renderConversionPlatform = (opts) => {
     hint2.textContent = "";
   } else {
     hint1.textContent = isArabic()
-      ? "ارفع صورة، اختر الصيغة والجودة والسرعة ثم حمّل النتيجة فورًا"
-      : "Upload an image, choose format/quality/speed, then download instantly";
+      ? "ارفع صور، اختر الصيغة والمقاس والجودة ثم حمّل النتيجة فورًا"
+      : "Upload images, choose format/size/quality, then download instantly";
     hint2.textContent = "";
   }
 
@@ -132,7 +134,7 @@ const renderConversionPlatform = (opts) => {
   kindRow.appendChild(vidKindBtn);
   titleWrap.appendChild(kindRow);
 
-  const pickBtn = btnGhost(isArabic() ? "اختيار ملف" : "Pick file");
+  const pickBtn = btnGhost(isArabic() ? "اختيار ملفات" : "Pick files");
   pickBtn.disabled = Boolean(state.converting) || planBlocked || !convertInput;
   pickBtn.onclick = () => {
     try {
@@ -240,8 +242,8 @@ const renderConversionPlatform = (opts) => {
 
   const s1 = mkStep(
     1,
-    isArabic() ? "اختيار الملف" : "Select file",
-    state.convertFile ? "" : (isArabic() ? "اختَر ملفًا واحدًا لبدء التحويل" : "Pick a single file to start")
+    isArabic() ? "اختيار الملفات" : "Select files",
+    (Array.isArray(state.convertFiles) && state.convertFiles.length) ? "" : (isArabic() ? "اختَر ملفات لبدء التحويل" : "Pick files to start")
   );
 
   const fileMeta = document.createElement("div");
@@ -257,13 +259,30 @@ const renderConversionPlatform = (opts) => {
   fileName.style.overflow = "hidden";
   fileName.style.textOverflow = "ellipsis";
   fileName.style.whiteSpace = "nowrap";
-  fileName.textContent = state.convertFile ? String(state.convertFile.name || "") : (isArabic() ? "لم يتم اختيار ملف" : "No file selected");
+  const selectedFiles = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+  const selectedCount = selectedFiles.length;
+  const firstName = selectedCount ? String((selectedFiles[0] && selectedFiles[0].name) || "") : "";
+  fileName.textContent = selectedCount
+    ? (firstName || (isArabic() ? "ملف" : "File")) + (selectedCount > 1 ? " (+" + String(selectedCount - 1) + ")" : "")
+    : (isArabic() ? "لم يتم اختيار ملفات" : "No files selected");
 
   const fileSize = document.createElement("div");
   fileSize.style.color = "rgba(255,255,255,.55)";
   fileSize.style.fontSize = "12px";
   fileSize.style.fontWeight = "900";
-  fileSize.textContent = state.convertFile ? fmtBytes(Number(state.convertFile.size || 0) || 0) : "";
+  const totalBytes = (() => {
+    try {
+      let sum = 0;
+      for (let i = 0; i < selectedFiles.length; i += 1) sum += Number((selectedFiles[i] && selectedFiles[i].size) || 0) || 0;
+      return sum;
+    } catch {
+      return 0;
+    }
+  })();
+  fileSize.textContent =
+    selectedCount
+      ? (fmtBytes(totalBytes) + (maxFiles ? (isArabic() ? " · الحد " : " · max ") + String(maxFiles) : ""))
+      : "";
 
   fileMeta.appendChild(fileName);
   fileMeta.appendChild(fileSize);
@@ -294,7 +313,7 @@ const renderConversionPlatform = (opts) => {
   dzText.style.fontSize = "13px";
   dzText.style.fontWeight = "900";
   dzText.style.textAlign = "center";
-  dzText.textContent = isArabic() ? "اسحب الملف هنا أو اضغط للاختيار" : "Drag file here or click to select";
+  dzText.textContent = isArabic() ? "اسحب الملفات هنا أو اضغط للاختيار" : "Drag files here or click to select";
 
   const dzHint = document.createElement("div");
   dzHint.style.color = "rgba(255,255,255,.45)";
@@ -345,10 +364,8 @@ const renderConversionPlatform = (opts) => {
       dzWrap.style.borderColor = "rgba(255,255,255,.12)";
       dzWrap.style.background = "#373737";
       if (Boolean(state.converting) || planBlocked) return;
-      const files = e.dataTransfer?.files;
-      if (files && files.length > 0 && onSetConvertFile) {
-        onSetConvertFile(files[0]);
-      }
+      const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+      if (files.length > 0 && onSetConvertFiles) onSetConvertFiles(files);
     } catch {}
   };
 
@@ -380,7 +397,8 @@ const renderConversionPlatform = (opts) => {
     qVal.style.fontWeight = "950";
     const qDefault = convertIsVideo ? 78 : state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
     const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
-    qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
+    const clampQ = (x) => Math.max(1, Math.min(100, Math.round(Number(x) || qDefault)));
+    qVal.textContent = String(clampQ(qNum));
 
     qHead.appendChild(qLabel);
     qHead.appendChild(qVal);
@@ -392,9 +410,29 @@ const renderConversionPlatform = (opts) => {
     range.step = "1";
     range.value = String(qVal.textContent || qDefault);
     range.disabled = Boolean(state.converting) || planBlocked;
+    let rafId = 0;
     range.oninput = () => {
       try {
         state.convertQuality = String(range.value || "");
+        qVal.textContent = String(clampQ(range.value));
+        if (!onRender) return;
+        try {
+          if (rafId) cancelAnimationFrame(rafId);
+        } catch {}
+        try {
+          rafId = requestAnimationFrame(() => {
+            rafId = 0;
+            onRender();
+          });
+        } catch {
+          onRender();
+        }
+      } catch {}
+    };
+    range.onchange = () => {
+      try {
+        state.convertQuality = String(range.value || "");
+        qVal.textContent = String(clampQ(range.value));
         if (onRender) onRender();
       } catch {}
     };
@@ -408,51 +446,8 @@ const renderConversionPlatform = (opts) => {
     return s;
   };
 
-  const buildSpeedStep = (n) => {
-    const s = mkStep(n, isArabic() ? "اختيار السرعة" : "Choose speed", isArabic() ? "الأسرع أو أصغر حجم" : "Fastest or smallest output");
-
-    const speedRow = document.createElement("div");
-    speedRow.style.display = "flex";
-    speedRow.style.gap = "8px";
-    speedRow.style.flexWrap = "wrap";
-    speedRow.style.alignItems = "center";
-
-    const spFast = pill(isArabic() ? "سريع" : "Fast", state.convertSpeed === "fast");
-    const spBal = pill(isArabic() ? "متوازن" : "Balanced", state.convertSpeed === "balanced");
-    const spSmall = pill(isArabic() ? "أصغر حجم" : "Smallest", state.convertSpeed === "small");
-    spFast.disabled = Boolean(state.converting) || planBlocked;
-    spBal.disabled = Boolean(state.converting) || planBlocked;
-    spSmall.disabled = Boolean(state.converting) || planBlocked;
-    spFast.onclick = () => {
-      try {
-        if (spFast.disabled) return;
-        state.convertSpeed = "fast";
-        if (onRender) onRender();
-      } catch {}
-    };
-    spBal.onclick = () => {
-      try {
-        if (spBal.disabled) return;
-        state.convertSpeed = "balanced";
-        if (onRender) onRender();
-      } catch {}
-    };
-    spSmall.onclick = () => {
-      try {
-        if (spSmall.disabled) return;
-        state.convertSpeed = "small";
-        if (onRender) onRender();
-      } catch {}
-    };
-    speedRow.appendChild(spFast);
-    speedRow.appendChild(spBal);
-    speedRow.appendChild(spSmall);
-    s.appendChild(speedRow);
-    return s;
-  };
-
   const buildConvertStep = (n) => {
-    const s = mkStep(n, isArabic() ? "التحويل والتحميل" : "Convert & download", isArabic() ? "ابدأ التحويل ثم حمّل النتيجة" : "Run conversion, then download result");
+    const s = mkStep(n, isArabic() ? "التحويل والتحميل" : "Convert & download", isArabic() ? "ابدأ التحويل ثم حمّل النتائج" : "Run conversion, then download results");
 
     const actions = document.createElement("div");
     actions.style.display = "flex";
@@ -460,16 +455,17 @@ const renderConversionPlatform = (opts) => {
     actions.style.flexWrap = "wrap";
 
     const convertBtn = btnPrimary(isArabic() ? "تحويل الآن" : "Convert now");
-    convertBtn.disabled = Boolean(state.converting) || Boolean(state.convertUploading) || planBlocked || !state.convertFile || !onRunConvert;
+    const hasFiles = Array.isArray(state.convertFiles) && state.convertFiles.length;
+    convertBtn.disabled = Boolean(state.converting) || planBlocked || !hasFiles || !onRunConvert;
     convertBtn.onclick = () => {
       try {
         if (convertBtn.disabled) return;
-        onRunConvert(state.convertFile);
+        onRunConvert();
       } catch {}
     };
 
     const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
-    resetBtn.disabled = Boolean(state.converting) || Boolean(state.convertUploading) || planBlocked || !onReset;
+    resetBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
     resetBtn.onclick = () => {
       try {
         if (resetBtn.disabled) return;
@@ -481,7 +477,7 @@ const renderConversionPlatform = (opts) => {
     actions.appendChild(resetBtn);
     s.appendChild(actions);
 
-    if (state.converting) {
+    if (state.converting || Number(state.convertOverallProgress || 0) > 0) {
       const prog = document.createElement("div");
       prog.style.border = "1px solid rgba(255,255,255,.08)";
       prog.style.borderRadius = "14px";
@@ -489,7 +485,7 @@ const renderConversionPlatform = (opts) => {
       prog.style.overflow = "hidden";
       const bar = document.createElement("div");
       bar.style.height = "10px";
-      bar.style.width = Math.max(0, Math.min(100, Number(state.convertProgress || 0) || 0)) + "%";
+      bar.style.width = Math.max(0, Math.min(100, Number(state.convertOverallProgress || 0) || 0)) + "%";
       bar.style.background = "#18b5d5";
       prog.appendChild(bar);
       s.appendChild(prog);
@@ -499,203 +495,165 @@ const renderConversionPlatform = (opts) => {
       s.appendChild(renderError(state.convertError));
     }
 
-    if (state.convertResultUrl) {
-      const outWrap = document.createElement("div");
-      outWrap.style.display = "flex";
-      outWrap.style.flexDirection = "column";
-      outWrap.style.gap = "10px";
+    const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+    if (items.length) {
+      const list = document.createElement("div");
+      list.style.display = "flex";
+      list.style.flexDirection = "column";
+      list.style.gap = "10px";
 
-      const outMeta = document.createElement("div");
-      outMeta.style.display = "flex";
-      outMeta.style.alignItems = "center";
-      outMeta.style.justifyContent = "space-between";
-      outMeta.style.gap = "10px";
-      outMeta.style.flexWrap = "wrap";
+      const mkRow = (it) => {
+        const wrap = document.createElement("div");
+        wrap.style.border = "1px solid rgba(255,255,255,.08)";
+        wrap.style.borderRadius = "14px";
+        wrap.style.background = "#303030";
+        wrap.style.padding = "12px";
+        wrap.style.display = "flex";
+        wrap.style.flexDirection = "column";
+        wrap.style.gap = "10px";
 
-      const outLeft = document.createElement("div");
-      outLeft.style.display = "flex";
-      outLeft.style.flexDirection = "column";
-      outLeft.style.gap = "4px";
+        const top = document.createElement("div");
+        top.style.display = "flex";
+        top.style.alignItems = "center";
+        top.style.justifyContent = "space-between";
+        top.style.gap = "10px";
+        top.style.flexWrap = "wrap";
 
-      const outTitle = document.createElement("div");
-      outTitle.style.color = "rgba(255,255,255,.95)";
-      outTitle.style.fontSize = "13px";
-      outTitle.style.fontWeight = "950";
-      outTitle.textContent = isArabic() ? "النتيجة جاهزة" : "Result is ready";
+        const left = document.createElement("div");
+        left.style.display = "flex";
+        left.style.flexDirection = "column";
+        left.style.gap = "4px";
+        left.style.minWidth = "0";
 
-      const outHint = document.createElement("div");
-      outHint.style.color = "rgba(255,255,255,.60)";
-      outHint.style.fontSize = "12px";
-      outHint.style.fontWeight = "900";
-      const fmt = String(state.convertResultFormat || state.convertFormat || "").toUpperCase();
-      outHint.textContent = (fmt ? fmt + " · " : "") + fmtBytes(state.convertResultBytes || 0);
+        const name = document.createElement("div");
+        name.style.color = "#fff";
+        name.style.fontSize = "12px";
+        name.style.fontWeight = "950";
+        name.style.overflow = "hidden";
+        name.style.textOverflow = "ellipsis";
+        name.style.whiteSpace = "nowrap";
+        name.textContent = String((it && it.name) || "");
 
-      outLeft.appendChild(outTitle);
-      outLeft.appendChild(outHint);
+        const sub = document.createElement("div");
+        sub.style.color = (it && (it.error || it.uploadError)) ? "#ef4444" : "rgba(255,255,255,.62)";
+        sub.style.fontSize = "12px";
+        sub.style.fontWeight = "900";
 
-      const rightActions = document.createElement("div");
-      rightActions.style.display = "flex";
-      rightActions.style.alignItems = "center";
-      rightActions.style.gap = "10px";
-      rightActions.style.flexWrap = "wrap";
-      rightActions.style.flex = "0 0 auto";
+        const status = String((it && it.status) || "");
+        const pct = Math.max(0, Math.min(100, Math.round(Number((it && it.progress) || 0) || 0)));
+        const outFmt = String((it && it.outFormat) || "").trim().toUpperCase();
+        const outBytes = Number((it && it.outBytes) || 0) || 0;
+        const msg =
+          status === "running"
+            ? (isArabic() ? "جاري التحويل " : "Converting ") + String(pct) + "%"
+            : status === "queued"
+              ? (isArabic() ? "في الانتظار" : "Queued")
+              : status === "done"
+                ? (outFmt ? outFmt + " · " : "") + fmtBytes(outBytes)
+                : status === "error"
+                  ? String((it && it.error) || (isArabic() ? "فشل التحويل" : "Conversion failed"))
+                  : "";
 
-      const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
-      dl.disabled = Boolean(state.convertUploading);
-      dl.style.opacity = dl.disabled ? "0.7" : "1";
-      dl.style.cursor = dl.disabled ? "not-allowed" : "pointer";
-      dl.onclick = () => {
-        try {
-          if (dl.disabled) return;
-          const a = document.createElement("a");
-          const raw = state.convertFile ? String(state.convertFile.name || "") : "converted";
-          let baseName = raw;
-          const dot = baseName.lastIndexOf(".");
-          if (dot > 0) baseName = baseName.slice(0, dot);
-          baseName = baseName.slice(0, 120) || "converted";
-          const rf = String(state.convertResultFormat || "").trim().toLowerCase();
-          const ext =
-            (rf ? rf : "") ||
-            (state.convertFormat === "mp4"
-              ? "mp4"
-              : state.convertFormat === "mov"
-                ? "mov"
-              : state.convertFormat === "webm"
-                ? "webm"
-                : state.convertFormat === "webm_local"
-                  ? "webm"
-                  : state.convertFormat === "avif"
-                    ? "avif"
-                    : state.convertFormat === "webp"
-                      ? "webp"
-                      : state.convertFormat === "jpeg"
-                      ? "jpeg"
-                      : state.convertFormat === "png"
-                        ? "png"
-                        : "webp");
-          a.href = state.convertResultUrl;
-          a.download = baseName + "." + ext;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        } catch {}
-      };
+        sub.textContent = msg;
+        left.appendChild(name);
+        if (sub.textContent) left.appendChild(sub);
 
-      outMeta.appendChild(outLeft);
-      rightActions.appendChild(dl);
+        const right = document.createElement("div");
+        right.style.display = "flex";
+        right.style.alignItems = "center";
+        right.style.gap = "10px";
+        right.style.flexWrap = "wrap";
+        right.style.flex = "0 0 auto";
 
-      const upLabel = Boolean(state.convertUploading)
-        ? (isArabic() ? "جاري الرفع…" : "Uploading…")
-        : state.convertUploadUrl
-          ? (isArabic() ? "تم الرفع" : "Uploaded")
-          : (isArabic() ? "رفع على المنصة" : "Upload to platform");
+        const resUrl = String((it && it.resultUrl) || "");
+        if (resUrl && status === "done") {
+          const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
+          dl.onclick = () => {
+            try {
+              const a = document.createElement("a");
+              const raw = String((it && it.name) || "converted");
+              let baseName = raw;
+              const dot = baseName.lastIndexOf(".");
+              if (dot > 0) baseName = baseName.slice(0, dot);
+              baseName = baseName.slice(0, 120) || "converted";
+              const rf = String((it && it.outFormat) || "").trim().toLowerCase();
+              const fmt = String(state.convertFormat || "").trim().toLowerCase();
+              const ext =
+                (rf ? rf : "") ||
+                (fmt === "mp4"
+                  ? "mp4"
+                  : fmt === "mov"
+                    ? "mov"
+                    : fmt === "webm" || fmt === "webm_local"
+                      ? "webm"
+                      : fmt === "avif"
+                        ? "avif"
+                        : fmt === "webp"
+                          ? "webp"
+                          : fmt === "jpeg"
+                            ? "jpeg"
+                            : fmt === "png"
+                              ? "png"
+                              : "webp");
+              a.href = resUrl;
+              a.download = baseName + "." + ext;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            } catch {}
+          };
+          right.appendChild(dl);
 
-      const up = btnGhost(upLabel);
-      up.disabled = Boolean(state.convertUploading) || !onUploadConverted;
-      up.style.opacity = up.disabled ? "0.7" : "1";
-      up.style.cursor = up.disabled ? "not-allowed" : "pointer";
-      up.onclick = () => {
-        try {
-          if (up.disabled) return;
-          onUploadConverted();
-        } catch {}
-      };
-      rightActions.appendChild(up);
+          const uploadedUrl = String((it && it.uploadUrl) || "");
+          const upLabel = (it && it.uploading)
+            ? (isArabic() ? "جاري الرفع…" : "Uploading…")
+            : uploadedUrl
+              ? (isArabic() ? "تم الرفع" : "Uploaded")
+              : (isArabic() ? "رفع على المنصة" : "Upload to platform");
 
-      outMeta.appendChild(rightActions);
+          const up = btnGhost(upLabel);
+          up.disabled = Boolean(it && it.uploading) || Boolean(uploadedUrl) || !onUploadItem;
+          up.style.opacity = up.disabled ? "0.7" : "1";
+          up.style.cursor = up.disabled ? "not-allowed" : "pointer";
+          up.onclick = () => {
+            try {
+              if (up.disabled) return;
+              onUploadItem(String((it && it.id) || ""));
+            } catch {}
+          };
+          right.appendChild(up);
 
-      if (state.convertUploading || state.convertUploadError || state.convertUploadUrl) {
-        const upBox = document.createElement("div");
-        upBox.style.border = "1px solid rgba(24,181,213,.25)";
-        upBox.style.borderRadius = "14px";
-        upBox.style.background = "#373737";
-        upBox.style.padding = "12px";
-        upBox.style.display = "flex";
-        upBox.style.flexDirection = "column";
-        upBox.style.gap = "10px";
+          if (uploadedUrl) {
+            const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتي" : "Open in My files");
+            openFilesBtn.disabled = !onOpenFiles;
+            openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.7" : "1";
+            openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";
+            openFilesBtn.onclick = () => {
+              try {
+                if (openFilesBtn.disabled) return;
+                onOpenFiles();
+              } catch {}
+            };
+            right.appendChild(openFilesBtn);
 
-        const upRow = document.createElement("div");
-        upRow.style.display = "flex";
-        upRow.style.alignItems = "center";
-        upRow.style.justifyContent = "space-between";
-        upRow.style.gap = "10px";
-        upRow.style.flexWrap = "wrap";
-
-        const upLeft = document.createElement("div");
-        upLeft.style.display = "flex";
-        upLeft.style.flexDirection = "column";
-        upLeft.style.gap = "4px";
-        upLeft.style.minWidth = "0";
-
-        const upTitle = document.createElement("div");
-        upTitle.style.fontSize = "12px";
-        upTitle.style.fontWeight = "950";
-        upTitle.style.color = "#fff";
-        upTitle.textContent = isArabic() ? "رفع على المنصة" : "Upload to platform";
-
-        const upSub = document.createElement("div");
-        upSub.style.fontSize = "12px";
-        upSub.style.fontWeight = "900";
-        upSub.style.color = state.convertUploadError ? "#ef4444" : "rgba(24,181,213,.9)";
-
-        const pct = (() => {
-          try {
-            const p = Number(state && state.convertUploadProgress);
-            if (!Number.isFinite(p)) return 0;
-            return Math.max(0, Math.min(100, Math.round(p)));
-          } catch {
-            return 0;
+            const openLinkBtn = btnPrimary(isArabic() ? "فتح الرابط" : "Open link");
+            openLinkBtn.style.padding = "10px 12px";
+            openLinkBtn.onclick = () => {
+              try {
+                const u = String(uploadedUrl || "").trim();
+                if (!u) return;
+                window.open(u, "_blank", "noopener,noreferrer");
+              } catch {}
+            };
+            right.appendChild(openLinkBtn);
           }
-        })();
-
-        upSub.textContent = state.convertUploadError
-          ? String(state.convertUploadError || "")
-          : state.convertUploading
-            ? (isArabic() ? "جاري الرفع " : "Uploading ") + String(pct) + "%"
-            : state.convertUploadUrl
-              ? (isArabic() ? "تم الرفع بنجاح" : "Uploaded successfully")
-              : "";
-
-        upLeft.appendChild(upTitle);
-        if (upSub.textContent) upLeft.appendChild(upSub);
-
-        const upRight = document.createElement("div");
-        upRight.style.display = "flex";
-        upRight.style.alignItems = "center";
-        upRight.style.gap = "10px";
-        upRight.style.flexWrap = "wrap";
-        upRight.style.flex = "0 0 auto";
-
-        if (state.convertUploadUrl) {
-          const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتي" : "Open in My files");
-          openFilesBtn.disabled = !onOpenFiles;
-          openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.7" : "1";
-          openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";
-          openFilesBtn.onclick = () => {
-            try {
-              if (openFilesBtn.disabled) return;
-              onOpenFiles();
-            } catch {}
-          };
-
-          const openLinkBtn = btnPrimary(isArabic() ? "فتح الرابط" : "Open link");
-          openLinkBtn.style.padding = "10px 12px";
-          openLinkBtn.onclick = () => {
-            try {
-              const u = String(state.convertUploadUrl || "").trim();
-              if (!u) return;
-              window.open(u, "_blank", "noopener,noreferrer");
-            } catch {}
-          };
-          upRight.appendChild(openFilesBtn);
-          upRight.appendChild(openLinkBtn);
         }
 
-        upRow.appendChild(upLeft);
-        if (upRight.childNodes && upRight.childNodes.length) upRow.appendChild(upRight);
-        upBox.appendChild(upRow);
+        top.appendChild(left);
+        if (right.childNodes && right.childNodes.length) top.appendChild(right);
+        wrap.appendChild(top);
 
-        if (state.convertUploading) {
+        if (status === "running") {
           const prog = document.createElement("div");
           prog.style.height = "10px";
           prog.style.borderRadius = "999px";
@@ -703,50 +661,23 @@ const renderConversionPlatform = (opts) => {
           prog.style.overflow = "hidden";
           const bar = document.createElement("div");
           bar.style.height = "10px";
-          bar.style.width = Math.max(0, Math.min(100, Number(state.convertUploadProgress || 0) || 0)) + "%";
+          bar.style.width = String(pct) + "%";
           bar.style.background = "#18b5d5";
           prog.appendChild(bar);
-          upBox.appendChild(prog);
+          wrap.appendChild(prog);
         }
 
-        outWrap.appendChild(upBox);
+        const upErr = String((it && it.uploadError) || "");
+        if (upErr) wrap.appendChild(renderError(upErr));
+
+        return wrap;
+      };
+
+      for (let i = 0; i < items.length; i += 1) {
+        const row = mkRow(items[i] || {});
+        if (row) list.appendChild(row);
       }
-
-      const outFmt = String(state.convertResultFormat || state.convertFormat || "").trim().toLowerCase();
-      const isVideoOut = outFmt === "mp4" || outFmt === "webm" || outFmt === "webm_local" || outFmt === "mov";
-
-      let preview = null;
-      if (isVideoOut) {
-        const v = document.createElement("video");
-        v.controls = true;
-        v.playsInline = true;
-        v.preload = "metadata";
-        v.src = state.convertResultUrl;
-        v.style.width = "100%";
-        v.style.maxHeight = "260px";
-        v.style.objectFit = "contain";
-        v.style.borderRadius = "14px";
-        v.style.border = "1px solid rgba(255,255,255,.08)";
-        v.style.background = "#373737";
-        preview = v;
-      } else {
-        const img = document.createElement("img");
-        img.alt = "";
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.src = state.convertResultUrl;
-        img.style.width = "100%";
-        img.style.maxHeight = "260px";
-        img.style.objectFit = "contain";
-        img.style.borderRadius = "14px";
-        img.style.border = "1px solid rgba(255,255,255,.08)";
-        img.style.background = "#373737";
-        preview = img;
-      }
-
-      outWrap.appendChild(outMeta);
-      if (preview) outWrap.appendChild(preview);
-      s.appendChild(outWrap);
+      s.appendChild(list);
     }
     return s;
   };
@@ -756,6 +687,7 @@ const renderConversionPlatform = (opts) => {
     const s2 = mkStep(
       2,
       isArabic() ? "إعدادات الفيديو" : "Video settings",
+      ""
     );
     const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج" : "Output format",
@@ -777,8 +709,7 @@ const renderConversionPlatform = (opts) => {
     s2.appendChild(fmtSelect);
     stepWrap.appendChild(s2);
     stepWrap.appendChild(buildQualityStep(3));
-    stepWrap.appendChild(buildSpeedStep(4));
-    stepWrap.appendChild(buildConvertStep(5));
+    stepWrap.appendChild(buildConvertStep(4));
   } else {
     const s2 = mkStep(
       2,
@@ -807,23 +738,17 @@ const renderConversionPlatform = (opts) => {
     );
     s2.appendChild(fmtSelect);
 
-    const s3 = mkStep(3, isArabic() ? "المقاس والقص" : "Resize & crop", isArabic() ? "اختر مقاس جاهز أو اكتب مقاس مخصص" : "Pick a preset size or set a custom size");
+    const s3 = mkStep(3, isArabic() ? "المقاس" : "Resize", isArabic() ? "اختر مقاس جاهز" : "Pick a preset size");
 
     const presetOptions = [
       { value: "original", label: isArabic() ? "الأصل (بدون تغيير)" : "Original (no resize)" },
-      { value: "", label: isArabic() ? "مخصص (اكتب المقاس)" : "Custom (type size)" },
       { value: "square", label: isArabic() ? "مربع — 1080×1080" : "Square — 1080×1080" },
       { value: "story", label: isArabic() ? "ستوري — 1080×1920" : "Story — 1080×1920" },
       { value: "banner", label: isArabic() ? "بانر — 1920×1080" : "Banner — 1920×1080" },
       { value: "thumb", label: isArabic() ? "مصغرة — 512×512" : "Thumb — 512×512" }
     ];
 
-    const presetSelectValue =
-      String(state.convertPreset || "") === ""
-        ? state.convertWidth || state.convertHeight
-          ? ""
-          : "original"
-        : String(state.convertPreset || "");
+    const presetSelectValue = String(state.convertPreset || "original") || "original";
 
     const presetSelect = mkSelect(
       isArabic() ? "مقاس جاهز" : "Preset size",
@@ -832,124 +757,19 @@ const renderConversionPlatform = (opts) => {
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          const next = String(v || "");
+          const next = String(v || "original") || "original";
           state.convertPreset = next;
           state.convertError = "";
-          if (next === "original") {
-            state.convertWidth = "";
-            state.convertHeight = "";
-            state.convertMode = "fit";
-            state.convertPosition = "center";
-          } else if (next === "square") {
-            state.convertWidth = "1080";
-            state.convertHeight = "1080";
-            state.convertMode = "cover";
-            if (!state.convertPosition) state.convertPosition = "center";
-          } else if (next === "story") {
-            state.convertWidth = "1080";
-            state.convertHeight = "1920";
-            state.convertMode = "cover";
-            if (!state.convertPosition) state.convertPosition = "center";
-          } else if (next === "banner") {
-            state.convertWidth = "1920";
-            state.convertHeight = "1080";
-            state.convertMode = "cover";
-            if (!state.convertPosition) state.convertPosition = "center";
-          } else if (next === "thumb") {
-            state.convertWidth = "512";
-            state.convertHeight = "512";
-            state.convertMode = "cover";
-            if (!state.convertPosition) state.convertPosition = "center";
-          }
           if (onRender) onRender();
         } catch {}
       }
     );
     s3.appendChild(presetSelect);
 
-    const custom = document.createElement("div");
-    custom.style.display = "flex";
-    custom.style.flexWrap = "wrap";
-    custom.style.alignItems = "center";
-    custom.style.gap = "10px";
-
-    const mkNum = (ph, val, onVal) => {
-      const i = document.createElement("input");
-      i.type = "number";
-      i.min = "1";
-      i.max = "6000";
-      i.inputMode = "numeric";
-      i.placeholder = String(ph || "");
-      i.value = String(val || "");
-      i.disabled = Boolean(state.converting) || planBlocked;
-      i.style.width = "min(140px,48%)";
-      i.style.padding = "10px 12px";
-      i.style.borderRadius = "12px";
-      i.style.border = "1px solid rgba(255,255,255,.08)";
-      i.style.background = "#373737";
-      i.style.color = "rgba(255,255,255,.90)";
-      i.style.fontSize = "12px";
-      i.style.fontWeight = "900";
-      i.oninput = () => {
-        try {
-          state.convertPreset = "";
-          onVal(String(i.value || ""));
-          if (onRender) onRender();
-        } catch {}
-      };
-      return i;
-    };
-
-    const wIn = mkNum(isArabic() ? "العرض (px)" : "Width (px)", state.convertWidth, (v) => (state.convertWidth = v));
-    const hIn = mkNum(isArabic() ? "الارتفاع (px)" : "Height (px)", state.convertHeight, (v) => (state.convertHeight = v));
-    custom.appendChild(wIn);
-    custom.appendChild(hIn);
-
-    s3.appendChild(custom);
-
-    const modeSelect = mkSelect(
-      isArabic() ? "طريقة القص" : "Resize mode",
-      String(state.convertMode || "fit") === "cover" ? "cover" : "fit",
-      [
-        { value: "fit", label: isArabic() ? "احتواء (بدون قص)" : "Fit (no crop)" },
-        { value: "cover", label: isArabic() ? "قص (Cover)" : "Crop (cover)" }
-      ],
-      Boolean(state.converting) || planBlocked,
-      (v) => {
-        try {
-          state.convertMode = String(v || "fit");
-          if (!state.convertPosition) state.convertPosition = "center";
-          if (onRender) onRender();
-        } catch {}
-      }
-    );
-    s3.appendChild(modeSelect);
-
-    if (String(state.convertMode || "") === "cover") {
-      const posSelect = mkSelect(
-        isArabic() ? "موضع القص" : "Crop position",
-        String(state.convertPosition || "center"),
-        [
-          { value: "center", label: isArabic() ? "منتصف" : "Center" },
-          { value: "attention", label: isArabic() ? "تركيز" : "Attention" },
-          { value: "entropy", label: isArabic() ? "ذكاء" : "Entropy" }
-        ],
-        Boolean(state.converting) || planBlocked,
-        (v) => {
-          try {
-            state.convertPosition = String(v || "center");
-            if (onRender) onRender();
-          } catch {}
-        }
-      );
-      s3.appendChild(posSelect);
-    }
-
     stepWrap.appendChild(s2);
     stepWrap.appendChild(s3);
     stepWrap.appendChild(buildQualityStep(4));
-    stepWrap.appendChild(buildSpeedStep(5));
-    stepWrap.appendChild(buildConvertStep(6));
+    stepWrap.appendChild(buildConvertStep(5));
   }
 
   card.appendChild(stepWrap);
