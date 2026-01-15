@@ -1531,6 +1531,190 @@ const mount = () => {
           } catch {}
         };
 
+        const readArrayBufferFromUrl = async (src) => {
+          const u = String(src || "");
+          if (!u) throw new Error("Missing url");
+          return await new Promise((resolve, reject) => {
+            let xhr = null;
+            try {
+              xhr = new XMLHttpRequest();
+            } catch {
+              xhr = null;
+            }
+            if (!xhr) {
+              reject(new Error("Download not supported"));
+              return;
+            }
+            try {
+              xhr.open("GET", u, true);
+              xhr.responseType = "arraybuffer";
+            } catch {
+              reject(new Error("Download not supported"));
+              return;
+            }
+            xhr.onerror = () => reject(new Error("Failed to read output"));
+            xhr.onabort = () => reject(new Error("Aborted"));
+            xhr.onload = () => {
+              const status = Number(xhr.status || 0) || 0;
+              if (status === 0 || (status >= 200 && status < 300)) {
+                resolve(xhr.response || new ArrayBuffer(0));
+                return;
+              }
+              reject(new Error("Failed to read output"));
+            };
+            try {
+              xhr.send();
+            } catch (e) {
+              reject(e);
+            }
+          });
+        };
+
+        const encodeUtf8 = (s) => {
+          const str = String(s == null ? "" : s);
+          try {
+            if (window.TextEncoder) return new TextEncoder().encode(str);
+          } catch {}
+          let bin = "";
+          try {
+            bin = unescape(encodeURIComponent(str));
+          } catch {
+            bin = str;
+          }
+          const out = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i) & 255;
+          return out;
+        };
+
+        const crcTable = (() => {
+          const t = new Uint32Array(256);
+          for (let i = 0; i < 256; i += 1) {
+            let c = i;
+            for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            t[i] = c >>> 0;
+          }
+          return t;
+        })();
+
+        const crc32 = (u8) => {
+          let crc = 0xffffffff;
+          const a = u8 instanceof Uint8Array ? u8 : new Uint8Array(u8 || []);
+          for (let i = 0; i < a.length; i += 1) {
+            crc = (crc >>> 8) ^ crcTable[(crc ^ a[i]) & 255];
+          }
+          return (crc ^ 0xffffffff) >>> 0;
+        };
+
+        const mkZip = (files) => {
+          const list = Array.isArray(files) ? files : [];
+          const parts = [];
+          const cd = [];
+          let offset = 0;
+
+          const pushU16 = (view, p, v) => view.setUint16(p, v & 0xffff, true);
+          const pushU32 = (view, p, v) => view.setUint32(p, v >>> 0, true);
+
+          for (let i = 0; i < list.length; i += 1) {
+            const it = list[i] || {};
+            const nameBytes = encodeUtf8(String(it.name || ("file_" + String(i + 1))));
+            const data = it.data instanceof Uint8Array ? it.data : new Uint8Array(it.data || []);
+            const crc = crc32(data);
+
+            const local = new Uint8Array(30 + nameBytes.length);
+            const lv = new DataView(local.buffer);
+            pushU32(lv, 0, 0x04034b50);
+            pushU16(lv, 4, 20);
+            pushU16(lv, 6, 0x0800);
+            pushU16(lv, 8, 0);
+            pushU16(lv, 10, 0);
+            pushU16(lv, 12, 0);
+            pushU32(lv, 14, crc);
+            pushU32(lv, 18, data.length);
+            pushU32(lv, 22, data.length);
+            pushU16(lv, 26, nameBytes.length);
+            pushU16(lv, 28, 0);
+            local.set(nameBytes, 30);
+
+            parts.push(local);
+            parts.push(data);
+
+            const central = new Uint8Array(46 + nameBytes.length);
+            const cv = new DataView(central.buffer);
+            pushU32(cv, 0, 0x02014b50);
+            pushU16(cv, 4, 20);
+            pushU16(cv, 6, 20);
+            pushU16(cv, 8, 0x0800);
+            pushU16(cv, 10, 0);
+            pushU16(cv, 12, 0);
+            pushU16(cv, 14, 0);
+            pushU32(cv, 16, crc);
+            pushU32(cv, 20, data.length);
+            pushU32(cv, 24, data.length);
+            pushU16(cv, 28, nameBytes.length);
+            pushU16(cv, 30, 0);
+            pushU16(cv, 32, 0);
+            pushU16(cv, 34, 0);
+            pushU16(cv, 36, 0);
+            pushU32(cv, 38, 0);
+            pushU32(cv, 42, offset);
+            central.set(nameBytes, 46);
+            cd.push(central);
+
+            offset += local.length + data.length;
+          }
+
+          const cdOffset = offset;
+          for (let i = 0; i < cd.length; i += 1) {
+            parts.push(cd[i]);
+            offset += cd[i].length;
+          }
+          const cdSize = offset - cdOffset;
+
+          const eocd = new Uint8Array(22);
+          const ev = new DataView(eocd.buffer);
+          pushU32(ev, 0, 0x06054b50);
+          pushU16(ev, 4, 0);
+          pushU16(ev, 6, 0);
+          pushU16(ev, 8, cd.length);
+          pushU16(ev, 10, cd.length);
+          pushU32(ev, 12, cdSize);
+          pushU32(ev, 16, cdOffset);
+          pushU16(ev, 20, 0);
+          parts.push(eocd);
+
+          return new Blob(parts, { type: "application/zip" });
+        };
+
+        const downloadBlob = (blob, filename) => {
+          const b = blob || null;
+          if (!b) return;
+          const name = String(filename || "download.zip") || "download.zip";
+          let u = "";
+          try {
+            u = URL.createObjectURL(b);
+          } catch {
+            u = "";
+          }
+          if (!u) return;
+          const a = document.createElement("a");
+          a.href = u;
+          a.download = name;
+          a.rel = "noopener";
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          try {
+            a.remove();
+          } catch {}
+          try {
+            setTimeout(() => {
+              try {
+                URL.revokeObjectURL(u);
+              } catch {}
+            }, 5000);
+          } catch {}
+        };
+
         const setConvertFiles = (files) => {
           const fs = Array.isArray(files) ? files : [];
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
@@ -1554,6 +1738,9 @@ const mount = () => {
           const chosen = keep.slice(0, maxFiles);
           state.convertFiles = chosen;
           state.convertFile = chosen[0] || null;
+          const defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
+          state.convertFileFormats = chosen.map(() => defaultFmt);
+          state.convertFileFormatCustom = chosen.map(() => false);
           state.convertItems = [];
           state.converting = false;
           state.convertProgress = 0;
@@ -1568,6 +1755,8 @@ const mount = () => {
           state.convertUploadError = "";
           state.convertUploadUrl = "";
           state.convertUploadPublicId = "";
+          state.convertDownloadingAll = false;
+          state.convertUploadingAll = false;
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1612,6 +1801,8 @@ const mount = () => {
 
           state.convertError = "";
           state.converting = true;
+          state.convertDownloadingAll = false;
+          state.convertUploadingAll = false;
           state.convertProgress = 0;
           state.convertOverallProgress = 0;
           try {
@@ -1624,9 +1815,12 @@ const mount = () => {
           if (fs.length !== chosen.length) state.convertFiles = chosen;
 
           const items = [];
+          const chosenFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
           for (let i = 0; i < chosen.length; i += 1) {
             const f = chosen[i];
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
+            const fallbackFmt = String(state.convertFormat || (String(state.convertKind || "image") === "video" ? "mp4" : "webp"));
+            const targetFormat = String(chosenFormats[i] || fallbackFmt || "").trim().toLowerCase();
             items.push({
               id,
               file: f,
@@ -1634,6 +1828,7 @@ const mount = () => {
               inBytes: Number((f && f.size) || 0) || 0,
               outBytes: 0,
               outFormat: "",
+              targetFormat,
               status: "queued",
               progress: 0,
               error: "",
@@ -1657,7 +1852,8 @@ const mount = () => {
             render();
             try {
               const isVideo = guessResourceType(f) === "video";
-              const targetFmt = isVideo ? String(state.convertFormat || "mp4").trim().toLowerCase() : String(state.convertFormat || "").trim().toLowerCase();
+              const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
+              const targetFmt = isVideo ? (rawTarget || "mp4") : (rawTarget || "webp");
               const out = isVideo
                 ? await convertVideoOnClient(
                     f,
@@ -1674,7 +1870,7 @@ const mount = () => {
                 : await convertOnBackend(
                     f,
                     {
-                      format: state.convertFormat,
+                      format: targetFmt,
                       speed: state.convertSpeed,
                       quality: q,
                       name: it.name,
@@ -1749,7 +1945,7 @@ const mount = () => {
             baseName = baseName.slice(0, 120) || "converted";
 
             const rf = String(it.outFormat || "").trim().toLowerCase();
-            const fmt = String(state.convertFormat || "").trim().toLowerCase();
+            const fmt = String(it.targetFormat || state.convertFormat || "").trim().toLowerCase();
             const ext =
               (rf ? rf : "") ||
               (fmt === "mp4"
@@ -1867,6 +2063,97 @@ const mount = () => {
           }
         };
 
+        const uploadAllConverted = async () => {
+          if (state.convertUploadingAll) return;
+          const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+          const done = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
+          if (done.length <= 1) return;
+          const list = done.filter((x) => x && !x.uploadUrl && !x.uploading);
+          if (!list.length) return;
+          state.convertUploadingAll = true;
+          render();
+          try {
+            for (let i = 0; i < list.length; i += 1) {
+              const it = list[i];
+              if (!it) continue;
+              await uploadConvertedById(String(it.id || ""));
+            }
+          } finally {
+            state.convertUploadingAll = false;
+            render();
+          }
+        };
+
+        const downloadAllConverted = async () => {
+          if (state.convertDownloadingAll) return;
+          const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+          const done = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
+          if (done.length <= 1) return;
+          state.convertDownloadingAll = true;
+          state.convertError = "";
+          render();
+          try {
+            const used = new Map();
+            const files = [];
+            for (let i = 0; i < done.length; i += 1) {
+              const it = done[i] || {};
+              const raw = String(it.name || "converted");
+              let baseName = raw;
+              const dot = baseName.lastIndexOf(".");
+              if (dot > 0) baseName = baseName.slice(0, dot);
+              baseName = baseName.slice(0, 120) || "converted";
+              const rf = String(it.outFormat || "").trim().toLowerCase();
+              const fmt = String(it.targetFormat || state.convertFormat || "").trim().toLowerCase();
+              const ext =
+                (rf ? rf : "") ||
+                (fmt === "mp4"
+                  ? "mp4"
+                  : fmt === "mov"
+                    ? "mov"
+                    : fmt === "webm" || fmt === "webm_local"
+                      ? "webm"
+                      : fmt === "avif"
+                        ? "avif"
+                        : fmt === "webp"
+                          ? "webp"
+                          : fmt === "jpeg"
+                            ? "jpeg"
+                            : fmt === "png"
+                              ? "png"
+                              : "webp");
+              let fname = baseName + "." + ext;
+              const prev = Number(used.get(fname) || 0) || 0;
+              used.set(fname, prev + 1);
+              if (prev) {
+                const dot2 = fname.lastIndexOf(".");
+                fname = dot2 > 0 ? (fname.slice(0, dot2) + " (" + String(prev + 1) + ")" + fname.slice(dot2)) : (fname + " (" + String(prev + 1) + ")");
+              }
+              const buf = await readArrayBufferFromUrl(String(it.resultUrl || ""));
+              files.push({ name: fname, data: new Uint8Array(buf || new ArrayBuffer(0)) });
+            }
+            const zip = mkZip(files);
+            const stamp = (() => {
+              try {
+                const d = new Date();
+                const y = String(d.getFullYear());
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const da = String(d.getDate()).padStart(2, "0");
+                const h = String(d.getHours()).padStart(2, "0");
+                const mi = String(d.getMinutes()).padStart(2, "0");
+                return y + m + da + "_" + h + mi;
+              } catch {
+                return String(Date.now());
+              }
+            })();
+            downloadBlob(zip, "converted_" + stamp + ".zip");
+          } catch (e) {
+            state.convertError = friendlyApiErrorMessage(e);
+          } finally {
+            state.convertDownloadingAll = false;
+            render();
+          }
+        };
+
         const openFilesFromConvert = async () => {
           try {
             state.view = "files";
@@ -1897,6 +2184,8 @@ const mount = () => {
           }
           state.convertFile = null;
           state.convertFiles = [];
+          state.convertFileFormats = [];
+          state.convertFileFormatCustom = [];
           try {
             revokeConvertObjectUrls();
           } catch {}
@@ -1913,6 +2202,8 @@ const mount = () => {
           state.convertUploadError = "";
           state.convertUploadUrl = "";
           state.convertUploadPublicId = "";
+          state.convertDownloadingAll = false;
+          state.convertUploadingAll = false;
           try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
@@ -1924,6 +2215,8 @@ const mount = () => {
         const resetConvert = () => {
           state.convertFile = null;
           state.convertFiles = [];
+          state.convertFileFormats = [];
+          state.convertFileFormatCustom = [];
           state.convertError = "";
           state.convertQuality = "";
           state.convertPreset = String(state.convertKind || "image") === "video" ? "" : "original";
@@ -1942,6 +2235,8 @@ const mount = () => {
           state.convertUploadError = "";
           state.convertUploadUrl = "";
           state.convertUploadPublicId = "";
+          state.convertDownloadingAll = false;
+          state.convertUploadingAll = false;
           try {
             revokeConvertObjectUrls();
           } catch {}
@@ -1988,6 +2283,7 @@ const mount = () => {
           state.compressRunning = false;
           state.compressOverallProgress = 0;
           state.compressUploadingAny = false;
+          state.compressDownloadingAll = false;
           render();
         };
 
@@ -2124,6 +2420,7 @@ const mount = () => {
           state.compressError = "";
           state.compressItems = [];
           state.compressRunning = true;
+          state.compressDownloadingAll = false;
           state.compressOverallProgress = 0;
           state.compressUploadingAny = false;
           render();
@@ -2359,6 +2656,58 @@ const mount = () => {
           }
         };
 
+        const downloadAllCompressed = async () => {
+          if (state.compressDownloadingAll) return;
+          const items = Array.isArray(state.compressItems) ? state.compressItems : [];
+          const done = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
+          if (done.length <= 1) return;
+          state.compressDownloadingAll = true;
+          state.compressError = "";
+          render();
+          try {
+            const used = new Map();
+            const files = [];
+            for (let i = 0; i < done.length; i += 1) {
+              const it = done[i] || {};
+              const raw = String(it.name || "compressed");
+              let baseName = raw;
+              const dot = baseName.lastIndexOf(".");
+              if (dot > 0) baseName = baseName.slice(0, dot);
+              baseName = baseName.slice(0, 120) || "compressed";
+              const ext = String(it.outFormat || "").trim().toLowerCase() || "webp";
+              let fname = baseName + "." + ext;
+              const prev = Number(used.get(fname) || 0) || 0;
+              used.set(fname, prev + 1);
+              if (prev) {
+                const dot2 = fname.lastIndexOf(".");
+                fname = dot2 > 0 ? (fname.slice(0, dot2) + " (" + String(prev + 1) + ")" + fname.slice(dot2)) : (fname + " (" + String(prev + 1) + ")");
+              }
+              const buf = await readArrayBufferFromUrl(String(it.resultUrl || ""));
+              files.push({ name: fname, data: new Uint8Array(buf || new ArrayBuffer(0)) });
+            }
+            const zip = mkZip(files);
+            const stamp = (() => {
+              try {
+                const d = new Date();
+                const y = String(d.getFullYear());
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const da = String(d.getDate()).padStart(2, "0");
+                const h = String(d.getHours()).padStart(2, "0");
+                const mi = String(d.getMinutes()).padStart(2, "0");
+                return y + m + da + "_" + h + mi;
+              } catch {
+                return String(Date.now());
+              }
+            })();
+            downloadBlob(zip, "compressed_" + stamp + ".zip");
+          } catch (e) {
+            state.compressError = friendlyApiErrorMessage(e);
+          } finally {
+            state.compressDownloadingAll = false;
+            render();
+          }
+        };
+
         const openFilesFromCompress = async () => {
           try {
             state.view = "files";
@@ -2477,6 +2826,7 @@ const mount = () => {
                   maxFiles,
                   compressInput,
                   onRender: render,
+                  onDownloadAll: downloadAllCompressed,
                   onPick: () => {
                     try {
                       if (!compressInput) return;
@@ -2514,6 +2864,8 @@ const mount = () => {
                 onRender: render,
                 onRunConvert: runConvert,
                 onUploadItem: uploadConvertedById,
+                onUploadAll: uploadAllConverted,
+                onDownloadAll: downloadAllConverted,
                 onOpenFiles: openFilesFromConvert,
                 onSetConvertFiles: setConvertFiles,
                 onSetKind: setConvertKind,

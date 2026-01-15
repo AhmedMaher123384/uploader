@@ -9,6 +9,7 @@ const renderCompressionPlatform = (opts) => {
   const onPick = typeof o.onPick === "function" ? o.onPick : null;
   const onSetFiles = typeof o.onSetFiles === "function" ? o.onSetFiles : null;
   const onRunCompress = typeof o.onRunCompress === "function" ? o.onRunCompress : null;
+  const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
   const busy = Boolean(state.compressRunning);
 
@@ -376,6 +377,10 @@ const renderCompressionPlatform = (opts) => {
   actions.style.gap = "10px";
   actions.style.flexWrap = "wrap";
 
+  const items = Array.isArray(state.compressItems) ? state.compressItems : [];
+  const doneItems = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
+  const doneCount = doneItems.length;
+
   const runBtn = btnPrimary(isArabic() ? "ضغط الآن" : "Compress now");
   runBtn.disabled = busy || !selected.length || !onRunCompress;
   runBtn.style.opacity = runBtn.disabled ? "0.65" : "1";
@@ -386,6 +391,23 @@ const renderCompressionPlatform = (opts) => {
       onRunCompress();
     } catch {}
   };
+
+  if (doneCount > 1) {
+    const dlAllLabel = Boolean(state.compressDownloadingAll)
+      ? (isArabic() ? "جاري تجهيز الملف…" : "Preparing…")
+      : (isArabic() ? "تحميل الكل" : "Download all");
+    const dlAll = btnPrimary(dlAllLabel);
+    dlAll.disabled = busy || !onDownloadAll || Boolean(state.compressDownloadingAll);
+    dlAll.style.opacity = dlAll.disabled ? "0.65" : "1";
+    dlAll.style.cursor = dlAll.disabled ? "not-allowed" : "pointer";
+    dlAll.onclick = () => {
+      try {
+        if (dlAll.disabled) return;
+        onDownloadAll();
+      } catch {}
+    };
+    actions.appendChild(dlAll);
+  }
 
   const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
   resetBtn.disabled = busy || !onReset;
@@ -402,7 +424,6 @@ const renderCompressionPlatform = (opts) => {
   actions.appendChild(resetBtn);
   s3.appendChild(actions);
 
-  const items = Array.isArray(state.compressItems) ? state.compressItems : [];
   if (items.length) {
     const list = document.createElement("div");
     list.style.display = "flex";

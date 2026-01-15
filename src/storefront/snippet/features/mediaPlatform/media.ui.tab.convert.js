@@ -9,6 +9,8 @@ const renderConversionPlatform = (opts) => {
   const onRender = typeof o.onRender === "function" ? o.onRender : null;
   const onRunConvert = typeof o.onRunConvert === "function" ? o.onRunConvert : null;
   const onUploadItem = typeof o.onUploadItem === "function" ? o.onUploadItem : null;
+  const onUploadAll = typeof o.onUploadAll === "function" ? o.onUploadAll : null;
+  const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
   const onSetConvertFiles = typeof o.onSetConvertFiles === "function" ? o.onSetConvertFiles : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
@@ -253,19 +255,8 @@ const renderConversionPlatform = (opts) => {
   fileMeta.style.gap = "4px";
   fileMeta.style.minWidth = "0";
 
-  const fileName = document.createElement("div");
-  fileName.style.color = "rgba(255,255,255,.95)";
-  fileName.style.fontSize = "13px";
-  fileName.style.fontWeight = "950";
-  fileName.style.overflow = "hidden";
-  fileName.style.textOverflow = "ellipsis";
-  fileName.style.whiteSpace = "nowrap";
   const selectedFiles = Array.isArray(state.convertFiles) ? state.convertFiles : [];
   const selectedCount = selectedFiles.length;
-  const firstName = selectedCount ? String((selectedFiles[0] && selectedFiles[0].name) || "") : "";
-  fileName.textContent = selectedCount
-    ? (firstName || (isArabic() ? "ملف" : "File")) + (selectedCount > 1 ? " (+" + String(selectedCount - 1) + ")" : "")
-    : (isArabic() ? "لم يتم اختيار ملفات" : "No files selected");
 
   const fileSize = document.createElement("div");
   fileSize.style.color = "rgba(255,255,255,.55)";
@@ -282,10 +273,14 @@ const renderConversionPlatform = (opts) => {
   })();
   fileSize.textContent =
     selectedCount
-      ? (fmtBytes(totalBytes) + (maxFiles ? (isArabic() ? " · الحد " : " · max ") + String(maxFiles) : ""))
+      ? ((isArabic()
+          ? ("تم اختيار " + String(selectedCount) + (selectedCount === 1 ? " ملف" : " ملفات"))
+          : ("Selected " + String(selectedCount) + (selectedCount === 1 ? " file" : " files"))) +
+        " · " +
+        fmtBytes(totalBytes) +
+        (maxFiles ? (isArabic() ? " · الحد " : " · max ") + String(maxFiles) : ""))
       : "";
 
-  fileMeta.appendChild(fileName);
   fileMeta.appendChild(fileSize);
   s1.appendChild(fileMeta);
 
@@ -336,8 +331,74 @@ const renderConversionPlatform = (opts) => {
       size.style.textAlign = "left";
       size.textContent = fmtBytes(Number(f.size || 0) || 0);
 
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.alignItems = "center";
+      right.style.gap = "10px";
+      right.style.flexWrap = "wrap";
+      right.style.flex = "0 0 auto";
+      right.style.direction = "ltr";
+
+      const fileFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
+      const fileFormatsCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom : [];
+      const fallbackFmt = convertIsVideo ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
+      const fmtValue = String(fileFormats[i] || fallbackFmt || "").trim();
+
+      const fmt = document.createElement("select");
+      fmt.disabled = Boolean(state.converting) || planBlocked;
+      fmt.style.padding = "6px 8px";
+      fmt.style.borderRadius = "10px";
+      fmt.style.border = "1px solid rgba(255,255,255,.10)";
+      fmt.style.background = "#303030";
+      fmt.style.color = "rgba(255,255,255,.92)";
+      fmt.style.fontSize = "11px";
+      fmt.style.fontWeight = "950";
+      fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
+      fmt.style.opacity = fmt.disabled ? "0.7" : "1";
+      fmt.title = isArabic() ? "صيغة الإخراج" : "Output format";
+      const opts = convertIsVideo
+        ? [
+            { value: "mp4", label: "MP4" },
+            { value: "webm", label: "WebM (VP9)" },
+            { value: "webm_local", label: "WebM" },
+            { value: "mov", label: "MOV" },
+          ]
+        : [
+            { value: "avif", label: "AVIF" },
+            { value: "webp", label: "WebP" },
+            { value: "jpeg", label: "JPEG" },
+            { value: "png", label: "PNG" }
+          ];
+      for (let j = 0; j < opts.length; j += 1) {
+        const o2 = opts[j] || {};
+        const opt = document.createElement("option");
+        opt.value = String(o2.value || "");
+        opt.textContent = String(o2.label || "");
+        if (opt.value === fmtValue) opt.selected = true;
+        fmt.appendChild(opt);
+      }
+      try {
+        fmt.value = fmtValue;
+      } catch {}
+      fmt.onchange = () => {
+        try {
+          if (!Array.isArray(state.convertFileFormats)) state.convertFileFormats = [];
+          if (!Array.isArray(state.convertFileFormatCustom)) state.convertFileFormatCustom = [];
+          state.convertFileFormats[i] = String(fmt.value || "");
+          state.convertFileFormatCustom[i] = true;
+          for (let k = 0; k < selectedFiles.length; k += 1) {
+            if (state.convertFileFormats[k] == null) state.convertFileFormats[k] = fallbackFmt;
+            if (state.convertFileFormatCustom[k] == null) state.convertFileFormatCustom[k] = Boolean(fileFormatsCustom[k]);
+          }
+          if (onRender) onRender();
+        } catch {}
+      };
+
+      right.appendChild(size);
+      right.appendChild(fmt);
+
       row.appendChild(name);
-      row.appendChild(size);
+      row.appendChild(right);
       list.appendChild(row);
     }
 
@@ -497,6 +558,10 @@ const renderConversionPlatform = (opts) => {
     actions.style.gap = "10px";
     actions.style.flexWrap = "wrap";
 
+    const items = Array.isArray(state.convertItems) ? state.convertItems : [];
+    const doneItems = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
+    const doneCount = doneItems.length;
+
     const convertBtn = btnPrimary(isArabic() ? "تحويل الآن" : "Convert now");
     const hasFiles = Array.isArray(state.convertFiles) && state.convertFiles.length;
     convertBtn.disabled = Boolean(state.converting) || planBlocked || !hasFiles || !onRunConvert;
@@ -507,6 +572,41 @@ const renderConversionPlatform = (opts) => {
       } catch {}
     };
 
+    actions.appendChild(convertBtn);
+
+    if (doneCount > 1) {
+      const dlAllLabel = Boolean(state.convertDownloadingAll)
+        ? (isArabic() ? "جاري تجهيز الملف…" : "Preparing…")
+        : (isArabic() ? "تحميل الكل" : "Download all");
+      const dlAll = btnPrimary(dlAllLabel);
+      dlAll.disabled = Boolean(state.converting) || planBlocked || !onDownloadAll || Boolean(state.convertDownloadingAll);
+      dlAll.style.opacity = dlAll.disabled ? "0.65" : "1";
+      dlAll.style.cursor = dlAll.disabled ? "not-allowed" : "pointer";
+      dlAll.onclick = () => {
+        try {
+          if (dlAll.disabled) return;
+          onDownloadAll();
+        } catch {}
+      };
+      actions.appendChild(dlAll);
+
+      const anyCanUpload = doneItems.some((x) => x && !x.uploadUrl && !x.uploading);
+      const upAllLabel = Boolean(state.convertUploadingAll)
+        ? (isArabic() ? "جاري الرفع…" : "Uploading…")
+        : (isArabic() ? "رفع الكل" : "Upload all");
+      const upAll = btnGhost(upAllLabel);
+      upAll.disabled = Boolean(state.converting) || planBlocked || !onUploadAll || Boolean(state.convertUploadingAll) || !anyCanUpload;
+      upAll.style.opacity = upAll.disabled ? "0.65" : "1";
+      upAll.style.cursor = upAll.disabled ? "not-allowed" : "pointer";
+      upAll.onclick = () => {
+        try {
+          if (upAll.disabled) return;
+          onUploadAll();
+        } catch {}
+      };
+      actions.appendChild(upAll);
+    }
+
     const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
     resetBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
     resetBtn.onclick = () => {
@@ -516,7 +616,6 @@ const renderConversionPlatform = (opts) => {
       } catch {}
     };
 
-    actions.appendChild(convertBtn);
     actions.appendChild(resetBtn);
     s.appendChild(actions);
 
@@ -538,7 +637,6 @@ const renderConversionPlatform = (opts) => {
       s.appendChild(renderError(state.convertError));
     }
 
-    const items = Array.isArray(state.convertItems) ? state.convertItems : [];
     if (items.length) {
       const list = document.createElement("div");
       list.style.display = "flex";
@@ -620,7 +718,7 @@ const renderConversionPlatform = (opts) => {
               if (dot > 0) baseName = baseName.slice(0, dot);
               baseName = baseName.slice(0, 120) || "converted";
               const rf = String((it && it.outFormat) || "").trim().toLowerCase();
-              const fmt = String(state.convertFormat || "").trim().toLowerCase();
+              const fmt = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
               const ext =
                 (rf ? rf : "") ||
                 (fmt === "mp4"
@@ -730,7 +828,18 @@ const renderConversionPlatform = (opts) => {
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          state.convertFormat = String(v || "mp4");
+          const next = String(v || "mp4");
+          state.convertFormat = next;
+          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          if (!Array.isArray(state.convertFileFormats) || state.convertFileFormats.length !== fs.length) {
+            state.convertFileFormats = fs.map(() => next);
+          }
+          if (!Array.isArray(state.convertFileFormatCustom) || state.convertFileFormatCustom.length !== fs.length) {
+            state.convertFileFormatCustom = fs.map(() => false);
+          }
+          for (let i = 0; i < fs.length; i += 1) {
+            if (!state.convertFileFormatCustom[i]) state.convertFileFormats[i] = next;
+          }
           if (onRender) onRender();
         } catch {}
       }
@@ -760,7 +869,18 @@ const renderConversionPlatform = (opts) => {
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          state.convertFormat = String(v || "webp");
+          const next = String(v || "webp");
+          state.convertFormat = next;
+          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          if (!Array.isArray(state.convertFileFormats) || state.convertFileFormats.length !== fs.length) {
+            state.convertFileFormats = fs.map(() => next);
+          }
+          if (!Array.isArray(state.convertFileFormatCustom) || state.convertFileFormatCustom.length !== fs.length) {
+            state.convertFileFormatCustom = fs.map(() => false);
+          }
+          for (let i = 0; i < fs.length; i += 1) {
+            if (!state.convertFileFormatCustom[i]) state.convertFileFormats[i] = next;
+          }
           if (onRender) onRender();
         } catch {}
       }
