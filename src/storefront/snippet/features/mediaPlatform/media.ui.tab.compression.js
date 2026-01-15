@@ -15,76 +15,6 @@ const renderCompressionPlatform = (opts) => {
 
   const busy = Boolean(state.compressRunning) || Boolean(state.compressUploadingAny);
 
-  const wireDragOnlyRange = (range, opts) => {
-    const o2 = opts && typeof opts === "object" ? opts : {};
-    const min = Number(o2.min);
-    const max = Number(o2.max);
-    const step = Number(o2.step) || 1;
-    const onValue = typeof o2.onValue === "function" ? o2.onValue : null;
-    const shouldBlock = typeof o2.shouldBlock === "function" ? o2.shouldBlock : () => false;
-    const thumbPx = Number(o2.thumbPx || 22) || 22;
-
-    const clamp = (x) => Math.max(min, Math.min(max, x));
-    const snap = (x) => {
-      const v = clamp(x);
-      const s = step > 0 ? step : 1;
-      return Math.round((v - min) / s) * s + min;
-    };
-    const readVal = () => {
-      const v = Number(range.value);
-      return Number.isFinite(v) ? v : min;
-    };
-    const thumbX = (rect) => {
-      const v = readVal();
-      const frac = max > min ? (v - min) / (max - min) : 0;
-      const inset = thumbPx / 2;
-      const usable = Math.max(1, rect.width - inset * 2);
-      return rect.left + inset + frac * usable;
-    };
-
-    const onDown = (e) => {
-      try {
-        if (shouldBlock()) return;
-        const rect = range.getBoundingClientRect();
-        const tx = thumbX(rect);
-        const dx = Math.abs(Number(e.clientX || 0) - tx);
-        if (dx > thumbPx * 2.2) {
-          range.__blockClick = true;
-          try {
-            e.preventDefault();
-          } catch {}
-          try {
-            e.stopPropagation();
-          } catch {}
-          return;
-        }
-      } catch {}
-    };
-
-    try {
-      range.style.touchAction = "none";
-    } catch {}
-    try {
-      if (typeof PointerEvent !== "undefined") range.addEventListener("pointerdown", onDown, { passive: false });
-      else range.addEventListener("mousedown", onDown, { passive: false });
-    } catch {}
-    range.addEventListener("click", (e) => {
-      try {
-        if (!range.__blockClick) return;
-        range.__blockClick = false;
-        e.preventDefault();
-        e.stopPropagation();
-      } catch {}
-    });
-    range.addEventListener("input", () => {
-      try {
-        const v = snap(Number(range.value));
-        range.value = String(v);
-        if (onValue) onValue(v);
-      } catch {}
-    });
-  };
-
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
     box.style.border = "1px solid rgba(255,255,255,.08)";
@@ -435,21 +365,6 @@ const renderCompressionPlatform = (opts) => {
   qWrap.appendChild(qHead);
   qWrap.appendChild(range);
   s2.appendChild(qWrap);
-  try {
-    wireDragOnlyRange(range, {
-      min: 40,
-      max: 95,
-      step: 1,
-      shouldBlock: () => Boolean(busy),
-      thumbPx: 22,
-      onValue: (v) => {
-        try {
-          state.compressQuality = String(v);
-          qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(v) || qDefault))));
-        } catch {}
-      }
-    });
-  } catch {}
 
   stepWrap.appendChild(s2);
 
