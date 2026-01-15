@@ -2383,6 +2383,77 @@ function createApiRouter(config) {
     if (!timingSafeEqualString(provided, configured)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
   }
 
+  router.get("/public/media/assets/:id/blob", validate(mediaDeleteParamsSchema, "params"), async (req, res, next) => {
+    try {
+      requireMediaAdminKey(req);
+      const id = String(req.params.id);
+
+      const asset = await MediaAsset.findOne({ _id: id, deletedAt: null }).lean();
+      if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
+
+      if (provider === "r2") {
+        const { bucket } = requireR2Config();
+        const client = getR2Client();
+        const key = String(asset.publicId || "").trim();
+        if (!key) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+        const range = String(req.headers.range || "").trim();
+        const wantsRange = Boolean(range);
+
+        let obj = null;
+        try {
+          obj = await client.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              ...(wantsRange ? { Range: range } : {})
+            })
+          );
+        } catch {
+          throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+        }
+
+        if (wantsRange && obj && obj.ContentRange) res.setHeader("Content-Range", String(obj.ContentRange));
+        if (wantsRange && obj && obj.AcceptRanges) res.setHeader("Accept-Ranges", String(obj.AcceptRanges));
+        if (wantsRange && obj && obj.ContentLength != null) res.setHeader("Content-Length", String(obj.ContentLength));
+        if (obj && obj.ContentType) res.setHeader("Content-Type", String(obj.ContentType));
+        res.status(wantsRange ? 206 : 200);
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        return obj && obj.Body ? obj.Body.pipe(res) : res.end();
+      }
+
+      const secureUrl = String(asset.secureUrl || asset.url || "").trim();
+      if (!secureUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+
+      try {
+        const resp = await axios.get(secureUrl, {
+          responseType: "stream",
+          timeout: 20_000,
+          validateStatus: () => true,
+          headers: {
+            ...(req.headers.range ? { range: String(req.headers.range) } : {})
+          }
+        });
+
+        if (!resp || resp.status < 200 || resp.status >= 400) throw new Error("upstream");
+
+        res.status(resp.status === 206 ? 206 : 200);
+        if (resp.headers && resp.headers["content-type"]) res.setHeader("Content-Type", String(resp.headers["content-type"]));
+        if (resp.headers && resp.headers["content-length"]) res.setHeader("Content-Length", String(resp.headers["content-length"]));
+        if (resp.headers && resp.headers["content-range"]) res.setHeader("Content-Range", String(resp.headers["content-range"]));
+        if (resp.headers && resp.headers["accept-ranges"]) res.setHeader("Accept-Ranges", String(resp.headers["accept-ranges"]));
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        return resp.data.pipe(res);
+      } catch {
+        throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
+      }
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   const adminSetMerchantPlanParamsSchema = Joi.object({
     merchantId: Joi.string().trim().min(1).max(80).required()
   });
