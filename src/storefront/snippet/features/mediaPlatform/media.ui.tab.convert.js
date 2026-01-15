@@ -397,7 +397,7 @@ const renderConversionPlatform = (opts) => {
     qVal.style.fontWeight = "950";
     const qDefault = convertIsVideo ? 78 : state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
     const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
-    const clampQ = (x) => Math.max(1, Math.min(100, Math.round(Number(x) || qDefault)));
+    const clampQ = (x) => Math.max(1, Math.min(92, Math.round(Number(x) || qDefault)));
     qVal.textContent = String(clampQ(qNum));
 
     qHead.appendChild(qLabel);
@@ -406,7 +406,7 @@ const renderConversionPlatform = (opts) => {
     const range = document.createElement("input");
     range.type = "range";
     range.min = "1";
-    range.max = "100";
+    range.max = "92";
     range.step = "1";
     range.value = String(qVal.textContent || qDefault);
     range.disabled = Boolean(state.converting) || planBlocked;

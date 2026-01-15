@@ -10,10 +10,7 @@ const renderCompressionPlatform = (opts) => {
   const onSetFiles = typeof o.onSetFiles === "function" ? o.onSetFiles : null;
   const onRunCompress = typeof o.onRunCompress === "function" ? o.onRunCompress : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
-  const onUploadItem = typeof o.onUploadItem === "function" ? o.onUploadItem : null;
-  const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
-
-  const busy = Boolean(state.compressRunning) || Boolean(state.compressUploadingAny);
+  const busy = Boolean(state.compressRunning);
 
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
@@ -333,7 +330,7 @@ const renderCompressionPlatform = (opts) => {
   const mime = String((first && first.type) || "").trim().toLowerCase();
   const qDefault = mime === "image/png" ? 90 : 82;
   const qNum = state.compressQuality ? Number(state.compressQuality) : qDefault;
-  qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
+  qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(qNum) || qDefault))));
 
   qHead.appendChild(qLabel);
   qHead.appendChild(qVal);
@@ -341,20 +338,20 @@ const renderCompressionPlatform = (opts) => {
   const range = document.createElement("input");
   range.type = "range";
   range.min = "1";
-  range.max = "100";
+  range.max = "92";
   range.step = "1";
   range.value = String(qVal.textContent || qDefault);
   range.disabled = busy;
   range.oninput = () => {
     try {
       state.compressQuality = String(range.value || "");
-      qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(range.value) || qDefault))));
+      qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(range.value) || qDefault))));
     } catch {}
   };
   range.onchange = () => {
     try {
       state.compressQuality = String(range.value || "");
-      qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(range.value) || qDefault))));
+      qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(range.value) || qDefault))));
       if (onRender) onRender();
     } catch {}
   };
@@ -400,21 +397,6 @@ const renderCompressionPlatform = (opts) => {
   actions.appendChild(runBtn);
   actions.appendChild(resetBtn);
   s3.appendChild(actions);
-
-  if (state.compressRunning) {
-    const prog = document.createElement("div");
-    prog.style.border = "1px solid rgba(255,255,255,.08)";
-    prog.style.borderRadius = "14px";
-    prog.style.background = "#373737";
-    prog.style.overflow = "hidden";
-    const bar = document.createElement("div");
-    bar.style.height = "10px";
-    const pct = Math.max(0, Math.min(100, Number(state.compressOverallProgress || 0) || 0));
-    bar.style.width = String(pct) + "%";
-    bar.style.background = "#18b5d5";
-    prog.appendChild(bar);
-    s3.appendChild(prog);
-  }
 
   const items = Array.isArray(state.compressItems) ? state.compressItems : [];
   if (items.length) {
@@ -564,58 +546,9 @@ const renderCompressionPlatform = (opts) => {
           } catch {}
         };
 
-        const upLabel = it.uploadUrl
-          ? (isArabic() ? "تم الرفع" : "Uploaded")
-          : it.uploading
-            ? (isArabic() ? "جاري الرفع…" : "Uploading…")
-            : (isArabic() ? "رفع على المنصة" : "Upload to platform");
-        const up = btnPrimary(upLabel);
-        up.disabled = Boolean(it.uploading) || Boolean(it.uploadUrl) || !onUploadItem;
-        up.style.opacity = up.disabled ? "0.65" : "1";
-        up.style.cursor = up.disabled ? "not-allowed" : "pointer";
-        up.onclick = () => {
-          try {
-            if (up.disabled) return;
-            onUploadItem(String(it.id || ""));
-          } catch {}
-        };
-
         act.appendChild(dl);
-        act.appendChild(up);
-
-        if (it.uploadUrl) {
-          const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتي" : "Open in My files");
-          openFilesBtn.disabled = !onOpenFiles;
-          openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.65" : "1";
-          openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";
-          openFilesBtn.onclick = () => {
-            try {
-              if (openFilesBtn.disabled) return;
-              onOpenFiles();
-            } catch {}
-          };
-          act.appendChild(openFilesBtn);
-        }
 
         box.appendChild(act);
-
-        if (it.uploading || it.uploadError) {
-          const sub = document.createElement("div");
-          sub.style.fontSize = "12px";
-          sub.style.fontWeight = "900";
-          sub.style.color = it.uploadError ? "#ef4444" : "rgba(24,181,213,.9)";
-          const pct2 = (() => {
-            try {
-              const p2 = Number(it.uploadProgress);
-              if (!Number.isFinite(p2)) return 0;
-              return Math.max(0, Math.min(100, Math.round(p2)));
-            } catch {
-              return 0;
-            }
-          })();
-          sub.textContent = it.uploadError ? String(it.uploadError || "") : (isArabic() ? "جاري الرفع " : "Uploading ") + String(pct2) + "%";
-          box.appendChild(sub);
-        }
       }
 
       return box;
