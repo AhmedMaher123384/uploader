@@ -1017,7 +1017,6 @@ const renderConversionPlatform = (opts) => {
     const presetSelectValue = String(state.convertPreset || "original") || "original";
 
     const presetSelect = mkSelect(
-      isArabic() ? "مقاس جاهز" : "Preset size",
       presetSelectValue,
       presetOptions,
       Boolean(state.converting) || planBlocked,
