@@ -202,19 +202,19 @@ const renderConversionPlatform = (opts) => {
 
     const l = document.createElement("div");
     l.style.color = "rgba(255,255,255,.75)";
-    l.style.fontSize = "12px";
+    l.style.fontSize = "11px";
     l.style.fontWeight = "950";
-    l.textContent = String(labelText || "");
+    l.textContent = String(labelText || "") + " ▾";
 
     const s = document.createElement("select");
     s.disabled = Boolean(disabled);
     s.style.width = "100%";
-    s.style.padding = "10px 12px";
+    s.style.padding = "9px 10px";
     s.style.borderRadius = "12px";
     s.style.border = "1px solid rgba(255,255,255,.08)";
     s.style.background = "#373737";
     s.style.color = "rgba(255,255,255,.90)";
-    s.style.fontSize = "12px";
+    s.style.fontSize = "11px";
     s.style.fontWeight = "900";
     s.onchange = () => {
       try {
@@ -344,14 +344,16 @@ const renderConversionPlatform = (opts) => {
       const fallbackFmt = convertIsVideo ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
       const fmtValue = String(fileFormats[i] || fallbackFmt || "").trim();
 
+      const showPerFileFormat = selectedFiles.length > 1;
+
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "6px 8px";
+      fmt.style.padding = "5px 7px";
       fmt.style.borderRadius = "10px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "11px";
+      fmt.style.fontSize = "10px";
       fmt.style.fontWeight = "950";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
@@ -390,12 +392,35 @@ const renderConversionPlatform = (opts) => {
             if (state.convertFileFormats[k] == null) state.convertFileFormats[k] = fallbackFmt;
             if (state.convertFileFormatCustom[k] == null) state.convertFileFormatCustom[k] = Boolean(fileFormatsCustom[k]);
           }
+          const uniq = new Set();
+          for (let k = 0; k < selectedFiles.length; k += 1) uniq.add(String(state.convertFileFormats[k] || fallbackFmt));
+          if (uniq.size === 1) {
+            const only = String(Array.from(uniq)[0] || fallbackFmt);
+            state.convertFormat = only;
+            state.convertFileFormatCustom = selectedFiles.map(() => false);
+          }
           if (onRender) onRender();
         } catch {}
       };
 
       right.appendChild(size);
-      right.appendChild(fmt);
+      if (showPerFileFormat) {
+        const fmtWrap = document.createElement("div");
+        fmtWrap.style.display = "inline-flex";
+        fmtWrap.style.alignItems = "center";
+        fmtWrap.style.gap = "6px";
+
+        const arrow = document.createElement("div");
+        arrow.textContent = "▾";
+        arrow.style.color = "rgba(255,255,255,.70)";
+        arrow.style.fontSize = "10px";
+        arrow.style.fontWeight = "950";
+        arrow.style.lineHeight = "1";
+
+        fmtWrap.appendChild(fmt);
+        fmtWrap.appendChild(arrow);
+        right.appendChild(fmtWrap);
+      }
 
       row.appendChild(name);
       row.appendChild(right);
@@ -666,26 +691,54 @@ const renderConversionPlatform = (opts) => {
         left.style.gap = "4px";
         left.style.minWidth = "0";
 
-        const name = document.createElement("div");
-        name.style.color = "#fff";
-        name.style.fontSize = "12px";
-        name.style.fontWeight = "950";
-        name.style.overflow = "hidden";
-        name.style.textOverflow = "ellipsis";
-        name.style.whiteSpace = "nowrap";
-        name.textContent = String((it && it.name) || "");
+      const name = document.createElement("div");
+      name.style.color = "#fff";
+      name.style.fontSize = "12px";
+      name.style.fontWeight = "950";
+      name.style.overflow = "hidden";
+      name.style.textOverflow = "ellipsis";
+      name.style.whiteSpace = "nowrap";
+      const status = String((it && it.status) || "");
+      const rawName = String((it && it.name) || "");
+      const shownName = (() => {
+        if (status !== "done") return rawName;
+        let baseName = rawName;
+        const dot = baseName.lastIndexOf(".");
+        if (dot > 0) baseName = baseName.slice(0, dot);
+        baseName = baseName.slice(0, 120) || (isArabic() ? "ملف" : "file");
+        const rf = String((it && it.outFormat) || "").trim().toLowerCase();
+        const tf = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
+        const ext =
+          (rf ? rf : "") ||
+          (tf === "mp4"
+            ? "mp4"
+            : tf === "mov"
+              ? "mov"
+              : tf === "webm" || tf === "webm_local"
+                ? "webm"
+                : tf === "avif"
+                  ? "avif"
+                  : tf === "webp"
+                    ? "webp"
+                    : tf === "jpeg"
+                      ? "jpeg"
+                      : tf === "png"
+                        ? "png"
+                        : "");
+        return ext ? (baseName + "." + ext) : rawName;
+      })();
+      name.textContent = shownName;
 
-        const sub = document.createElement("div");
-        sub.style.color = (it && (it.error || it.uploadError)) ? "#ef4444" : "rgba(255,255,255,.62)";
-        sub.style.fontSize = "12px";
-        sub.style.fontWeight = "900";
+      const sub = document.createElement("div");
+      sub.style.color = (it && (it.error || it.uploadError)) ? "#ef4444" : "rgba(255,255,255,.62)";
+      sub.style.fontSize = "12px";
+      sub.style.fontWeight = "900";
 
-        const status = String((it && it.status) || "");
-        const pct = Math.max(0, Math.min(100, Math.round(Number((it && it.progress) || 0) || 0)));
-        const outFmt = String((it && it.outFormat) || "").trim().toUpperCase();
-        const outBytes = Number((it && it.outBytes) || 0) || 0;
-        const msg =
-          status === "running"
+      const pct = Math.max(0, Math.min(100, Math.round(Number((it && it.progress) || 0) || 0)));
+      const outFmt = String((it && it.outFormat) || "").trim().toUpperCase();
+      const outBytes = Number((it && it.outBytes) || 0) || 0;
+      const msg =
+        status === "running"
             ? (isArabic() ? "جاري التحويل " : "Converting ") + String(pct) + "%"
             : status === "queued"
               ? (isArabic() ? "في الانتظار" : "Queued")
@@ -816,8 +869,9 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "إعدادات الفيديو" : "Video settings",
       ""
     );
+    const hasCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom.some(Boolean) : false;
     const fmtSelect = mkSelect(
-      isArabic() ? "صيغة الناتج" : "Output format",
+      isArabic() ? "صيغة الناتج (افتراضي)" : "Output format (default)",
       String(state.convertFormat || "mp4"),
       [
         { value: "mp4", label: isArabic() ? "MP4 (H.264) " : "MP4 (H.264) " },
@@ -845,6 +899,15 @@ const renderConversionPlatform = (opts) => {
       }
     );
     s2.appendChild(fmtSelect);
+    const note = document.createElement("div");
+    note.style.color = "rgba(255,255,255,.55)";
+    note.style.fontSize = "11px";
+    note.style.fontWeight = "900";
+    note.style.lineHeight = "1.6";
+    note.textContent = hasCustom
+      ? (isArabic() ? "بعض الملفات لها صيغة مختلفة من القائمة بالأعلى." : "Some files use custom formats from the list above.")
+      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
+    s2.appendChild(note);
     stepWrap.appendChild(s2);
     stepWrap.appendChild(buildQualityStep(3));
     stepWrap.appendChild(buildConvertStep(4));
@@ -857,8 +920,9 @@ const renderConversionPlatform = (opts) => {
 
     let fmtValue = String(state.convertFormat || "webp");
     if (fmtValue === "auto") fmtValue = "webp";
+    const hasCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom.some(Boolean) : false;
     const fmtSelect = mkSelect(
-      isArabic() ? "الصيغة" : "Format",
+      isArabic() ? "الصيغة (افتراضي)" : "Format (default)",
       fmtValue,
       [
         { value: "avif", label: "AVIF" },
@@ -886,6 +950,15 @@ const renderConversionPlatform = (opts) => {
       }
     );
     s2.appendChild(fmtSelect);
+    const note = document.createElement("div");
+    note.style.color = "rgba(255,255,255,.55)";
+    note.style.fontSize = "11px";
+    note.style.fontWeight = "900";
+    note.style.lineHeight = "1.6";
+    note.textContent = hasCustom
+      ? (isArabic() ? "بعض الملفات لها صيغة مختلفة من القائمة بالأعلى." : "Some files use custom formats from the list above.")
+      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
+    s2.appendChild(note);
 
     const s3 = mkStep(3, isArabic() ? "المقاس" : "Resize", isArabic() ? "اختر مقاس جاهز" : "Pick a preset size");
 
