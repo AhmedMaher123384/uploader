@@ -292,17 +292,27 @@ const renderConversionPlatform = (opts) => {
       return 0;
     }
   })();
-  fileSize.textContent =
-    selectedCount
-      ? ((isArabic()
+  fileSize.textContent = selectedCount
+    ? (
+        (isArabic()
           ? ("تم اختيار " + String(selectedCount) + (selectedCount === 1 ? " ملف" : " ملفات"))
           : ("Selected " + String(selectedCount) + (selectedCount === 1 ? " file" : " files"))) +
-        " · " +
-        fmtBytes(totalBytes) +
-        (maxFiles ? (isArabic() ? " · الحد " : " · max ") + String(maxFiles) : ""))
-      : "";
+        " — " +
+        (isArabic() ? "إجمالي الحجم: " : "Total size: ") +
+        fmtBytes(totalBytes)
+      )
+    : "";
 
-  fileMeta.appendChild(fileSize);
+  const limitLine = document.createElement("div");
+  limitLine.style.color = "rgba(255,255,255,.55)";
+  limitLine.style.fontSize = "12px";
+  limitLine.style.fontWeight = "900";
+  limitLine.textContent = maxFiles
+    ? (isArabic() ? ("الحد الأقصى: " + String(maxFiles) + " ملفات") : ("Max: " + String(maxFiles) + " files"))
+    : "";
+
+  if (fileSize.textContent) fileMeta.appendChild(fileSize);
+  if (limitLine.textContent) fileMeta.appendChild(limitLine);
   s1.appendChild(fileMeta);
 
   if (selectedFiles.length) {
@@ -676,7 +686,6 @@ const renderConversionPlatform = (opts) => {
 
     actions.appendChild(resetBtn);
     s.appendChild(actions);
-    if (bulkActions.childNodes && bulkActions.childNodes.length) s.appendChild(bulkActions);
 
     if (state.converting || Number(state.convertOverallProgress || 0) > 0) {
       const prog = document.createElement("div");
@@ -892,6 +901,7 @@ const renderConversionPlatform = (opts) => {
         if (row) list.appendChild(row);
       }
       s.appendChild(list);
+      if (bulkActions.childNodes && bulkActions.childNodes.length) s.appendChild(bulkActions);
     }
     return s;
   };

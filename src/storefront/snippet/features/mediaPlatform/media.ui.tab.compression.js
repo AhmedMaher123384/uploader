@@ -488,19 +488,64 @@ const renderCompressionPlatform = (opts) => {
       meta.style.fontSize = "12px";
       meta.style.fontWeight = "900";
       meta.style.color = "rgba(255,255,255,.65)";
-      meta.style.direction = "ltr";
+      meta.style.display = "flex";
+      meta.style.flexDirection = "column";
+      meta.style.gap = "2px";
       const inB = Number((it && it.inBytes) || 0) || 0;
       const outB = Number((it && it.outBytes) || 0) || 0;
       const ratio = inB > 0 && outB > 0 ? Math.max(0, Math.min(100, Math.round((1 - outB / inB) * 100))) : 0;
       const fmt2 = String((it && it.outFormat) || "").trim();
-      meta.textContent =
-        outB && fmt2
-          ? (
-              (isArabic()
-                ? ("قبل " + fmtBytes(inB) + " → بعد " + fmtBytes(outB) + " • وفر " + String(ratio) + "% • " + fmt2.toUpperCase())
-                : ("Before " + fmtBytes(inB) + " → After " + fmtBytes(outB) + " • Saved " + String(ratio) + "% • " + fmt2.toUpperCase()))
-            )
-          : fmtBytes(inB);
+      if (outB && fmt2) {
+        const line1 = document.createElement("div");
+        line1.style.direction = "ltr";
+        line1.style.color = "rgba(255,255,255,.78)";
+        line1.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
+
+        const line2 = document.createElement("div");
+        line2.style.display = "flex";
+        line2.style.flexWrap = "wrap";
+        line2.style.alignItems = "center";
+        line2.style.gap = "8px";
+        line2.style.color = "rgba(255,255,255,.65)";
+
+        const saved = document.createElement("span");
+        saved.style.display = "inline-flex";
+        saved.style.alignItems = "center";
+        saved.style.gap = "6px";
+        saved.style.direction = isArabic() ? "rtl" : "ltr";
+
+        const savedLabel = document.createElement("span");
+        savedLabel.textContent = isArabic() ? "التوفير" : "Saved";
+
+        const savedVal = document.createElement("span");
+        savedVal.style.color = "rgba(255,255,255,.86)";
+        savedVal.style.direction = "ltr";
+        savedVal.textContent = String(ratio) + "%";
+
+        saved.appendChild(savedLabel);
+        saved.appendChild(savedVal);
+
+        const sep = document.createElement("span");
+        sep.textContent = "•";
+        sep.style.opacity = "0.7";
+
+        const fmtChip = document.createElement("span");
+        fmtChip.style.color = "rgba(255,255,255,.86)";
+        fmtChip.style.direction = "ltr";
+        fmtChip.textContent = fmt2.toUpperCase();
+
+        line2.appendChild(saved);
+        line2.appendChild(sep);
+        line2.appendChild(fmtChip);
+
+        meta.appendChild(line1);
+        meta.appendChild(line2);
+      } else {
+        const only = document.createElement("div");
+        only.style.direction = "ltr";
+        only.textContent = fmtBytes(inB);
+        meta.appendChild(only);
+      }
 
       left.appendChild(name);
       left.appendChild(meta);
