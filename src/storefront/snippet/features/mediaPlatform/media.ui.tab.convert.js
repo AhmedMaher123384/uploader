@@ -135,6 +135,7 @@ const renderConversionPlatform = (opts) => {
   titleWrap.appendChild(kindRow);
 
   const pickBtn = btnGhost(isArabic() ? "اختيار ملفات" : "Pick files");
+  pickBtn.style.color = "#fff";
   pickBtn.disabled = Boolean(state.converting) || planBlocked || !convertInput;
   pickBtn.onclick = () => {
     try {
@@ -287,6 +288,61 @@ const renderConversionPlatform = (opts) => {
   fileMeta.appendChild(fileName);
   fileMeta.appendChild(fileSize);
   s1.appendChild(fileMeta);
+
+  if (selectedFiles.length) {
+    const list = document.createElement("div");
+    list.style.display = "flex";
+    list.style.flexDirection = "column";
+    list.style.gap = "0";
+    list.style.maxHeight = "160px";
+    list.style.overflow = "auto";
+    list.style.padding = "2px";
+    list.style.borderRadius = "12px";
+    list.style.border = "1px solid rgba(24,181,213,.35)";
+    list.style.background = "rgba(24,181,213,.12)";
+    list.style.direction = isArabic() ? "rtl" : "ltr";
+
+    for (let i = 0; i < selectedFiles.length; i += 1) {
+      const f = selectedFiles[i];
+      if (!f) continue;
+
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.gap = "10px";
+      row.style.padding = "8px 10px";
+      row.style.borderRadius = "10px";
+      row.style.background = "rgba(255,255,255,.06)";
+
+      const name = document.createElement("div");
+      name.style.color = "#fff";
+      name.style.fontSize = "12px";
+      name.style.fontWeight = "950";
+      name.style.minWidth = "0";
+      name.style.flex = "1 1 auto";
+      name.style.overflow = "hidden";
+      name.style.textOverflow = "ellipsis";
+      name.style.whiteSpace = "nowrap";
+      name.style.textAlign = "right";
+      name.textContent = String(f.name || "");
+
+      const size = document.createElement("div");
+      size.style.color = "rgba(255,255,255,.88)";
+      size.style.fontSize = "12px";
+      size.style.fontWeight = "900";
+      size.style.flex = "0 0 auto";
+      size.style.direction = "ltr";
+      size.style.textAlign = "left";
+      size.textContent = fmtBytes(Number(f.size || 0) || 0);
+
+      row.appendChild(name);
+      row.appendChild(size);
+      list.appendChild(row);
+    }
+
+    s1.appendChild(list);
+  }
 
   // الدروب زون بتصميم مطابق للصورة
   const dzWrap = document.createElement("div");

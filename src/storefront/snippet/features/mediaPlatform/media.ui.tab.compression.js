@@ -169,6 +169,7 @@ const renderCompressionPlatform = (opts) => {
   titleWrap.appendChild(hint);
 
   const pickBtn = btnGhost(isArabic() ? "اختيار صور" : "Pick images");
+  pickBtn.style.color = "#fff";
   pickBtn.disabled = busy || !compressInput;
   pickBtn.style.opacity = pickBtn.disabled ? "0.65" : "1";
   pickBtn.style.cursor = pickBtn.disabled ? "not-allowed" : "pointer";
@@ -217,10 +218,10 @@ const renderCompressionPlatform = (opts) => {
     list.style.gap = "8px";
     list.style.maxHeight = "160px";
     list.style.overflow = "auto";
-    list.style.padding = "8px";
+    list.style.padding = "2px";
     list.style.borderRadius = "12px";
-    list.style.border = "1px solid rgba(255,255,255,.08)";
-    list.style.background = "#303030";
+    list.style.border = "1px solid rgba(24,181,213,.35)";
+    list.style.background = "rgba(24,181,213,.12)";
     list.style.direction = isArabic() ? "rtl" : "ltr";
 
     for (let i = 0; i < selected.length; i += 1) {
@@ -232,9 +233,12 @@ const renderCompressionPlatform = (opts) => {
       row.style.alignItems = "center";
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
+      row.style.padding = "8px 10px";
+      row.style.borderRadius = "10px";
+      row.style.background = "rgba(255,255,255,.06)";
 
       const name = document.createElement("div");
-      name.style.color = "rgba(255,255,255,.92)";
+      name.style.color = "#fff";
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
@@ -246,7 +250,7 @@ const renderCompressionPlatform = (opts) => {
       name.textContent = String(f.name || "");
 
       const size = document.createElement("div");
-      size.style.color = "rgba(255,255,255,.62)";
+      size.style.color = "rgba(255,255,255,.88)";
       size.style.fontSize = "12px";
       size.style.fontWeight = "900";
       size.style.flex = "0 0 auto";

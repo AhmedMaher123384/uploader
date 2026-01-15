@@ -2414,6 +2414,7 @@ const mount = () => {
             sheet.tabs.appendChild(filesTab);
 
             const refreshBtn = btnGhost(labels.ref);
+            refreshBtn.style.color = "#fff";
             refreshBtn.onclick = () => {
               try {
                 clearMediaApiCache();

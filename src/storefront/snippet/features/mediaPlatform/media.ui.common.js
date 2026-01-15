@@ -595,7 +595,7 @@ const buildSheet = () => {
   close.style.borderRadius = "10px";
   close.style.border = "1px solid rgba(24,181,213,.3)";
   close.style.background = "#373737";
-  close.style.color = "#18b5d5";
+  close.style.color = "#fff";
   close.style.fontSize = "13px";
   close.style.fontWeight = "900";
   close.style.cursor = "pointer";
