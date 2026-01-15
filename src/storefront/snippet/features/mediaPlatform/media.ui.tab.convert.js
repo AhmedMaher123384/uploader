@@ -21,7 +21,7 @@ const renderConversionPlatform = (opts) => {
     const step = Number(o2.step) || 1;
     const onValue = typeof o2.onValue === "function" ? o2.onValue : null;
     const shouldBlock = typeof o2.shouldBlock === "function" ? o2.shouldBlock : () => false;
-    const thumbPx = Number(o2.thumbPx || 16) || 16;
+    const thumbPx = Number(o2.thumbPx || 22) || 22;
 
     const clamp = (x) => Math.max(min, Math.min(max, x));
     const snap = (x) => {
@@ -43,60 +43,82 @@ const renderConversionPlatform = (opts) => {
     const thumbX = (rect) => {
       const v = readVal();
       const frac = max > min ? (v - min) / (max - min) : 0;
-      return rect.left + frac * rect.width;
+      const inset = thumbPx / 2;
+      const usable = Math.max(1, rect.width - inset * 2);
+      return rect.left + inset + frac * usable;
     };
 
-    const onPointerDown = (e) => {
+    const onDown = (e) => {
       try {
         if (shouldBlock()) return;
+        try {
+          e.preventDefault();
+        } catch {}
         const rect = range.getBoundingClientRect();
         const tx = thumbX(rect);
         const dx = Math.abs(Number(e.clientX || 0) - tx);
-        if (dx > thumbPx) {
-          try {
-            e.preventDefault();
-          } catch {}
-          return;
-        }
+        if (dx > thumbPx * 0.95) return;
 
-        try {
-          range.setPointerCapture(e.pointerId);
-        } catch {}
-
-        const move = (ev) => {
+        const inset = thumbPx / 2;
+        const move = (clientX) => {
           try {
             if (shouldBlock()) return;
             const r = range.getBoundingClientRect();
-            const x = Math.max(r.left, Math.min(r.right, Number(ev.clientX || 0)));
-            const frac = r.width > 0 ? (x - r.left) / r.width : 0;
+            const usable = Math.max(1, r.width - inset * 2);
+            const x = Math.max(r.left + inset, Math.min(r.right - inset, Number(clientX || 0)));
+            const frac = usable > 0 ? (x - (r.left + inset)) / usable : 0;
             const v = min + frac * (max - min);
             writeVal(v);
           } catch {}
         };
-        const up = () => {
+
+        if (typeof PointerEvent !== "undefined" && e.pointerId != null) {
           try {
-            window.removeEventListener("pointermove", move);
+            range.setPointerCapture(e.pointerId);
+          } catch {}
+          const onMove = (ev) => move(ev.clientX);
+          const onUp = () => {
+            try {
+              window.removeEventListener("pointermove", onMove);
+            } catch {}
+            try {
+              window.removeEventListener("pointerup", onUp);
+            } catch {}
+          };
+          try {
+            window.addEventListener("pointermove", onMove, { passive: true });
           } catch {}
           try {
-            window.removeEventListener("pointerup", up);
+            window.addEventListener("pointerup", onUp, { passive: true });
+          } catch {}
+          return;
+        }
+
+        const onMove = (ev) => move(ev.clientX);
+        const onUp = () => {
+          try {
+            window.removeEventListener("mousemove", onMove);
+          } catch {}
+          try {
+            window.removeEventListener("mouseup", onUp);
           } catch {}
         };
-
         try {
-          window.addEventListener("pointermove", move, { passive: true });
+          window.addEventListener("mousemove", onMove, { passive: true });
         } catch {}
         try {
-          window.addEventListener("pointerup", up, { passive: true });
+          window.addEventListener("mouseup", onUp, { passive: true });
         } catch {}
       } catch {}
     };
 
-    range.addEventListener("pointerdown", onPointerDown);
-    range.addEventListener("mousedown", (e) => {
-      try {
-        e.preventDefault();
-      } catch {}
-    });
+    try {
+      range.style.touchAction = "none";
+    } catch {}
+    try {
+      if (typeof PointerEvent !== "undefined") range.addEventListener("pointerdown", onDown);
+      else range.addEventListener("mousedown", onDown);
+    } catch {}
     range.addEventListener("click", (e) => {
       try {
         e.preventDefault();
@@ -527,6 +549,7 @@ const renderConversionPlatform = (opts) => {
         max: 95,
         step: 1,
         shouldBlock: () => Boolean(state.converting) || planBlocked,
+        thumbPx: 22,
         onValue: (v) => {
           try {
             state.convertQuality = String(v);

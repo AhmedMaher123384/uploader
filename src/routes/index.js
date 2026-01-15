@@ -3178,10 +3178,6 @@ function createApiRouter(config) {
       const base = sharp(body, { sequentialRead: true, failOn: "none", limitInputPixels: maxInputPixels });
       const meta = await base.metadata().catch(() => ({}));
 
-      const srcW = Number(meta && meta.width) || 0;
-      const srcH = Number(meta && meta.height) || 0;
-      const srcPixels = srcW > 0 && srcH > 0 ? srcW * srcH : 0;
-
       const srcFmtRaw = String((meta && meta.format) || "").trim().toLowerCase();
       const srcFmt = srcFmtRaw === "jpg" ? "jpeg" : srcFmtRaw;
 
@@ -3200,13 +3196,6 @@ function createApiRouter(config) {
               : 82;
 
       let img = base.rotate();
-      const targetPixels = planKey === "business" ? 18_000_000 : 12_000_000;
-      if (srcPixels && srcPixels > targetPixels && srcW > 0 && srcH > 0) {
-        const scale = Math.sqrt(targetPixels / srcPixels);
-        const w = Math.max(1, Math.floor(srcW * scale));
-        const hh = Math.max(1, Math.floor(srcH * scale));
-        img = img.resize({ width: w, height: hh, fit: "inside", withoutEnlargement: true });
-      }
 
       let out = null;
       let contentType = "application/octet-stream";
