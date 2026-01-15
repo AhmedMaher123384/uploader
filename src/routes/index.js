@@ -3128,9 +3128,8 @@ function createApiRouter(config) {
     token: Joi.string().trim().min(10),
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
-    format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
+    format: Joi.string().trim().valid("keep", "webp", "avif", "jpeg", "png").default("keep"),
     quality: Joi.number().integer().min(1).max(100),
-    speed: Joi.string().trim().valid("fast", "balanced", "small").default("balanced"),
     name: Joi.string().trim().min(1).max(180).allow("")
   })
     .or("signature", "hmac", "token")
@@ -3183,24 +3182,21 @@ function createApiRouter(config) {
       const srcH = Number(meta && meta.height) || 0;
       const srcPixels = srcW > 0 && srcH > 0 ? srcW * srcH : 0;
 
-      let targetFormat = String(qValue.format || "auto").trim().toLowerCase();
-      if (targetFormat === "auto") {
-        targetFormat = srcPixels && srcPixels >= 14_000_000 ? "webp" : "avif";
-      }
+      const srcFmtRaw = String((meta && meta.format) || "").trim().toLowerCase();
+      const srcFmt = srcFmtRaw === "jpg" ? "jpeg" : srcFmtRaw;
 
-      const speed = String(qValue.speed || "balanced").trim().toLowerCase();
-      const effort = speed === "small" ? 6 : speed === "balanced" ? 4 : 2;
+      const requested = String(qValue.format || "keep").trim().toLowerCase();
+      const targetFormat = requested === "keep" ? srcFmt : requested;
+      const effort = 4;
 
       const qRaw = qValue.quality != null ? Number(qValue.quality) : null;
       const quality =
         qRaw && Number.isFinite(qRaw)
           ? Math.max(1, Math.min(100, Math.round(qRaw)))
           : targetFormat === "avif"
-            ? speed === "small"
-              ? 50
-              : 55
-            : speed === "small"
-              ? 76
+            ? 55
+            : targetFormat === "png"
+              ? 90
               : 82;
 
       let img = base.rotate();
@@ -3216,6 +3212,11 @@ function createApiRouter(config) {
       let contentType = "application/octet-stream";
       let ext = "bin";
 
+      const supported = targetFormat === "webp" || targetFormat === "avif" || targetFormat === "jpeg" || targetFormat === "png";
+      if (!supported) {
+        throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+      }
+
       if (targetFormat === "webp") {
         out = await img.webp({ quality, effort, smartSubsample: true }).toBuffer();
         contentType = "image/webp";
@@ -3229,12 +3230,29 @@ function createApiRouter(config) {
         contentType = "image/jpeg";
         ext = "jpeg";
       } else if (targetFormat === "png") {
-        const compressionLevel = speed === "small" ? 9 : speed === "balanced" ? 7 : 6;
-        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: speed === "small", quality }).toBuffer();
+        const compressionLevel = 8;
+        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: false, quality }).toBuffer();
         contentType = "image/png";
         ext = "png";
       } else {
         throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+      }
+
+      if (requested === "keep" && out && out.length && out.length >= body.length) {
+        out = body;
+        if (srcFmt === "png") {
+          contentType = "image/png";
+          ext = "png";
+        } else if (srcFmt === "jpeg") {
+          contentType = "image/jpeg";
+          ext = "jpeg";
+        } else if (srcFmt === "webp") {
+          contentType = "image/webp";
+          ext = "webp";
+        } else if (srcFmt === "avif") {
+          contentType = "image/avif";
+          ext = "avif";
+        }
       }
 
       const headerName = String(req.headers["x-file-name"] || "").trim();
@@ -3264,6 +3282,7 @@ function createApiRouter(config) {
       res.setHeader("Expires", "0");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
       res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.setHeader("X-Output-Format", ext);
       res.setHeader("X-Converted-Format", ext);
       return res.send(out);
     } catch (err) {

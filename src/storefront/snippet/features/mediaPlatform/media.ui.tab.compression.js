@@ -15,6 +15,97 @@ const renderCompressionPlatform = (opts) => {
 
   const busy = Boolean(state.compressRunning) || Boolean(state.compressUploadingAny);
 
+  const wireDragOnlyRange = (range, opts) => {
+    const o2 = opts && typeof opts === "object" ? opts : {};
+    const min = Number(o2.min);
+    const max = Number(o2.max);
+    const step = Number(o2.step) || 1;
+    const onValue = typeof o2.onValue === "function" ? o2.onValue : null;
+    const shouldBlock = typeof o2.shouldBlock === "function" ? o2.shouldBlock : () => false;
+    const thumbPx = Number(o2.thumbPx || 16) || 16;
+
+    const clamp = (x) => Math.max(min, Math.min(max, x));
+    const snap = (x) => {
+      const v = clamp(x);
+      const s = step > 0 ? step : 1;
+      return Math.round((v - min) / s) * s + min;
+    };
+    const readVal = () => {
+      const v = Number(range.value);
+      return Number.isFinite(v) ? v : min;
+    };
+    const writeVal = (v) => {
+      const vv = snap(v);
+      range.value = String(vv);
+      try {
+        if (onValue) onValue(vv);
+      } catch {}
+    };
+    const thumbX = (rect) => {
+      const v = readVal();
+      const frac = max > min ? (v - min) / (max - min) : 0;
+      return rect.left + frac * rect.width;
+    };
+
+    const onPointerDown = (e) => {
+      try {
+        if (shouldBlock()) return;
+        const rect = range.getBoundingClientRect();
+        const tx = thumbX(rect);
+        const dx = Math.abs(Number(e.clientX || 0) - tx);
+        if (dx > thumbPx) {
+          try {
+            e.preventDefault();
+          } catch {}
+          return;
+        }
+
+        try {
+          range.setPointerCapture(e.pointerId);
+        } catch {}
+
+        const move = (ev) => {
+          try {
+            if (shouldBlock()) return;
+            const r = range.getBoundingClientRect();
+            const x = Math.max(r.left, Math.min(r.right, Number(ev.clientX || 0)));
+            const frac = r.width > 0 ? (x - r.left) / r.width : 0;
+            const v = min + frac * (max - min);
+            writeVal(v);
+          } catch {}
+        };
+        const up = () => {
+          try {
+            window.removeEventListener("pointermove", move);
+          } catch {}
+          try {
+            window.removeEventListener("pointerup", up);
+          } catch {}
+        };
+
+        try {
+          window.addEventListener("pointermove", move, { passive: true });
+        } catch {}
+        try {
+          window.addEventListener("pointerup", up, { passive: true });
+        } catch {}
+      } catch {}
+    };
+
+    range.addEventListener("pointerdown", onPointerDown);
+    range.addEventListener("mousedown", (e) => {
+      try {
+        e.preventDefault();
+      } catch {}
+    });
+    range.addEventListener("click", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch {}
+    });
+  };
+
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
     box.style.border = "1px solid rgba(255,255,255,.08)";
@@ -214,15 +305,55 @@ const renderCompressionPlatform = (opts) => {
   selMeta.appendChild(selLine);
 
   if (selected.length) {
-    const names = document.createElement("div");
-    names.style.color = "rgba(255,255,255,.55)";
-    names.style.fontSize = "11px";
-    names.style.fontWeight = "900";
-    names.style.lineHeight = "1.7";
-    const show = selected.slice(0, 6).map((f) => String((f && f.name) || "")).filter(Boolean);
-    names.textContent =
-      show.join(" • ") + (selected.length > show.length ? (isArabic() ? " …" : " …") : "");
-    selMeta.appendChild(names);
+    const list = document.createElement("div");
+    list.style.display = "flex";
+    list.style.flexDirection = "column";
+    list.style.gap = "8px";
+    list.style.maxHeight = "160px";
+    list.style.overflow = "auto";
+    list.style.padding = "8px";
+    list.style.borderRadius = "12px";
+    list.style.border = "1px solid rgba(255,255,255,.08)";
+    list.style.background = "#303030";
+    list.style.direction = isArabic() ? "rtl" : "ltr";
+
+    for (let i = 0; i < selected.length; i += 1) {
+      const f = selected[i];
+      if (!f) continue;
+
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.gap = "10px";
+
+      const name = document.createElement("div");
+      name.style.color = "rgba(255,255,255,.92)";
+      name.style.fontSize = "12px";
+      name.style.fontWeight = "950";
+      name.style.minWidth = "0";
+      name.style.flex = "1 1 auto";
+      name.style.overflow = "hidden";
+      name.style.textOverflow = "ellipsis";
+      name.style.whiteSpace = "nowrap";
+      name.style.textAlign = "right";
+      name.textContent = String(f.name || "");
+
+      const size = document.createElement("div");
+      size.style.color = "rgba(255,255,255,.62)";
+      size.style.fontSize = "12px";
+      size.style.fontWeight = "900";
+      size.style.flex = "0 0 auto";
+      size.style.direction = "ltr";
+      size.style.textAlign = "left";
+      size.textContent = fmtBytes(Number(f.size || 0) || 0);
+
+      row.appendChild(name);
+      row.appendChild(size);
+      list.appendChild(row);
+    }
+
+    selMeta.appendChild(list);
   }
 
   s1.appendChild(selMeta);
@@ -262,10 +393,14 @@ const renderCompressionPlatform = (opts) => {
   if (state.compressError) s1.appendChild(renderError(state.compressError));
   stepWrap.appendChild(s1);
 
-  const s2 = mkStep(2, isArabic() ? "إعدادات الضغط" : "Compression settings", isArabic() ? "اختر صيغة وإعدادات ذكية" : "Choose format and smart settings");
+  const s2 = mkStep(
+    2,
+    isArabic() ? "إعدادات الضغط" : "Compression settings",
+    isArabic() ? "اختر الجودة (والصيغة اختياري)" : "Pick quality (format is optional)"
+  );
 
   const fmtOptions = [
-    { value: "auto", label: isArabic() ? "ذكي (موصى به)" : "Smart (recommended)" },
+    { value: "keep", label: isArabic() ? "نفس صيغة الصورة (افتراضي)" : "Keep original format (default)" },
     { value: "webp", label: "WebP" },
     { value: "avif", label: "AVIF" },
     { value: "jpeg", label: "JPEG" },
@@ -274,13 +409,13 @@ const renderCompressionPlatform = (opts) => {
 
   s2.appendChild(
     mkSelect(
-      isArabic() ? "صيغة الناتج" : "Output format",
-      String(state.compressFormat || "auto"),
+      isArabic() ? "الصيغة" : "Format",
+      String(state.compressFormat || "keep"),
       fmtOptions,
       busy,
       (v) => {
         try {
-          state.compressFormat = String(v || "auto");
+          state.compressFormat = String(v || "keep");
           if (onRender) onRender();
         } catch {}
       }
@@ -308,8 +443,8 @@ const renderCompressionPlatform = (opts) => {
   qVal.style.color = "#18b5d5";
   qVal.style.fontSize = "12px";
   qVal.style.fontWeight = "950";
-  const fmt = String(state.compressFormat || "auto").toLowerCase();
-  const qDefault = fmt === "avif" ? 55 : fmt === "png" ? 90 : fmt === "auto" ? 78 : 82;
+  const fmt = String(state.compressFormat || "keep").toLowerCase();
+  const qDefault = fmt === "avif" ? 55 : fmt === "png" ? 90 : 82;
   const qNum = state.compressQuality ? Number(state.compressQuality) : qDefault;
   qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(qNum) || qDefault))));
 
@@ -326,6 +461,13 @@ const renderCompressionPlatform = (opts) => {
   range.oninput = () => {
     try {
       state.compressQuality = String(range.value || "");
+      qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(range.value) || qDefault))));
+    } catch {}
+  };
+  range.onchange = () => {
+    try {
+      state.compressQuality = String(range.value || "");
+      qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(range.value) || qDefault))));
       if (onRender) onRender();
     } catch {}
   };
@@ -336,45 +478,20 @@ const renderCompressionPlatform = (opts) => {
   qWrap.appendChild(qHead);
   qWrap.appendChild(range);
   s2.appendChild(qWrap);
-
-  const speedRow = document.createElement("div");
-  speedRow.style.display = "flex";
-  speedRow.style.gap = "8px";
-  speedRow.style.flexWrap = "wrap";
-  speedRow.style.alignItems = "center";
-
-  const spFast = pill(isArabic() ? "سريع" : "Fast", String(state.compressSpeed || "balanced") === "fast");
-  const spBal = pill(isArabic() ? "متوازن" : "Balanced", String(state.compressSpeed || "balanced") === "balanced");
-  const spSmall = pill(isArabic() ? "أصغر حجم" : "Smallest", String(state.compressSpeed || "balanced") === "small");
-  spFast.disabled = busy;
-  spBal.disabled = busy;
-  spSmall.disabled = busy;
-  spFast.onclick = () => {
-    try {
-      if (spFast.disabled) return;
-      state.compressSpeed = "fast";
-      if (onRender) onRender();
-    } catch {}
-  };
-  spBal.onclick = () => {
-    try {
-      if (spBal.disabled) return;
-      state.compressSpeed = "balanced";
-      if (onRender) onRender();
-    } catch {}
-  };
-  spSmall.onclick = () => {
-    try {
-      if (spSmall.disabled) return;
-      state.compressSpeed = "small";
-      if (onRender) onRender();
-    } catch {}
-  };
-
-  speedRow.appendChild(spFast);
-  speedRow.appendChild(spBal);
-  speedRow.appendChild(spSmall);
-  s2.appendChild(speedRow);
+  try {
+    wireDragOnlyRange(range, {
+      min: 40,
+      max: 95,
+      step: 1,
+      shouldBlock: () => Boolean(busy),
+      onValue: (v) => {
+        try {
+          state.compressQuality = String(v);
+          qVal.textContent = String(Math.max(1, Math.min(100, Math.round(Number(v) || qDefault))));
+        } catch {}
+      }
+    });
+  } catch {}
 
   stepWrap.appendChild(s2);
 

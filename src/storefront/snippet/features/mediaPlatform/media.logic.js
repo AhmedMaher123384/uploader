@@ -903,8 +903,7 @@ const mount = () => {
           convertUploadPublicId: "",
           convertItems: [],
           compressFiles: [],
-          compressFormat: "auto",
-          compressSpeed: "balanced",
+          compressFormat: "keep",
           compressQuality: "",
           compressRunning: false,
           compressOverallProgress: 0,
@@ -2026,14 +2025,12 @@ const mount = () => {
           if (isSandbox) throw new Error("Sandbox mode: compress disabled");
           const f = file || null;
           if (!f) throw new Error("Missing file");
-          const format = String((opts && opts.format) || "webp").trim().toLowerCase();
-          const speed = String((opts && opts.speed) || "balanced").trim().toLowerCase();
+          const format = String((opts && opts.format) || "keep").trim().toLowerCase();
           const quality = opts && opts.quality != null ? Number(opts.quality) : null;
           const name = String((opts && opts.name) || (f && f.name) || "").trim();
 
           const url = buildUrl("/api/proxy/tools/compress", {
             format,
-            speed,
             quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
             name
           });
@@ -2093,7 +2090,7 @@ const mount = () => {
                 } catch {}
               }
               if (status >= 200 && status < 300) {
-                const fmt = String(xhr.getResponseHeader("x-converted-format") || "").trim();
+                const fmt = String(xhr.getResponseHeader("x-output-format") || xhr.getResponseHeader("x-converted-format") || "").trim();
                 resolve({ blob: resp, format: fmt });
                 return;
               }
@@ -2161,8 +2158,23 @@ const mount = () => {
           render();
 
           const q = state.compressQuality ? Number(state.compressQuality) : null;
-          const format = String(state.compressFormat || "webp").trim().toLowerCase();
-          const speed = String(state.compressSpeed || "balanced").trim().toLowerCase();
+          const format = String(state.compressFormat || "keep").trim().toLowerCase();
+
+          const guessExt = (f, b, hinted) => {
+            const h = String(hinted || "").trim().toLowerCase();
+            if (h) return h;
+            const mt = String((b && b.type) || "").trim().toLowerCase();
+            if (mt === "image/png") return "png";
+            if (mt === "image/jpeg" || mt === "image/jpg") return "jpeg";
+            if (mt === "image/webp") return "webp";
+            if (mt === "image/avif") return "avif";
+            const n = String((f && f.name) || "").trim();
+            const dot = n.lastIndexOf(".");
+            const ext = dot > 0 ? n.slice(dot + 1).trim().toLowerCase() : "";
+            if (ext === "jpg") return "jpeg";
+            if (ext === "jpeg" || ext === "png" || ext === "webp" || ext === "avif") return ext;
+            return "";
+          };
 
           for (let i = 0; i < items.length; i += 1) {
             const it = items[i];
@@ -2176,7 +2188,7 @@ const mount = () => {
 
               const out = await compressOnBackend(
                 f,
-                { format, speed, quality: q, name: it.name },
+                { format, quality: q, name: it.name },
                 (p) => {
                   try {
                     it.progress = Number(p || 0) || 0;
@@ -2198,7 +2210,7 @@ const mount = () => {
 
               it.resultUrl = obj;
               it.outBytes = Number(b.size || 0) || 0;
-              it.outFormat = String((out && out.format) || "").trim().toLowerCase();
+              it.outFormat = guessExt(f, b, out && out.format);
               it.progress = 100;
               it.status = "done";
               state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
@@ -2242,7 +2254,15 @@ const mount = () => {
             if (dot > 0) baseName = baseName.slice(0, dot);
             baseName = baseName.slice(0, 120) || "compressed";
 
-            const ext = String(it.outFormat || "").trim().toLowerCase() || "webp";
+            const rawExt = String(it.outFormat || "").trim().toLowerCase();
+            const ext = rawExt || (() => {
+              const n = String(it.name || "").trim();
+              const dot2 = n.lastIndexOf(".");
+              const e2 = dot2 > 0 ? n.slice(dot2 + 1).trim().toLowerCase() : "";
+              if (e2 === "jpg") return "jpeg";
+              if (e2 === "jpeg" || e2 === "png" || e2 === "webp" || e2 === "avif") return e2;
+              return "jpeg";
+            })();
             const mime =
               ext === "png"
                 ? "image/png"

@@ -14,6 +14,97 @@ const renderConversionPlatform = (opts) => {
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
 
+  const wireDragOnlyRange = (range, opts2) => {
+    const o2 = opts2 && typeof opts2 === "object" ? opts2 : {};
+    const min = Number(o2.min);
+    const max = Number(o2.max);
+    const step = Number(o2.step) || 1;
+    const onValue = typeof o2.onValue === "function" ? o2.onValue : null;
+    const shouldBlock = typeof o2.shouldBlock === "function" ? o2.shouldBlock : () => false;
+    const thumbPx = Number(o2.thumbPx || 16) || 16;
+
+    const clamp = (x) => Math.max(min, Math.min(max, x));
+    const snap = (x) => {
+      const v = clamp(x);
+      const s = step > 0 ? step : 1;
+      return Math.round((v - min) / s) * s + min;
+    };
+    const readVal = () => {
+      const v = Number(range.value);
+      return Number.isFinite(v) ? v : min;
+    };
+    const writeVal = (v) => {
+      const vv = snap(v);
+      range.value = String(vv);
+      try {
+        if (onValue) onValue(vv);
+      } catch {}
+    };
+    const thumbX = (rect) => {
+      const v = readVal();
+      const frac = max > min ? (v - min) / (max - min) : 0;
+      return rect.left + frac * rect.width;
+    };
+
+    const onPointerDown = (e) => {
+      try {
+        if (shouldBlock()) return;
+        const rect = range.getBoundingClientRect();
+        const tx = thumbX(rect);
+        const dx = Math.abs(Number(e.clientX || 0) - tx);
+        if (dx > thumbPx) {
+          try {
+            e.preventDefault();
+          } catch {}
+          return;
+        }
+
+        try {
+          range.setPointerCapture(e.pointerId);
+        } catch {}
+
+        const move = (ev) => {
+          try {
+            if (shouldBlock()) return;
+            const r = range.getBoundingClientRect();
+            const x = Math.max(r.left, Math.min(r.right, Number(ev.clientX || 0)));
+            const frac = r.width > 0 ? (x - r.left) / r.width : 0;
+            const v = min + frac * (max - min);
+            writeVal(v);
+          } catch {}
+        };
+        const up = () => {
+          try {
+            window.removeEventListener("pointermove", move);
+          } catch {}
+          try {
+            window.removeEventListener("pointerup", up);
+          } catch {}
+        };
+
+        try {
+          window.addEventListener("pointermove", move, { passive: true });
+        } catch {}
+        try {
+          window.addEventListener("pointerup", up, { passive: true });
+        } catch {}
+      } catch {}
+    };
+
+    range.addEventListener("pointerdown", onPointerDown);
+    range.addEventListener("mousedown", (e) => {
+      try {
+        e.preventDefault();
+      } catch {}
+    });
+    range.addEventListener("click", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch {}
+    });
+  };
+
   const card = document.createElement("div");
   card.style.border = "1px solid rgba(255,255,255,.08)";
   card.style.borderRadius = "16px";
@@ -410,23 +501,10 @@ const renderConversionPlatform = (opts) => {
     range.step = "1";
     range.value = String(qVal.textContent || qDefault);
     range.disabled = Boolean(state.converting) || planBlocked;
-    let rafId = 0;
     range.oninput = () => {
       try {
         state.convertQuality = String(range.value || "");
         qVal.textContent = String(clampQ(range.value));
-        if (!onRender) return;
-        try {
-          if (rafId) cancelAnimationFrame(rafId);
-        } catch {}
-        try {
-          rafId = requestAnimationFrame(() => {
-            rafId = 0;
-            onRender();
-          });
-        } catch {
-          onRender();
-        }
       } catch {}
     };
     range.onchange = () => {
@@ -443,6 +521,20 @@ const renderConversionPlatform = (opts) => {
     qWrap.appendChild(qHead);
     qWrap.appendChild(range);
     s.appendChild(qWrap);
+    try {
+      wireDragOnlyRange(range, {
+        min: 40,
+        max: 95,
+        step: 1,
+        shouldBlock: () => Boolean(state.converting) || planBlocked,
+        onValue: (v) => {
+          try {
+            state.convertQuality = String(v);
+            qVal.textContent = String(clampQ(v));
+          } catch {}
+        }
+      });
+    } catch {}
     return s;
   };
 
@@ -652,20 +744,6 @@ const renderConversionPlatform = (opts) => {
         top.appendChild(left);
         if (right.childNodes && right.childNodes.length) top.appendChild(right);
         wrap.appendChild(top);
-
-        if (status === "running") {
-          const prog = document.createElement("div");
-          prog.style.height = "10px";
-          prog.style.borderRadius = "999px";
-          prog.style.background = "rgba(255,255,255,.08)";
-          prog.style.overflow = "hidden";
-          const bar = document.createElement("div");
-          bar.style.height = "10px";
-          bar.style.width = String(pct) + "%";
-          bar.style.background = "#18b5d5";
-          prog.appendChild(bar);
-          wrap.appendChild(prog);
-        }
 
         const upErr = String((it && it.uploadError) || "");
         if (upErr) wrap.appendChild(renderError(upErr));
