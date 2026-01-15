@@ -23,10 +23,27 @@ if (isSandbox) {
 }
 
 const sandboxSelector = '.angel-cc_modal.is-open [data-view="upload"]';
+const themeSlotId = "angel-cc-upload-slot";
+const isThemeEditor = (() => {
+  try {
+    const h = String((window && window.location && window.location.hostname) || "").toLowerCase();
+    return h.indexOf("s.salla.sa") !== -1 || h.indexOf("salla.design") !== -1;
+  } catch {
+    return false;
+  }
+})();
 
 const getSandboxTarget = () => {
   try {
     return document.querySelector(sandboxSelector);
+  } catch {
+    return null;
+  }
+};
+
+const getThemeSlotTarget = () => {
+  try {
+    return document.getElementById(themeSlotId);
   } catch {
     return null;
   }
@@ -50,6 +67,27 @@ const startSandboxObserver = (fn) => {
       g.BundleApp.__sandboxMo = mo;
     } catch {}
     mo.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-view", "style"] });
+  } catch {}
+};
+
+const startThemeSlotObserver = (fn) => {
+  try {
+    if (g.BundleApp && g.BundleApp.__themeSlotObserverStarted) return;
+    g.BundleApp.__themeSlotObserverStarted = true;
+  } catch {}
+
+  try {
+    const root = document.documentElement || document.body;
+    if (!root || !window.MutationObserver) return;
+    const mo = new MutationObserver(() => {
+      try {
+        fn();
+      } catch {}
+    });
+    try {
+      g.BundleApp.__themeSlotMo = mo;
+    } catch {}
+    mo.observe(root, { subtree: true, childList: true, attributes: true });
   } catch {}
 };
 
@@ -654,7 +692,18 @@ const uploadToCloudinary = async (file, sign, onProgress) => {
 const mount = () => {
   try {
     let mountRoot = null;
-    if (isModalMount) {
+    const themeTarget = getThemeSlotTarget();
+    const shouldWaitForThemeSlot = isThemeEditor && !themeTarget;
+
+    if (shouldWaitForThemeSlot) {
+      startThemeSlotObserver(mount);
+      return;
+    }
+
+    if (themeTarget) {
+      mountRoot = themeTarget;
+      if (mountRoot.__mounted) return;
+    } else if (isModalMount) {
       mountRoot = getSandboxTarget();
       if (!mountRoot) {
         startSandboxObserver(mount);
@@ -670,22 +719,77 @@ const mount = () => {
       if (typeof ensureStyles === "function") ensureStyles();
     } catch {}
 
-    const fab = createFab();
-    if (isModalMount) {
-      try {
-        fab.style.position = "relative";
-        fab.style.top = "auto";
-        fab.style.left = "auto";
-        fab.style.right = "auto";
-        fab.style.zIndex = "1";
-        fab.style.width = "100%";
-        fab.style.borderRadius = "14px";
-        fab.style.padding = "12px 14px";
-        fab.style.display = "flex";
-        fab.style.justifyContent = "center";
-        fab.style.gap = "10px";
-      } catch {}
-    }
+    const isInlineMount = isModalMount || !!themeTarget;
+    const fab = isInlineMount
+      ? (() => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.setAttribute("aria-label", isArabic() ? "منصة الرفع" : "Media platform");
+          btn.style.width = "100%";
+          btn.style.minHeight = "44px";
+          btn.style.border = "1px solid rgba(24,181,213,.35)";
+          btn.style.cursor = "pointer";
+          btn.style.borderRadius = "14px";
+          btn.style.background = "#292929";
+          btn.style.color = "#fff";
+          btn.style.boxShadow = "0 16px 44px rgba(0,0,0,.22)";
+          btn.style.display = "flex";
+          btn.style.alignItems = "center";
+          btn.style.justifyContent = "center";
+          btn.style.gap = "10px";
+          btn.style.userSelect = "none";
+          btn.style.webkitUserSelect = "none";
+          btn.style.fontWeight = "950";
+          btn.style.fontSize = "13px";
+          btn.style.padding = "12px 14px";
+          btn.style.transition = "transform .14s ease, filter .14s ease";
+          btn.onmouseenter = () => {
+            try {
+              btn.style.filter = "brightness(1.05)";
+            } catch {}
+          };
+          btn.onmouseleave = () => {
+            try {
+              btn.style.filter = "";
+            } catch {}
+          };
+          btn.onmousedown = () => {
+            try {
+              btn.style.transform = "translateY(1px)";
+            } catch {}
+          };
+          btn.onmouseup = () => {
+            try {
+              btn.style.transform = "";
+            } catch {}
+          };
+
+          const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          icon.setAttribute("viewBox", "0 0 24 24");
+          icon.setAttribute("aria-hidden", "true");
+          icon.setAttribute("width", "20");
+          icon.setAttribute("height", "20");
+          icon.style.display = "block";
+          icon.style.color = "#18b5d5";
+
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("fill", "currentColor");
+          path.setAttribute(
+            "d",
+            "M12 2l3.09 6.26 6.91 1.01-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"
+          );
+          icon.appendChild(path);
+
+          const label = document.createElement("span");
+          label.textContent = isArabic() ? "فتح منصة الرفع" : "Open media platform";
+          label.style.lineHeight = "1";
+
+          btn.appendChild(icon);
+          btn.appendChild(label);
+
+          return btn;
+        })()
+      : createFab();
     try {
       setFabVisible(fab, true);
     } catch {}
@@ -2043,7 +2147,7 @@ const mount = () => {
     };
 
     try {
-      if (isModalMount) mountRoot.__mounted = true;
+      if (isModalMount || !!themeTarget) mountRoot.__mounted = true;
     } catch {}
     mountRoot.appendChild(fab);
   } catch (e) {
