@@ -427,7 +427,6 @@ const renderConversionPlatform = (opts) => {
         } catch {}
       };
 
-      right.appendChild(size);
       if (showPerFileFormat) {
         const fmtWrap = document.createElement("div");
         fmtWrap.style.position = "relative";
@@ -449,6 +448,7 @@ const renderConversionPlatform = (opts) => {
         fmtWrap.appendChild(arrow);
         right.appendChild(fmtWrap);
       }
+      right.appendChild(size);
 
       row.appendChild(name);
       row.appendChild(right);
@@ -627,6 +627,11 @@ const renderConversionPlatform = (opts) => {
 
     actions.appendChild(convertBtn);
 
+    const bulkActions = document.createElement("div");
+    bulkActions.style.display = "flex";
+    bulkActions.style.gap = "10px";
+    bulkActions.style.flexWrap = "wrap";
+
     if (doneCount > 1) {
       const dlAllLabel = Boolean(state.convertDownloadingAll)
         ? (isArabic() ? "جاري تجهيز الملف…" : "Preparing…")
@@ -641,12 +646,12 @@ const renderConversionPlatform = (opts) => {
           onDownloadAll();
         } catch {}
       };
-      actions.appendChild(dlAll);
+      bulkActions.appendChild(dlAll);
 
       const anyCanUpload = doneItems.some((x) => x && !x.uploadUrl && !x.uploading);
       const upAllLabel = Boolean(state.convertUploadingAll)
         ? (isArabic() ? "جاري الرفع…" : "Uploading…")
-        : (isArabic() ? "رفع الكل" : "Upload all");
+        : (isArabic() ? "رفع الكل على المنصه" : "Upload all to platform");
       const upAll = btnPrimary(upAllLabel);
       upAll.disabled = Boolean(state.converting) || planBlocked || !onUploadAll || Boolean(state.convertUploadingAll) || !anyCanUpload;
       upAll.style.opacity = upAll.disabled ? "0.65" : "1";
@@ -657,7 +662,7 @@ const renderConversionPlatform = (opts) => {
           onUploadAll();
         } catch {}
       };
-      actions.appendChild(upAll);
+      bulkActions.appendChild(upAll);
     }
 
     const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
@@ -671,6 +676,7 @@ const renderConversionPlatform = (opts) => {
 
     actions.appendChild(resetBtn);
     s.appendChild(actions);
+    if (bulkActions.childNodes && bulkActions.childNodes.length) s.appendChild(bulkActions);
 
     if (state.converting || Number(state.convertOverallProgress || 0) > 0) {
       const prog = document.createElement("div");

@@ -3169,6 +3169,18 @@ function createApiRouter(config) {
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
       if (!body.length) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
 
+      const headerName = String(req.headers["x-file-name"] || "").trim();
+      const baseNameRaw = String(qValue.name || headerName || "compressed").trim();
+      const hintedMime = String(req.headers["content-type"] || "").trim().toLowerCase();
+      const hintedExt = (() => {
+        const n = String(baseNameRaw || "").trim().toLowerCase();
+        const dot = n.lastIndexOf(".");
+        if (dot <= 0 || dot === n.length - 1) return "";
+        const ext = n.slice(dot + 1).trim().toLowerCase();
+        if (ext === "jpg") return "jpeg";
+        return ext;
+      })();
+
       const limits = getPlanLimits(planKey);
       if (body.length > limits.maxFileBytes) {
         throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
@@ -3179,10 +3191,21 @@ function createApiRouter(config) {
       const meta = await base.metadata().catch(() => ({}));
 
       const srcFmtRaw = String((meta && meta.format) || "").trim().toLowerCase();
-      const srcFmt = srcFmtRaw === "jpg" ? "jpeg" : srcFmtRaw;
+      const srcFmt = (() => {
+        let f = srcFmtRaw === "jpg" ? "jpeg" : srcFmtRaw;
+        const hintedIsAvif = hintedExt === "avif" || hintedMime === "image/avif";
+        if (f === "heif" || f === "heic") {
+          if (hintedIsAvif) return "avif";
+          return "heif";
+        }
+        return f;
+      })();
 
       const requested = String(qValue.format || "keep").trim().toLowerCase();
-      const targetFormat = requested === "keep" ? srcFmt : requested;
+      const targetFormat =
+        requested === "keep"
+          ? (srcFmt === "webp" || srcFmt === "avif" || srcFmt === "jpeg" || srcFmt === "png" ? srcFmt : "webp")
+          : requested;
       const effort = 4;
 
       const qRaw = qValue.quality != null ? Number(qValue.quality) : null;
@@ -3227,7 +3250,7 @@ function createApiRouter(config) {
         throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
       }
 
-      if (requested === "keep" && out && out.length && out.length >= body.length) {
+      if (requested === "keep" && targetFormat === srcFmt && out && out.length && out.length >= body.length) {
         out = body;
         if (srcFmt === "png") {
           contentType = "image/png";
@@ -3244,8 +3267,6 @@ function createApiRouter(config) {
         }
       }
 
-      const headerName = String(req.headers["x-file-name"] || "").trim();
-      const baseNameRaw = String(qValue.name || headerName || "compressed").trim();
       let baseName = "";
       for (let i = 0; i < baseNameRaw.length; i += 1) {
         const ch = baseNameRaw[i];

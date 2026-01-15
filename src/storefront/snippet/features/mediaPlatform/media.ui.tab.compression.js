@@ -488,13 +488,18 @@ const renderCompressionPlatform = (opts) => {
       meta.style.fontSize = "12px";
       meta.style.fontWeight = "900";
       meta.style.color = "rgba(255,255,255,.65)";
+      meta.style.direction = "ltr";
       const inB = Number((it && it.inBytes) || 0) || 0;
       const outB = Number((it && it.outBytes) || 0) || 0;
       const ratio = inB > 0 && outB > 0 ? Math.max(0, Math.min(100, Math.round((1 - outB / inB) * 100))) : 0;
       const fmt2 = String((it && it.outFormat) || "").trim();
       meta.textContent =
         outB && fmt2
-          ? (fmtBytes(inB) + " → " + fmtBytes(outB) + " • -" + String(ratio) + "% • " + fmt2.toUpperCase())
+          ? (
+              (isArabic()
+                ? ("قبل " + fmtBytes(inB) + " → بعد " + fmtBytes(outB) + " • وفر " + String(ratio) + "% • " + fmt2.toUpperCase())
+                : ("Before " + fmtBytes(inB) + " → After " + fmtBytes(outB) + " • Saved " + String(ratio) + "% • " + fmt2.toUpperCase()))
+            )
           : fmtBytes(inB);
 
       left.appendChild(name);
