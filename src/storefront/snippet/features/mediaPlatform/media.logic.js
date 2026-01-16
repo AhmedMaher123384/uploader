@@ -2794,9 +2794,19 @@ const mount = () => {
               try {
                 input.multiple = maxFiles > 1;
               } catch {}
-              sheet.content.appendChild(renderUploadHero(state.dash));
-              sheet.content.appendChild(renderSmartStats(state.dash));
-              sheet.content.appendChild(
+              const uploadCard = document.createElement("div");
+              uploadCard.style.border = "1px solid rgba(255,255,255,.08)";
+              uploadCard.style.borderRadius = "16px";
+              uploadCard.style.background = "#303030";
+              uploadCard.style.padding = "14px";
+              uploadCard.style.display = "flex";
+              uploadCard.style.flexDirection = "column";
+              uploadCard.style.gap = "12px";
+              uploadCard.style.minHeight = "60vh";
+
+              uploadCard.appendChild(renderUploadHero(state.dash));
+              uploadCard.appendChild(renderSmartStats(state.dash));
+              uploadCard.appendChild(
                 renderDropzone({
                   disabled: state.uploading,
                   onPick: () => {
@@ -2807,7 +2817,8 @@ const mount = () => {
                   onFiles: (fs) => runUploads(fs)
                 })
               );
-              if (state.uploadError) sheet.content.appendChild(renderError(state.uploadError));
+              if (state.uploadError) uploadCard.appendChild(renderError(state.uploadError));
+              sheet.content.appendChild(uploadCard);
             }
             return;
           }
