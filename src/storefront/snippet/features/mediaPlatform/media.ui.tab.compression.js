@@ -381,6 +381,7 @@ const renderCompressionPlatform = (opts) => {
   const doneItems = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl);
   const doneCount = doneItems.length;
 
+  let dlAllBtn = null;
   const runBtn = btnPrimary(isArabic() ? "ضغط الآن" : "Compress now");
   runBtn.disabled = busy || !selected.length || !onRunCompress;
   runBtn.style.opacity = runBtn.disabled ? "0.65" : "1";
@@ -406,7 +407,7 @@ const renderCompressionPlatform = (opts) => {
         onDownloadAll();
       } catch {}
     };
-    actions.appendChild(dlAll);
+    dlAllBtn = dlAll;
   }
 
   const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
@@ -475,14 +476,141 @@ const renderCompressionPlatform = (opts) => {
       left.style.gap = "4px";
       left.style.minWidth = "0";
 
-      const name = document.createElement("div");
-      name.style.fontSize = "12px";
-      name.style.fontWeight = "950";
-      name.style.color = "#fff";
-      name.style.overflow = "hidden";
-      name.style.textOverflow = "ellipsis";
-      name.style.whiteSpace = "nowrap";
-      name.textContent = String((it && it.name) || "");
+      const st = String((it && it.status) || "queued");
+      const rawName = String((it && it.name) || "");
+      const outFmt2 = String((it && it.outFormat) || "").trim().toLowerCase();
+      const shownName = (() => {
+        if (st !== "done") return rawName;
+        let baseName = rawName;
+        const dot = baseName.lastIndexOf(".");
+        if (dot > 0) baseName = baseName.slice(0, dot);
+        baseName = baseName.slice(0, 120) || (isArabic() ? "ملف" : "file");
+        return outFmt2 ? baseName + "." + outFmt2 : rawName;
+      })();
+
+      const nameRow = document.createElement("div");
+      nameRow.style.display = "flex";
+      nameRow.style.alignItems = "center";
+      nameRow.style.gap = "8px";
+      nameRow.style.minWidth = "0";
+
+      const nameText = document.createElement("div");
+      nameText.style.fontSize = "12px";
+      nameText.style.fontWeight = "950";
+      nameText.style.color = "#fff";
+      nameText.style.overflow = "hidden";
+      nameText.style.textOverflow = "ellipsis";
+      nameText.style.whiteSpace = "nowrap";
+      nameText.style.minWidth = "0";
+      nameText.style.flex = "1 1 auto";
+      nameText.textContent = shownName;
+
+      let editBtn = null;
+
+      if (st === "done" && it && it.resultUrl) {
+        editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.textContent = "✎";
+        editBtn.setAttribute("aria-label", isArabic() ? "تعديل اسم الملف" : "Edit file name");
+        editBtn.title = isArabic() ? "تعديل اسم الملف" : "Edit file name";
+        editBtn.style.flex = "0 0 auto";
+        editBtn.style.border = "1px solid rgba(255,255,255,.12)";
+        editBtn.style.borderRadius = "10px";
+        editBtn.style.background = "#303030";
+        editBtn.style.color = "rgba(255,255,255,.85)";
+        editBtn.style.padding = "6px 10px";
+        editBtn.style.fontSize = "12px";
+        editBtn.style.fontWeight = "950";
+        editBtn.style.cursor = "pointer";
+        editBtn.onclick = () => {
+          try {
+            const cur = String((it && it.name) || "");
+            let base = cur;
+            let ext = "";
+            const dot = cur.lastIndexOf(".");
+            if (dot > 0) {
+              base = cur.slice(0, dot);
+              ext = cur.slice(dot + 1).trim();
+            }
+            base = String(base || "").trim();
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = base;
+            input.dir = "auto";
+            input.style.width = "100%";
+            input.style.flex = "1 1 auto";
+            input.style.minWidth = "0";
+            input.style.padding = "6px 10px";
+            input.style.borderRadius = "10px";
+            input.style.border = "1px solid rgba(255,255,255,.12)";
+            input.style.background = "#303030";
+            input.style.color = "#fff";
+            input.style.fontSize = "12px";
+            input.style.fontWeight = "950";
+            input.style.outline = "none";
+
+            let done = false;
+            const save = () => {
+              if (done) return;
+              done = true;
+              try {
+                let nextBase = String(input.value || "").trim();
+                if (!nextBase) nextBase = base || (isArabic() ? "ملف" : "file");
+                const next = ext ? nextBase + "." + ext : nextBase;
+                it.name = next;
+              } catch {}
+              try {
+                if (onRender) onRender();
+              } catch {}
+            };
+            const cancel = () => {
+              if (done) return;
+              done = true;
+              try {
+                if (onRender) onRender();
+              } catch {}
+            };
+
+            input.onkeydown = (e) => {
+              try {
+                const k = String((e && e.key) || "");
+                if (k === "Enter") {
+                  e.preventDefault();
+                  save();
+                } else if (k === "Escape") {
+                  e.preventDefault();
+                  cancel();
+                }
+              } catch {}
+            };
+            input.onblur = () => {
+              try {
+                save();
+              } catch {}
+            };
+
+            nameRow.replaceChild(input, nameText);
+            editBtn.disabled = true;
+            editBtn.style.opacity = "0.6";
+            editBtn.style.cursor = "not-allowed";
+            setTimeout(() => {
+              try {
+                input.focus();
+                input.select();
+              } catch {}
+            }, 0);
+          } catch {}
+        };
+      }
+
+      if (isArabic()) {
+        if (editBtn) nameRow.appendChild(editBtn);
+        nameRow.appendChild(nameText);
+      } else {
+        nameRow.appendChild(nameText);
+        if (editBtn) nameRow.appendChild(editBtn);
+      }
 
       const meta = document.createElement("div");
       meta.style.fontSize = "12px";
@@ -501,45 +629,19 @@ const renderCompressionPlatform = (opts) => {
         line1.style.color = "rgba(255,255,255,.78)";
         line1.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
 
-        const line2 = document.createElement("div");
-        line2.style.display = "flex";
-        line2.style.flexWrap = "wrap";
-        line2.style.alignItems = "center";
-        line2.style.gap = "8px";
-        line2.style.color = "rgba(255,255,255,.65)";
+        const savedLine = document.createElement("div");
+        savedLine.style.direction = isArabic() ? "rtl" : "ltr";
+        savedLine.style.color = "rgba(255,255,255,.65)";
+        savedLine.textContent = (isArabic() ? "التوفير " : "Saved ") + String(ratio) + "%";
 
-        const saved = document.createElement("span");
-        saved.style.display = "inline-flex";
-        saved.style.alignItems = "center";
-        saved.style.gap = "6px";
-        saved.style.direction = isArabic() ? "rtl" : "ltr";
-
-        const savedLabel = document.createElement("span");
-        savedLabel.textContent = isArabic() ? "التوفير" : "Saved";
-
-        const savedVal = document.createElement("span");
-        savedVal.style.color = "rgba(255,255,255,.86)";
-        savedVal.style.direction = "ltr";
-        savedVal.textContent = String(ratio) + "%";
-
-        saved.appendChild(savedLabel);
-        saved.appendChild(savedVal);
-
-        const sep = document.createElement("span");
-        sep.textContent = "•";
-        sep.style.opacity = "0.7";
-
-        const fmtChip = document.createElement("span");
-        fmtChip.style.color = "rgba(255,255,255,.86)";
-        fmtChip.style.direction = "ltr";
-        fmtChip.textContent = fmt2.toUpperCase();
-
-        line2.appendChild(saved);
-        line2.appendChild(sep);
-        line2.appendChild(fmtChip);
+        const fmtLine = document.createElement("div");
+        fmtLine.style.direction = "ltr";
+        fmtLine.style.color = "rgba(255,255,255,.86)";
+        fmtLine.textContent = fmt2.toUpperCase();
 
         meta.appendChild(line1);
-        meta.appendChild(line2);
+        meta.appendChild(savedLine);
+        meta.appendChild(fmtLine);
       } else {
         const only = document.createElement("div");
         only.style.direction = "ltr";
@@ -547,7 +649,7 @@ const renderCompressionPlatform = (opts) => {
         meta.appendChild(only);
       }
 
-      left.appendChild(name);
+      left.appendChild(nameRow);
       left.appendChild(meta);
 
       const right = document.createElement("div");
@@ -557,7 +659,6 @@ const renderCompressionPlatform = (opts) => {
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
 
-      const st = String((it && it.status) || "queued");
       const badge =
         st === "done"
           ? mkBadge(isArabic() ? "تم" : "Done", "ok")
@@ -634,6 +735,15 @@ const renderCompressionPlatform = (opts) => {
     }
 
     s3.appendChild(list);
+
+    if (dlAllBtn) {
+      const bulk = document.createElement("div");
+      bulk.style.display = "flex";
+      bulk.style.gap = "10px";
+      bulk.style.flexWrap = "wrap";
+      bulk.appendChild(dlAllBtn);
+      s3.appendChild(bulk);
+    }
   }
 
   stepWrap.appendChild(s3);

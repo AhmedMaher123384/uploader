@@ -734,43 +734,157 @@ const renderConversionPlatform = (opts) => {
         left.style.gap = "4px";
         left.style.minWidth = "0";
 
-      const name = document.createElement("div");
-      name.style.color = "#fff";
-      name.style.fontSize = "12px";
-      name.style.fontWeight = "950";
-      name.style.overflow = "hidden";
-      name.style.textOverflow = "ellipsis";
-      name.style.whiteSpace = "nowrap";
       const status = String((it && it.status) || "");
+      const resUrl = String((it && it.resultUrl) || "");
       const rawName = String((it && it.name) || "");
+      const rf = String((it && it.outFormat) || "").trim().toLowerCase();
+      const tf = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
+      const outExt =
+        (rf ? rf : "") ||
+        (tf === "mp4"
+          ? "mp4"
+          : tf === "mov"
+            ? "mov"
+            : tf === "webm" || tf === "webm_local"
+              ? "webm"
+              : tf === "avif"
+                ? "avif"
+                : tf === "webp"
+                  ? "webp"
+                  : tf === "jpeg"
+                    ? "jpeg"
+                    : tf === "png"
+                      ? "png"
+                      : "");
       const shownName = (() => {
         if (status !== "done") return rawName;
         let baseName = rawName;
         const dot = baseName.lastIndexOf(".");
         if (dot > 0) baseName = baseName.slice(0, dot);
         baseName = baseName.slice(0, 120) || (isArabic() ? "ملف" : "file");
-        const rf = String((it && it.outFormat) || "").trim().toLowerCase();
-        const tf = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
-        const ext =
-          (rf ? rf : "") ||
-          (tf === "mp4"
-            ? "mp4"
-            : tf === "mov"
-              ? "mov"
-              : tf === "webm" || tf === "webm_local"
-                ? "webm"
-                : tf === "avif"
-                  ? "avif"
-                  : tf === "webp"
-                    ? "webp"
-                    : tf === "jpeg"
-                      ? "jpeg"
-                      : tf === "png"
-                        ? "png"
-                        : "");
-        return ext ? (baseName + "." + ext) : rawName;
+        return outExt ? (baseName + "." + outExt) : rawName;
       })();
-      name.textContent = shownName;
+
+      const nameRow = document.createElement("div");
+      nameRow.style.display = "flex";
+      nameRow.style.alignItems = "center";
+      nameRow.style.gap = "8px";
+      nameRow.style.minWidth = "0";
+      nameRow.style.flex = "1 1 auto";
+
+      const nameText = document.createElement("div");
+      nameText.style.color = "#fff";
+      nameText.style.fontSize = "12px";
+      nameText.style.fontWeight = "950";
+      nameText.style.overflow = "hidden";
+      nameText.style.textOverflow = "ellipsis";
+      nameText.style.whiteSpace = "nowrap";
+      nameText.style.minWidth = "0";
+      nameText.style.flex = "1 1 auto";
+      nameText.textContent = shownName;
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.textContent = "✎";
+      editBtn.setAttribute("aria-label", isArabic() ? "تعديل اسم الملف" : "Edit file name");
+      editBtn.title = isArabic() ? "تعديل اسم الملف" : "Edit file name";
+      editBtn.style.flex = "0 0 auto";
+      editBtn.style.border = "1px solid rgba(255,255,255,.12)";
+      editBtn.style.borderRadius = "10px";
+      editBtn.style.background = "#373737";
+      editBtn.style.color = "rgba(255,255,255,.85)";
+      editBtn.style.padding = "6px 10px";
+      editBtn.style.fontSize = "12px";
+      editBtn.style.fontWeight = "950";
+      editBtn.style.cursor = "pointer";
+      editBtn.onclick = () => {
+        try {
+          const cur = String((it && it.name) || "");
+          let base = cur;
+          let ext = "";
+          const dot = cur.lastIndexOf(".");
+          if (dot > 0) {
+            base = cur.slice(0, dot);
+            ext = cur.slice(dot + 1).trim();
+          }
+          base = String(base || "").trim();
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = base;
+          input.dir = "auto";
+          input.style.width = "100%";
+          input.style.flex = "1 1 auto";
+          input.style.minWidth = "0";
+          input.style.padding = "6px 10px";
+          input.style.borderRadius = "10px";
+          input.style.border = "1px solid rgba(255,255,255,.12)";
+          input.style.background = "#373737";
+          input.style.color = "#fff";
+          input.style.fontSize = "12px";
+          input.style.fontWeight = "950";
+          input.style.outline = "none";
+
+          let done = false;
+          const save = () => {
+            if (done) return;
+            done = true;
+            try {
+              let nextBase = String(input.value || "").trim();
+              if (!nextBase) nextBase = base || (isArabic() ? "ملف" : "file");
+              const next = ext ? nextBase + "." + ext : nextBase;
+              it.name = next;
+            } catch {}
+            try {
+              if (onRender) onRender();
+            } catch {}
+          };
+          const cancel = () => {
+            if (done) return;
+            done = true;
+            try {
+              if (onRender) onRender();
+            } catch {}
+          };
+
+          input.onkeydown = (e) => {
+            try {
+              const k = String((e && e.key) || "");
+              if (k === "Enter") {
+                e.preventDefault();
+                save();
+              } else if (k === "Escape") {
+                e.preventDefault();
+                cancel();
+              }
+            } catch {}
+          };
+          input.onblur = () => {
+            try {
+              save();
+            } catch {}
+          };
+
+          nameRow.replaceChild(input, nameText);
+          editBtn.disabled = true;
+          editBtn.style.opacity = "0.6";
+          editBtn.style.cursor = "not-allowed";
+          setTimeout(() => {
+            try {
+              input.focus();
+              input.select();
+            } catch {}
+          }, 0);
+        } catch {}
+      };
+
+      if (isArabic()) {
+        if (status === "done" && resUrl) nameRow.appendChild(editBtn);
+        nameRow.appendChild(nameText);
+      } else {
+        nameRow.appendChild(nameText);
+        if (status === "done" && resUrl) nameRow.appendChild(editBtn);
+      }
 
       const sub = document.createElement("div");
       sub.style.color = (it && (it.error || it.uploadError)) ? "#ef4444" : "rgba(255,255,255,.62)";
@@ -792,7 +906,7 @@ const renderConversionPlatform = (opts) => {
                   : "";
 
         sub.textContent = msg;
-        left.appendChild(name);
+        left.appendChild(nameRow);
         if (sub.textContent) left.appendChild(sub);
 
         const right = document.createElement("div");
@@ -802,7 +916,6 @@ const renderConversionPlatform = (opts) => {
         right.style.flexWrap = "wrap";
         right.style.flex = "0 0 auto";
 
-        const resUrl = String((it && it.resultUrl) || "");
         if (resUrl && status === "done") {
           const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
           dl.onclick = () => {
