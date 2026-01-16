@@ -688,14 +688,17 @@ const renderConversionPlatform = (opts) => {
     s.appendChild(actions);
 
     if (state.converting || Number(state.convertOverallProgress || 0) > 0) {
-      const pct = Math.max(0, Math.min(100, Math.round(Number(state.convertOverallProgress || 0) || 0)));
-      const pb = renderSallaProgressBar({
-        header: isArabic() ? "التقدم" : "Progress",
-        value: pct,
-        target: 100,
-        message: (state.converting ? (isArabic() ? "جاري التحويل" : "Converting") : (isArabic() ? "تم" : "Done")) + " " + String(pct) + "%"
-      });
-      s.appendChild(pb);
+      const prog = document.createElement("div");
+      prog.style.border = "1px solid rgba(255,255,255,.08)";
+      prog.style.borderRadius = "14px";
+      prog.style.background = "#373737";
+      prog.style.overflow = "hidden";
+      const bar = document.createElement("div");
+      bar.style.height = "10px";
+      bar.style.width = Math.max(0, Math.min(100, Number(state.convertOverallProgress || 0) || 0)) + "%";
+      bar.style.background = "#18b5d5";
+      prog.appendChild(bar);
+      s.appendChild(prog);
     }
 
     if (state.convertError) {
@@ -999,15 +1002,6 @@ const renderConversionPlatform = (opts) => {
         top.appendChild(left);
         if (right.childNodes && right.childNodes.length) top.appendChild(right);
         wrap.appendChild(top);
-
-        if (status === "running") {
-          wrap.appendChild(
-            renderSallaProgressBar({
-              value: pct,
-              target: 100
-            })
-          );
-        }
 
         const upErr = String((it && it.uploadError) || "");
         if (upErr) wrap.appendChild(renderError(upErr));

@@ -1,11 +1,5 @@
 const mediaLogicParts = require("./media.logic");
-
-function buildStylesJs({ cssBase, cssPickers, cssTraditional }) {
-  const css = [cssBase, cssPickers, cssTraditional].filter(Boolean).join("\n");
-  return `(function(){try{const g=(()=>{try{return globalThis}catch{return window}})()||window;const STYLE_ID="bundle-app-snippet-styles";const css=${JSON.stringify(
-    css
-  )};if(!g.ensureStyles){g.ensureStyles=function ensureStyles(){try{if(!css)return;const d=document;if(!d||!d.head)return;if(d.getElementById(STYLE_ID))return;const st=d.createElement("style");st.id=STYLE_ID;st.type="text/css";st.appendChild(d.createTextNode(css));d.head.appendChild(st)}catch(e){}}}}catch(e){}})();`;
-}
+const { buildStylesJs } = require("../../core/stylesJs");
 
 module.exports = function mountMediaPlatform(context) {
   const parts = context.parts;
