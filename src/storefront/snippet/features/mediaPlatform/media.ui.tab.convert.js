@@ -455,7 +455,7 @@ const renderConversionPlatform = (opts) => {
       const right = document.createElement("div");
       right.style.display = "flex";
       right.style.alignItems = "center";
-      right.style.gap = "6px";
+      right.style.gap = "8px";
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
       right.style.direction = "ltr";
@@ -485,7 +485,7 @@ const renderConversionPlatform = (opts) => {
       fmt.style.fontSize = "9px";
       fmt.style.fontWeight = "900";
       fmt.style.lineHeight = "1";
-      fmt.style.maxWidth = "110px";
+      fmt.style.maxWidth = "96px";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
       fmt.style.appearance = "none";
@@ -551,7 +551,7 @@ const renderConversionPlatform = (opts) => {
         preset.style.fontSize = "9px";
         preset.style.fontWeight = "900";
         preset.style.lineHeight = "1";
-        preset.style.maxWidth = "150px";
+        preset.style.maxWidth = "132px";
         preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
         preset.style.opacity = preset.disabled ? "0.7" : "1";
         preset.style.appearance = "none";
@@ -594,9 +594,6 @@ const renderConversionPlatform = (opts) => {
         presetWrap.style.position = "relative";
         presetWrap.style.display = "inline-flex";
         presetWrap.style.alignItems = "center";
-        presetWrap.style.zoom = "0.72";
-        presetWrap.style.transform = "scale(0.72)";
-        presetWrap.style.transformOrigin = "center center";
 
         const arrow2 = document.createElement("div");
         arrow2.textContent = "▾";
@@ -620,9 +617,6 @@ const renderConversionPlatform = (opts) => {
         fmtWrap.style.position = "relative";
         fmtWrap.style.display = "inline-flex";
         fmtWrap.style.alignItems = "center";
-        fmtWrap.style.zoom = "0.72";
-        fmtWrap.style.transform = "scale(0.72)";
-        fmtWrap.style.transformOrigin = "center center";
 
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
