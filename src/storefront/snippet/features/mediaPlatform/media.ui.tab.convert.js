@@ -347,6 +347,11 @@ const renderConversionPlatform = (opts) => {
       b.textContent = "×";
       b.title = isArabic() ? "حذف الملف" : "Remove file";
       b.disabled = Boolean(state.converting) || planBlocked || !onRemoveFile;
+      b.style.position = "absolute";
+      b.style.left = "6px";
+      b.style.top = "50%";
+      b.style.transform = "translateY(-50%)";
+      b.style.zIndex = "2";
       b.style.width = "22px";
       b.style.height = "22px";
       b.style.display = "grid";
@@ -366,17 +371,14 @@ const renderConversionPlatform = (opts) => {
 
     const mkModeBadge = (custom, subject) => {
       const isCustom = Boolean(custom);
+      if (!isCustom) return null;
       const b = document.createElement("div");
-      b.textContent = isCustom
-        ? (isArabic() ? "مخصص" : "Custom")
-        : (isArabic() ? "من الأعلى" : "From top");
+      b.textContent = isArabic() ? "تخصيص" : "Custom";
       const subj = String(subject || "");
       const titleAr = isCustom
         ? ((subj === "preset") ? "المقاس لهذا الملف تم تحديده يدويًا" : "الصيغة لهذا الملف تم تحديدها يدويًا")
-        : ((subj === "preset") ? "المقاس لهذا الملف يتبع الإعداد بالأعلى" : "الصيغة لهذا الملف تتبع الإعداد بالأعلى");
       const titleEn = isCustom
         ? ((subj === "preset") ? "This file size was set manually" : "This file format was set manually")
-        : ((subj === "preset") ? "This file size follows the default above" : "This file format follows the default above");
       b.title = isArabic() ? titleAr : titleEn;
       b.style.display = "inline-flex";
       b.style.alignItems = "center";
@@ -389,15 +391,9 @@ const renderConversionPlatform = (opts) => {
       b.style.lineHeight = "1.6";
       b.style.userSelect = "none";
       b.style.webkitUserSelect = "none";
-      if (isCustom) {
-        b.style.color = "#ffcc66";
-        b.style.border = "1px solid rgba(255,204,102,.35)";
-        b.style.background = "rgba(255,204,102,.12)";
-      } else {
-        b.style.color = "#18b5d5";
-        b.style.border = "1px solid rgba(24,181,213,.42)";
-        b.style.background = "rgba(24,181,213,.14)";
-      }
+      b.style.color = "#ffcc66";
+      b.style.border = "1px solid rgba(255,204,102,.35)";
+      b.style.background = "rgba(255,204,102,.12)";
       return b;
     };
 
@@ -411,8 +407,10 @@ const renderConversionPlatform = (opts) => {
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
+      row.style.paddingLeft = "34px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
+      row.style.position = "relative";
 
       const name = document.createElement("div");
       name.style.color = "#fff";
@@ -587,7 +585,8 @@ const renderConversionPlatform = (opts) => {
         presetGroup.style.alignItems = "center";
         presetGroup.style.gap = "6px";
         presetGroup.appendChild(presetWrap);
-        presetGroup.appendChild(mkModeBadge(Boolean(filePresetsCustom[i]), "preset"));
+        const presetBadge = mkModeBadge(Boolean(filePresetsCustom[i]), "preset");
+        if (presetBadge) presetGroup.appendChild(presetBadge);
         right.appendChild(presetGroup);
       }
 
@@ -615,7 +614,8 @@ const renderConversionPlatform = (opts) => {
         fmtGroup.style.alignItems = "center";
         fmtGroup.style.gap = "6px";
         fmtGroup.appendChild(fmtWrap);
-        fmtGroup.appendChild(mkModeBadge(Boolean(fileFormatsCustom[i]), "format"));
+        const fmtBadge = mkModeBadge(Boolean(fileFormatsCustom[i]), "format");
+        if (fmtBadge) fmtGroup.appendChild(fmtBadge);
         right.appendChild(fmtGroup);
       }
       right.appendChild(size);
@@ -626,10 +626,10 @@ const renderConversionPlatform = (opts) => {
           if (onRemoveFile) onRemoveFile(i);
         } catch {}
       };
-      right.appendChild(rm);
 
       row.appendChild(name);
       row.appendChild(right);
+      row.appendChild(rm);
       list.appendChild(row);
     }
 
@@ -1234,8 +1234,8 @@ const renderConversionPlatform = (opts) => {
     note.style.fontWeight = "900";
     note.style.lineHeight = "1.6";
     note.textContent = hasCustom
-      ? (isArabic() ? "بعض الملفات لها صيغة مختلفة من القائمة بالأعلى." : "Some files use custom formats from the list above.")
-      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
+      ? (isArabic() ? "في ملفات عليها تخصيصات مختلفة." : "Some files have custom settings.")
+      : (isArabic() ? "الإعداد ده افتراضي لكل الملفات (تقدر تخصص لكل ملف من القائمة)." : "Applies to all files (you can customize per file from the list).");
     s2.appendChild(note);
     stepWrap.appendChild(s2);
     stepWrap.appendChild(buildQualityStep(3));
@@ -1329,8 +1329,8 @@ const renderConversionPlatform = (opts) => {
     note3.style.fontWeight = "900";
     note3.style.lineHeight = "1.6";
     note3.textContent = hasCustomSize
-      ? (isArabic() ? "بعض الملفات لها مقاس مختلف من القائمة بالأعلى." : "Some files use custom sizes from the list above.")
-      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
+      ? (isArabic() ? "في ملفات عليها تخصيصات مختلفة." : "Some files have custom settings.")
+      : (isArabic() ? "الإعداد ده افتراضي لكل الملفات (تقدر تخصص لكل ملف من القائمة)." : "Applies to all files (you can customize per file from the list).");
     s3.appendChild(note3);
 
     stepWrap.appendChild(s2);

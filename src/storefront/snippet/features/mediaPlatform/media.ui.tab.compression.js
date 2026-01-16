@@ -232,6 +232,11 @@ const renderCompressionPlatform = (opts) => {
       b.textContent = "×";
       b.title = isArabic() ? "حذف" : "Remove";
       b.disabled = busy || !onRemoveFile;
+      b.style.position = "absolute";
+      b.style.left = "6px";
+      b.style.top = "50%";
+      b.style.transform = "translateY(-50%)";
+      b.style.zIndex = "2";
       b.style.width = "22px";
       b.style.height = "22px";
       b.style.display = "grid";
@@ -259,8 +264,10 @@ const renderCompressionPlatform = (opts) => {
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
+      row.style.paddingLeft = "34px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
+      row.style.position = "relative";
 
       const name = document.createElement("div");
       name.style.color = "#fff";
@@ -300,8 +307,8 @@ const renderCompressionPlatform = (opts) => {
 
       row.appendChild(name);
       right.appendChild(size);
-      right.appendChild(rm);
       row.appendChild(right);
+      row.appendChild(rm);
       list.appendChild(row);
     }
 

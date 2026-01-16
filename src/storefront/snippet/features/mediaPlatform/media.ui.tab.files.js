@@ -433,6 +433,26 @@ const renderGrid = (items, opts) => {
       box.appendChild(open);
       media.appendChild(box);
     } else {
+      media.style.position = "relative";
+
+      const ph = document.createElement("div");
+      ph.style.position = "absolute";
+      ph.style.inset = "0";
+      ph.style.display = "grid";
+      ph.style.placeItems = "center";
+      ph.style.pointerEvents = "none";
+      ph.style.zIndex = "1";
+
+      const spinner = document.createElement("salla-loading");
+      try {
+        spinner.setAttribute("size", "56");
+        spinner.setAttribute("width", "5");
+        spinner.setAttribute("color", "#18b5d5");
+        spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
+      } catch {}
+      ph.appendChild(spinner);
+      media.appendChild(ph);
+
       const img = document.createElement("img");
       img.alt = "";
       img.loading = "lazy";
@@ -443,6 +463,26 @@ const renderGrid = (items, opts) => {
       img.style.objectFit = "contain";
       img.style.padding = "8px";
       img.style.boxSizing = "border-box";
+      img.style.opacity = "0";
+      img.style.transition = "opacity .14s ease";
+      img.style.position = "relative";
+      img.style.zIndex = "2";
+      img.onload = () => {
+        try {
+          img.style.opacity = "1";
+        } catch {}
+        try {
+          ph.remove();
+        } catch {}
+      };
+      img.onerror = () => {
+        try {
+          img.style.opacity = "1";
+        } catch {}
+        try {
+          ph.remove();
+        } catch {}
+      };
       media.appendChild(img);
       if (src) {
         fetchMediaObjectUrl(src)
