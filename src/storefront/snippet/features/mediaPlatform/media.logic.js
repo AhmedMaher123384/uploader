@@ -1706,10 +1706,28 @@ const mount = () => {
           return new Blob(parts, { type: "application/zip" });
         };
 
-        const downloadBlob = (blob, filename) => {
+        const downloadBlob = async (blob, filename) => {
           const b = blob || null;
           if (!b) return;
           const name = String(filename || "download.zip") || "download.zip";
+          try {
+            if (window && window.showSaveFilePicker && window.isSecureContext) {
+              const pickerOpts = {
+                suggestedName: name,
+                types: [
+                  {
+                    description: "ZIP",
+                    accept: { "application/zip": [".zip"] }
+                  }
+                ]
+              };
+              const handle = await window.showSaveFilePicker(pickerOpts);
+              const writable = await handle.createWritable();
+              await writable.write(b);
+              await writable.close();
+              return;
+            }
+          } catch {}
           let u = "";
           try {
             u = URL.createObjectURL(b);
@@ -2190,7 +2208,7 @@ const mount = () => {
                 return String(Date.now());
               }
             })();
-            downloadBlob(zip, "converted_" + stamp + ".zip");
+            await downloadBlob(zip, "converted_" + stamp + ".zip");
           } catch (e) {
             state.convertError = friendlyApiErrorMessage(e);
           } finally {
@@ -2749,7 +2767,7 @@ const mount = () => {
                 return String(Date.now());
               }
             })();
-            downloadBlob(zip, "compressed_" + stamp + ".zip");
+            await downloadBlob(zip, "compressed_" + stamp + ".zip");
           } catch (e) {
             state.compressError = friendlyApiErrorMessage(e);
           } finally {

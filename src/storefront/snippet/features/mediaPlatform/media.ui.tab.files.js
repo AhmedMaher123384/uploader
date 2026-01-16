@@ -174,6 +174,18 @@ const renderThumbActions = (opts) => {
       }
       if (!href) href = uDownload;
 
+      try {
+        if (window && window.showSaveFilePicker && window.isSecureContext) {
+          const handle = await window.showSaveFilePicker({ suggestedName: String(name || "file") });
+          const writable = await handle.createWritable();
+          const resp = await fetch(String(href || ""), { cache: "no-store" });
+          const blob = await resp.blob();
+          await writable.write(blob);
+          await writable.close();
+          return;
+        }
+      } catch {}
+
       const a = document.createElement("a");
       a.href = href;
       a.download = String(name || "file");
