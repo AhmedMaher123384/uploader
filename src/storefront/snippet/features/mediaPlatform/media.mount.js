@@ -1,5 +1,5 @@
 const mediaLogicParts = require("./media.logic");
-const { buildStylesJs } = require("../../core/stylesJs");
+const { buildStylesJs } = require("../../styles");
 
 module.exports = function mountMediaPlatform(context) {
   const parts = context.parts;
