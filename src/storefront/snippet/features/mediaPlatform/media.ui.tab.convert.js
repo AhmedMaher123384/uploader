@@ -418,7 +418,6 @@ const renderConversionPlatform = (opts) => {
           ]
         : [
             { value: "keep", label: isArabic() ? "الأصل" : "Original" },
-            { value: "auto", label: isArabic() ? "تلقائي" : "Auto" },
             { value: "avif", label: "AVIF" },
             { value: "webp", label: "WebP" },
             { value: "jpeg", label: "JPEG" },
@@ -663,9 +662,12 @@ const renderConversionPlatform = (opts) => {
     qVal.style.color = "#18b5d5";
     qVal.style.fontSize = "12px";
     qVal.style.fontWeight = "950";
-    const qDefault = convertIsVideo ? 78 : state.convertFormat === "avif" ? 55 : state.convertFormat === "png" ? 90 : 82;
+    const first = (Array.isArray(state.convertFiles) && state.convertFiles[0]) ? state.convertFiles[0] : null;
+    const mime = String((first && first.type) || "").trim().toLowerCase();
+    const maxQuality = 80;
+    const qDefault = Math.min(maxQuality, mime === "image/png" ? 90 : 82);
+    const clampQ = (x) => Math.max(1, Math.min(maxQuality, Math.round(Number(x) || qDefault)));
     const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
-    const clampQ = (x) => Math.max(1, Math.min(92, Math.round(Number(x) || qDefault)));
     qVal.textContent = String(clampQ(qNum));
 
     qHead.appendChild(qLabel);
@@ -674,7 +676,7 @@ const renderConversionPlatform = (opts) => {
     const range = document.createElement("input");
     range.type = "range";
     range.min = "1";
-    range.max = "92";
+    range.max = "80";
     range.step = "1";
     range.value = String(qVal.textContent || qDefault);
     range.disabled = Boolean(state.converting) || planBlocked;
@@ -1143,6 +1145,7 @@ const renderConversionPlatform = (opts) => {
         } catch {}
       }
     );
+    fmtSelect.style.width = "100%";
     s2.appendChild(fmtSelect);
     const note = document.createElement("div");
     note.style.color = "rgba(255,255,255,.55)";
@@ -1164,13 +1167,16 @@ const renderConversionPlatform = (opts) => {
     );
 
     let fmtValue = String(state.convertFormat || "keep");
+    if (fmtValue === "auto") {
+      fmtValue = "keep";
+      state.convertFormat = "keep";
+    }
     const hasCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom.some(Boolean) : false;
     const fmtSelect = mkSelect(
       isArabic() ? "الصيغة (افتراضي)" : "Format (default)",
       fmtValue,
       [
         { value: "keep", label: isArabic() ? "الأصل (بدون تغيير الصيغة)" : "Original (keep format)" },
-        { value: "auto", label: isArabic() ? "تلقائي (مقترح)" : "Auto (recommended)" },
         { value: "avif", label: "AVIF" },
         { value: "webp", label: "WebP" },
         { value: "jpeg", label: "JPEG" },
@@ -1195,7 +1201,7 @@ const renderConversionPlatform = (opts) => {
         } catch {}
       }
     );
-    fmtSelect.style.flex = "1 1 220px";
+    fmtSelect.style.width = "100%";
     s2.appendChild(fmtSelect);
     const note = document.createElement("div");
     note.style.color = "rgba(255,255,255,.55)";

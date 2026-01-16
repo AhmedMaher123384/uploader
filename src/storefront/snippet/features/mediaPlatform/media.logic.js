@@ -1397,7 +1397,7 @@ const mount = () => {
 
           const rt = guessResourceType(f);
           const isVideo = rt === "video";
-          const format = String((opts && opts.format) || (isVideo ? "mp4" : "auto")).trim().toLowerCase();
+          const format = String((opts && opts.format) || (isVideo ? "mp4" : "keep")).trim().toLowerCase();
           const speed = String((opts && opts.speed) || "fast").trim().toLowerCase();
           const quality = (opts && opts.quality != null) ? Number(opts.quality) : null;
           const name = String((opts && opts.name) || (f && f.name) || "").trim();
@@ -1759,7 +1759,8 @@ const mount = () => {
           const chosen = keep.slice(0, maxFiles);
           state.convertFiles = chosen;
           state.convertFile = chosen[0] || null;
-          const defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "keep");
+          let defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "keep");
+          if (kind !== "video" && defaultFmt === "auto") defaultFmt = "keep";
           state.convertFileFormats = chosen.map(() => defaultFmt);
           state.convertFileFormatCustom = chosen.map(() => false);
           if (kind === "video") {
@@ -1850,7 +1851,8 @@ const mount = () => {
             const f = chosen[i];
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
             const fallbackFmt = String(state.convertFormat || (String(state.convertKind || "image") === "video" ? "mp4" : "keep"));
-            const targetFormat = String(chosenFormats[i] || fallbackFmt || "").trim().toLowerCase();
+            let targetFormat = String(chosenFormats[i] || fallbackFmt || "").trim().toLowerCase();
+            if (targetFormat === "auto") targetFormat = "keep";
             const fallbackPreset = String(state.convertPreset || "original") || "original";
             const targetPreset = String(chosenPresets[i] || fallbackPreset || "original").trim().toLowerCase();
             items.push({
@@ -1886,7 +1888,8 @@ const mount = () => {
             try {
               const isVideo = guessResourceType(f) === "video";
               const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
-              const targetFmt = isVideo ? (rawTarget || "mp4") : (rawTarget || "keep");
+              const safeTarget = rawTarget === "auto" ? "" : rawTarget;
+              const targetFmt = isVideo ? (safeTarget || "mp4") : (safeTarget || "keep");
               const out = isVideo
                 ? await convertVideoOnClient(
                     f,
@@ -1903,7 +1906,7 @@ const mount = () => {
                 : await convertOnBackend(
                     f,
                     {
-                      format: targetFmt,
+                      format: safeTarget || "keep",
                       speed: state.convertSpeed,
                       quality: q,
                       name: it.name,
