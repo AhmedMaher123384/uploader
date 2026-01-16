@@ -227,7 +227,110 @@ const renderSmartStats = (dash) => {
   const lastAt = String(s.lastAt || "").trim();
 
   wrap.appendChild(statCard(isArabic() ? "إجمالي الملفات" : "Total files", String(totalFiles)));
-  wrap.appendChild(statCard(isArabic() ? "الحجم الكلي" : "Total size", totalBytes ? fmtBytes(totalBytes) : (isArabic() ? "0 B" : "0 B")));
+
+  const bytesFromGb = (gb) => Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
+  const maxStorageBytesForPlan = () => {
+    const k = String(d.planKey || "").trim().toLowerCase();
+    if (k === "business") return bytesFromGb(50);
+    if (k === "pro") return bytesFromGb(20);
+    return bytesFromGb(5);
+  };
+
+  const renderStorageCard = () => {
+    const maxBytes = maxStorageBytesForPlan();
+    const usedBytes = Math.max(0, totalBytes);
+    const safeMax = Math.max(1, maxBytes);
+    const pct = Math.max(0, Math.min(100, Math.round((usedBytes / safeMax) * 100)));
+    const remain = Math.max(0, maxBytes - usedBytes);
+
+    const c = document.createElement("div");
+    c.style.border = "1px solid rgba(24,181,213,.20)";
+    c.style.borderRadius = "14px";
+    c.style.background = "#373737";
+    c.style.padding = "12px";
+    c.style.display = "flex";
+    c.style.flexDirection = "column";
+    c.style.gap = "10px";
+
+    const head = document.createElement("div");
+    head.style.display = "flex";
+    head.style.alignItems = "baseline";
+    head.style.justifyContent = "space-between";
+    head.style.gap = "10px";
+
+    const l = document.createElement("div");
+    l.style.fontSize = "12px";
+    l.style.fontWeight = "900";
+    l.style.color = "rgba(255,255,255,.78)";
+    l.textContent = isArabic() ? "الحجم الكلي" : "Total size";
+
+    const chip = document.createElement("div");
+    chip.style.border = "1px solid rgba(255,255,255,.12)";
+    chip.style.background = "rgba(255,255,255,.06)";
+    chip.style.color = "rgba(255,255,255,.82)";
+    chip.style.borderRadius = "999px";
+    chip.style.padding = "4px 8px";
+    chip.style.fontSize = "11px";
+    chip.style.fontWeight = "950";
+    chip.style.lineHeight = "1";
+    chip.textContent = String(pct) + "%";
+
+    head.appendChild(l);
+    head.appendChild(chip);
+
+    const bar = document.createElement("div");
+    bar.style.height = "10px";
+    bar.style.borderRadius = "999px";
+    bar.style.background = "rgba(255,255,255,.08)";
+    bar.style.border = "1px solid rgba(255,255,255,.10)";
+    bar.style.overflow = "hidden";
+
+    const fill = document.createElement("div");
+    fill.style.height = "100%";
+    fill.style.width = String(pct) + "%";
+    fill.style.borderRadius = "999px";
+    fill.style.background = "rgba(24,181,213,.92)";
+    bar.appendChild(fill);
+
+    const scale = document.createElement("div");
+    scale.style.display = "flex";
+    scale.style.alignItems = "center";
+    scale.style.justifyContent = "space-between";
+    scale.style.gap = "10px";
+
+    const used = document.createElement("div");
+    used.style.fontSize = "11px";
+    used.style.fontWeight = "950";
+    used.style.color = "rgba(255,255,255,.72)";
+    used.style.whiteSpace = "nowrap";
+    used.textContent = fmtBytes(usedBytes);
+
+    const max = document.createElement("div");
+    max.style.fontSize = "11px";
+    max.style.fontWeight = "950";
+    max.style.color = "rgba(255,255,255,.72)";
+    max.style.whiteSpace = "nowrap";
+    max.textContent = fmtBytes(maxBytes);
+
+    scale.appendChild(used);
+    scale.appendChild(max);
+
+    const hint = document.createElement("div");
+    hint.style.fontSize = "12px";
+    hint.style.fontWeight = "900";
+    hint.style.color = "rgba(255,255,255,.65)";
+    hint.textContent = isArabic()
+      ? ("المتبقي: " + fmtBytes(remain))
+      : ("Remaining: " + fmtBytes(remain));
+
+    c.appendChild(head);
+    c.appendChild(bar);
+    c.appendChild(scale);
+    c.appendChild(hint);
+    return c;
+  };
+
+  wrap.appendChild(renderStorageCard());
   wrap.appendChild(statCard(isArabic() ? "آخر رفع" : "Last upload", lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—")));
   return wrap;
 };
