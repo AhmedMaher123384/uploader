@@ -264,7 +264,7 @@ const renderConversionPlatform = (opts) => {
 
   const convertIsVideo = String(state.convertKind || "image") === "video";
   const resizeOptions = [
-    { value: "original", label: isArabic() ? "الأصل (بدون تغيير)" : "Original (no resize)" },
+    { value: "original", label: isArabic() ? "المقاس" : "Size" },
     { value: "1080x1080", label: isArabic() ? "إنستجرام مربع — 1080×1080" : "Instagram Square — 1080×1080" },
     { value: "1080x1350", label: isArabic() ? "إنستجرام عمودي (4:5) — 1080×1350" : "Instagram Portrait (4:5) — 1080×1350" },
     { value: "1080x1920", label: isArabic() ? "ستوري / ريلز — 1080×1920" : "Story / Reels — 1080×1920" },
@@ -475,12 +475,12 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "3px 14px 3px 6px";
-      fmt.style.borderRadius = "10px";
+      fmt.style.padding = "2px 12px 2px 6px";
+      fmt.style.borderRadius = "9px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "8px";
+      fmt.style.fontSize = "7px";
       fmt.style.fontWeight = "950";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
@@ -496,7 +496,7 @@ const renderConversionPlatform = (opts) => {
             { value: "mov", label: "MOV" },
           ]
         : [
-            { value: "keep", label: isArabic() ? "الأصل" : "Original" },
+            { value: "keep", label: isArabic() ? "الصيغة" : "Format" },
             { value: "avif", label: "AVIF" },
             { value: "webp", label: "WebP" },
             { value: "jpeg", label: "JPEG" },
@@ -537,12 +537,12 @@ const renderConversionPlatform = (opts) => {
       if (showPerFilePreset) {
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
-        preset.style.padding = "3px 14px 3px 6px";
-        preset.style.borderRadius = "10px";
+        preset.style.padding = "2px 12px 2px 6px";
+        preset.style.borderRadius = "9px";
         preset.style.border = "1px solid rgba(255,255,255,.10)";
         preset.style.background = "#303030";
         preset.style.color = "rgba(255,255,255,.92)";
-        preset.style.fontSize = "8px";
+        preset.style.fontSize = "7px";
         preset.style.fontWeight = "950";
         preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
         preset.style.opacity = preset.disabled ? "0.7" : "1";
@@ -589,12 +589,12 @@ const renderConversionPlatform = (opts) => {
         const arrow2 = document.createElement("div");
         arrow2.textContent = "▾";
         arrow2.style.position = "absolute";
-        arrow2.style.right = "6px";
+        arrow2.style.right = "5px";
         arrow2.style.top = "50%";
         arrow2.style.transform = "translateY(-50%)";
         arrow2.style.pointerEvents = "none";
         arrow2.style.color = "rgba(255,255,255,.70)";
-        arrow2.style.fontSize = "7px";
+        arrow2.style.fontSize = "6px";
         arrow2.style.fontWeight = "950";
         arrow2.style.lineHeight = "1";
 
@@ -611,12 +611,12 @@ const renderConversionPlatform = (opts) => {
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
         arrow.style.position = "absolute";
-        arrow.style.right = "6px";
+        arrow.style.right = "5px";
         arrow.style.top = "50%";
         arrow.style.transform = "translateY(-50%)";
         arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "7px";
+        arrow.style.fontSize = "6px";
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
@@ -1278,7 +1278,7 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "الصيغة (افتراضي)" : "Format (default)",
       fmtValue,
       [
-        { value: "keep", label: isArabic() ? "الأصل (بدون تغيير الصيغة)" : "Original (keep format)" },
+        { value: "keep", label: isArabic() ? "الصيغة (بدون تغيير)" : "Format (no change)" },
         { value: "avif", label: "AVIF" },
         { value: "webp", label: "WebP" },
         { value: "jpeg", label: "JPEG" },
@@ -1348,14 +1348,14 @@ const renderConversionPlatform = (opts) => {
       const box = presetSelect && presetSelect.children && presetSelect.children[1] ? presetSelect.children[1] : null;
       const s = box && box.querySelector ? box.querySelector("select") : presetSelect.querySelector("select");
       if (s) {
-        s.style.padding = "8px 24px 8px 10px";
-        s.style.fontSize = "11px";
-        s.style.borderRadius = "12px";
+        s.style.padding = "6px 22px 6px 10px";
+        s.style.fontSize = "10px";
+        s.style.borderRadius = "11px";
       }
       const arrow = box && box.querySelector ? box.querySelector("div") : null;
       if (arrow) {
-        arrow.style.right = "8px";
-        arrow.style.fontSize = "11px";
+        arrow.style.right = "7px";
+        arrow.style.fontSize = "10px";
       }
     } catch {}
     s3.appendChild(presetSelect);
