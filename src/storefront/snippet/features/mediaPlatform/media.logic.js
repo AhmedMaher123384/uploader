@@ -2762,10 +2762,16 @@ const mount = () => {
             if (allowConvert) sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
-            const refreshBtn = btnGhost(labels.ref);
+            const refreshBtn = btnGhost("");
             refreshBtn.setAttribute("aria-label", labels.ref);
             refreshBtn.setAttribute("title", labels.ref);
-            refreshBtn.textContent = "";
+            refreshBtn.style.border = "0";
+            refreshBtn.style.background = "transparent";
+            refreshBtn.style.padding = "0";
+            refreshBtn.style.width = "36px";
+            refreshBtn.style.height = "36px";
+            refreshBtn.style.display = "grid";
+            refreshBtn.style.placeItems = "center";
             const refreshIcon = document.createElement("i");
             refreshIcon.className = "sicon-back";
             refreshIcon.setAttribute("aria-hidden", "true");
