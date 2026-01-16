@@ -230,7 +230,7 @@ const renderCompressionPlatform = (opts) => {
       const row = document.createElement("div");
       row.style.display = "flex";
       row.style.alignItems = "center";
-      row.style.justifyContent = "space-between";
+      row.style.justifyContent = "flex-start";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
       row.style.borderRadius = "10px";
@@ -298,7 +298,8 @@ const renderCompressionPlatform = (opts) => {
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
-      name.style.flex = "1 1 auto";
+      name.style.flex = "0 1 320px";
+      name.style.maxWidth = "420px";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";
@@ -316,9 +317,25 @@ const renderCompressionPlatform = (opts) => {
       size.style.textAlign = "left";
       size.textContent = fmtBytes(Number(f.size || 0) || 0);
 
+      const meta = document.createElement("div");
+      meta.style.display = "flex";
+      meta.style.alignItems = "center";
+      meta.style.gap = "10px";
+      meta.style.minWidth = "0";
+      meta.style.flex = "1 1 auto";
+      meta.style.direction = "ltr";
+      meta.style.justifyContent = isArabic() ? "flex-end" : "flex-start";
+      if (isArabic()) meta.style.marginLeft = "auto";
+      if (isArabic()) {
+        meta.appendChild(size);
+        meta.appendChild(name);
+      } else {
+        meta.appendChild(name);
+        meta.appendChild(size);
+      }
+
       row.appendChild(rm);
-      row.appendChild(name);
-      row.appendChild(size);
+      row.appendChild(meta);
       list.appendChild(row);
     }
 

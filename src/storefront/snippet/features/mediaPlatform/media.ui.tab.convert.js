@@ -347,7 +347,7 @@ const renderConversionPlatform = (opts) => {
       const row = document.createElement("div");
       row.style.display = "flex";
       row.style.alignItems = "center";
-      row.style.justifyContent = "space-between";
+      row.style.justifyContent = "flex-start";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
       row.style.borderRadius = "10px";
@@ -433,7 +433,8 @@ const renderConversionPlatform = (opts) => {
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
-      name.style.flex = "1 1 auto";
+      name.style.flex = "0 1 320px";
+      name.style.maxWidth = "420px";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";
@@ -458,6 +459,7 @@ const renderConversionPlatform = (opts) => {
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
       right.style.direction = "ltr";
+      if (!isArabic()) right.style.marginLeft = "auto";
 
       const fileFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
       const fileFormatsCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom : [];
@@ -473,12 +475,12 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "4px 18px 4px 6px";
+      fmt.style.padding = "3px 14px 3px 6px";
       fmt.style.borderRadius = "10px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "9px";
+      fmt.style.fontSize = "8px";
       fmt.style.fontWeight = "950";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
@@ -535,12 +537,12 @@ const renderConversionPlatform = (opts) => {
       if (showPerFilePreset) {
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
-        preset.style.padding = "4px 18px 4px 6px";
+        preset.style.padding = "3px 14px 3px 6px";
         preset.style.borderRadius = "10px";
         preset.style.border = "1px solid rgba(255,255,255,.10)";
         preset.style.background = "#303030";
         preset.style.color = "rgba(255,255,255,.92)";
-        preset.style.fontSize = "9px";
+        preset.style.fontSize = "8px";
         preset.style.fontWeight = "950";
         preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
         preset.style.opacity = preset.disabled ? "0.7" : "1";
@@ -587,12 +589,12 @@ const renderConversionPlatform = (opts) => {
         const arrow2 = document.createElement("div");
         arrow2.textContent = "▾";
         arrow2.style.position = "absolute";
-        arrow2.style.right = "7px";
+        arrow2.style.right = "6px";
         arrow2.style.top = "50%";
         arrow2.style.transform = "translateY(-50%)";
         arrow2.style.pointerEvents = "none";
         arrow2.style.color = "rgba(255,255,255,.70)";
-        arrow2.style.fontSize = "9px";
+        arrow2.style.fontSize = "7px";
         arrow2.style.fontWeight = "950";
         arrow2.style.lineHeight = "1";
 
@@ -609,12 +611,12 @@ const renderConversionPlatform = (opts) => {
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
         arrow.style.position = "absolute";
-        arrow.style.right = "7px";
+        arrow.style.right = "6px";
         arrow.style.top = "50%";
         arrow.style.transform = "translateY(-50%)";
         arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "9px";
+        arrow.style.fontSize = "7px";
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
@@ -622,10 +624,31 @@ const renderConversionPlatform = (opts) => {
         fmtWrap.appendChild(arrow);
         right.appendChild(fmtWrap);
       }
-      row.appendChild(rm);
-      row.appendChild(name);
-      row.appendChild(size);
-      row.appendChild(right);
+      const meta = document.createElement("div");
+      meta.style.display = "flex";
+      meta.style.alignItems = "center";
+      meta.style.gap = "10px";
+      meta.style.minWidth = "0";
+      meta.style.flex = "0 1 auto";
+      meta.style.direction = "ltr";
+      if (isArabic()) {
+        meta.style.marginLeft = "auto";
+        meta.appendChild(size);
+        meta.appendChild(name);
+      } else {
+        meta.appendChild(name);
+        meta.appendChild(size);
+      }
+
+      if (isArabic()) {
+        row.appendChild(rm);
+        row.appendChild(right);
+        row.appendChild(meta);
+      } else {
+        row.appendChild(rm);
+        row.appendChild(meta);
+        row.appendChild(right);
+      }
       list.appendChild(row);
     }
 
