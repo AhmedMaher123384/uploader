@@ -2762,8 +2762,20 @@ const mount = () => {
             if (allowConvert) sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
-            const refreshBtn = btnGhost(labels.ref);
+            const refreshBtn = btnGhost("");
+            refreshBtn.setAttribute("aria-label", labels.ref);
+            refreshBtn.style.width = "40px";
+            refreshBtn.style.height = "40px";
+            refreshBtn.style.padding = "0";
+            refreshBtn.style.display = "grid";
+            refreshBtn.style.placeItems = "center";
             refreshBtn.style.color = "#fff";
+            const refreshIcon = document.createElement("i");
+            refreshIcon.className = "bundle-app-ico sicon-back";
+            refreshIcon.setAttribute("aria-hidden", "true");
+            refreshIcon.style.fontSize = "18px";
+            refreshIcon.style.lineHeight = "1";
+            refreshBtn.appendChild(refreshIcon);
             refreshBtn.onclick = () => {
               try {
                 clearMediaApiCache();

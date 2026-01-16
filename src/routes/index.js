@@ -267,8 +267,8 @@ function createApiRouter(config) {
       res.setHeader("Expires", "0");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
       res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
-      const { cssBase, cssPickers, cssTraditional } = readSnippetCss();
-      const context = { parts: [], merchantId, token, cssBase, cssPickers, cssTraditional };
+      const { cssBase, cssPickers, cssTraditional, cssIcomoon } = readSnippetCss();
+      const context = { parts: [], merchantId, token, cssBase, cssPickers, cssTraditional, cssIcomoon };
       mountMediaPlatform(context);
       const js = context.parts.join("");
       res.setHeader("X-BundleApp-Snippet-Path", "/api/storefront/snippet.js");
