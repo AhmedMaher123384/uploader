@@ -2324,10 +2324,14 @@ const mount = () => {
           const format = String((opts && opts.format) || "keep").trim().toLowerCase();
           const quality = opts && opts.quality != null ? Number(opts.quality) : null;
           const name = String((opts && opts.name) || (f && f.name) || "").trim();
+          const maxQuality = 80;
 
           const url = buildUrl("/api/proxy/tools/compress", {
             format,
-            quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
+            quality:
+              quality != null && Number.isFinite(quality)
+                ? String(Math.max(1, Math.min(maxQuality, Math.round(quality))))
+                : "",
             name
           });
           if (!url) throw new Error("Missing backend origin");
@@ -2454,7 +2458,8 @@ const mount = () => {
           state.compressItems = items;
           render();
 
-          const q = state.compressQuality ? Number(state.compressQuality) : null;
+          const qRaw = state.compressQuality ? Number(state.compressQuality) : null;
+          const q = qRaw != null && Number.isFinite(qRaw) ? Math.max(1, Math.min(80, Math.round(qRaw))) : null;
           const format = String(state.compressFormat || "keep").trim().toLowerCase();
 
           const guessExt = (f, b, hinted) => {

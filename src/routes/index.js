@@ -3129,7 +3129,7 @@ function createApiRouter(config) {
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
     format: Joi.string().trim().valid("keep", "webp", "avif", "jpeg", "png").default("keep"),
-    quality: Joi.number().integer().min(1).max(100),
+    quality: Joi.number().integer().min(1).max(80),
     name: Joi.string().trim().min(1).max(180).allow("")
   })
     .or("signature", "hmac", "token")
@@ -3200,6 +3200,7 @@ function createApiRouter(config) {
         }
         return f;
       })();
+      if (!srcFmt) throw new ApiError(400, "Unsupported media", { code: "UNSUPPORTED_MEDIA" });
 
       const requested = String(qValue.format || "keep").trim().toLowerCase();
       const targetFormat =
@@ -3208,15 +3209,16 @@ function createApiRouter(config) {
           : requested;
       const effort = 4;
 
+      const maxQuality = 80;
       const qRaw = qValue.quality != null ? Number(qValue.quality) : null;
       const quality =
         qRaw && Number.isFinite(qRaw)
-          ? Math.max(1, Math.min(100, Math.round(qRaw)))
+          ? Math.max(1, Math.min(maxQuality, Math.round(qRaw)))
           : targetFormat === "avif"
             ? 55
             : targetFormat === "png"
-              ? 90
-              : 82;
+              ? Math.min(maxQuality, 90)
+              : Math.min(maxQuality, 82);
 
       let img = base.rotate();
 
@@ -3242,8 +3244,8 @@ function createApiRouter(config) {
         contentType = "image/jpeg";
         ext = "jpeg";
       } else if (targetFormat === "png") {
-        const compressionLevel = 8;
-        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: false, quality }).toBuffer();
+        const compressionLevel = quality <= 30 ? 9 : quality <= 50 ? 8 : quality <= 70 ? 7 : 6;
+        out = await img.png({ compressionLevel, adaptiveFiltering: true, palette: false }).toBuffer();
         contentType = "image/png";
         ext = "png";
       } else {

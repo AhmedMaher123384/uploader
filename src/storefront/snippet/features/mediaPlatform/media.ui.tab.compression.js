@@ -333,9 +333,11 @@ const renderCompressionPlatform = (opts) => {
   qVal.style.fontWeight = "950";
   const first = selected && selected[0] ? selected[0] : null;
   const mime = String((first && first.type) || "").trim().toLowerCase();
-  const qDefault = mime === "image/png" ? 90 : 82;
+  const maxQuality = 80;
+  const qDefault = Math.min(maxQuality, mime === "image/png" ? 90 : 82);
+  const clampQ = (x) => Math.max(1, Math.min(maxQuality, Math.round(Number(x) || qDefault)));
   const qNum = state.compressQuality ? Number(state.compressQuality) : qDefault;
-  qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(qNum) || qDefault))));
+  qVal.textContent = String(clampQ(qNum));
 
   qHead.appendChild(qLabel);
   qHead.appendChild(qVal);
@@ -343,20 +345,20 @@ const renderCompressionPlatform = (opts) => {
   const range = document.createElement("input");
   range.type = "range";
   range.min = "1";
-  range.max = "92";
+  range.max = "80";
   range.step = "1";
   range.value = String(qVal.textContent || qDefault);
   range.disabled = busy;
   range.oninput = () => {
     try {
       state.compressQuality = String(range.value || "");
-      qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(range.value) || qDefault))));
+      qVal.textContent = String(clampQ(range.value));
     } catch {}
   };
   range.onchange = () => {
     try {
       state.compressQuality = String(range.value || "");
-      qVal.textContent = String(Math.max(1, Math.min(92, Math.round(Number(range.value) || qDefault))));
+      qVal.textContent = String(clampQ(range.value));
       if (onRender) onRender();
     } catch {}
   };
