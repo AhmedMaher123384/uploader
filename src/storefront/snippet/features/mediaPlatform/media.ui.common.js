@@ -874,105 +874,13 @@ const renderError = (msg) => {
   `
 const renderLoading = () => {
   const wrap = document.createElement("div");
-  wrap.style.border = "1px solid rgba(24,181,213,.3)";
-  wrap.style.borderRadius = "14px";
-  wrap.style.padding = "14px";
-  wrap.style.background = "#373737";
-
-  const useSallaLoading = (() => {
-    try {
-      return Boolean(window.customElements && window.customElements.get && window.customElements.get("salla-loading"));
-    } catch {
-      return false;
-    }
-  })();
-
-  const title = document.createElement("div");
-  title.style.display = "flex";
-  title.style.alignItems = "center";
-  title.style.justifyContent = "space-between";
-  title.style.gap = "10px";
-
-  const left = document.createElement("div");
-  left.style.display = "flex";
-  left.style.alignItems = "center";
-  left.style.gap = "10px";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+  wrap.style.padding = "18px";
 
   const spinner = document.createElement("salla-loading");
-  try {
-    spinner.setAttribute("size", "22");
-    spinner.setAttribute("width", "3");
-    spinner.setAttribute("color", "#18b5d5");
-    spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
-  } catch {}
-  spinner.style.display = useSallaLoading ? "block" : "none";
-
-  const dot = document.createElement("div");
-  dot.style.width = "10px";
-  dot.style.height = "10px";
-  dot.style.borderRadius = "999px";
-  dot.style.background = "#18b5d5";
-  dot.style.display = useSallaLoading ? "none" : "block";
-
-  left.appendChild(spinner);
-  left.appendChild(dot);
-
-  const t = document.createElement("div");
-  t.style.color = "#fff";
-  t.style.fontSize = "13px";
-  t.style.fontWeight = "950";
-  t.textContent = isArabic() ? "جاري التحميل" : "Loading";
-
-  left.appendChild(t);
-
-  const hint = document.createElement("div");
-  hint.style.color = "rgba(255,255,255,.66)";
-  hint.style.fontSize = "12px";
-  hint.style.fontWeight = "900";
-  hint.textContent = isArabic() ? "لحظة واحدة" : "Please wait";
-
-  title.appendChild(left);
-  title.appendChild(hint);
-
-  const bar = document.createElement("div");
-  bar.style.marginTop = "12px";
-  bar.style.height = "10px";
-  bar.style.borderRadius = "999px";
-  bar.style.background = "rgba(255,255,255,.08)";
-  bar.style.overflow = "hidden";
-  bar.style.position = "relative";
-  bar.style.border = "1px solid rgba(255,255,255,.10)";
-  bar.style.display = useSallaLoading ? "none" : "block";
-
-  const fill = document.createElement("div");
-  fill.style.position = "absolute";
-  fill.style.top = "0";
-  fill.style.bottom = "0";
-  fill.style.left = "0";
-  fill.style.width = "100%";
-  fill.style.borderRadius = "999px";
-  fill.style.background = "rgba(24,181,213,.45)";
-
-  bar.appendChild(fill);
-  wrap.appendChild(title);
-  wrap.appendChild(bar);
-
-  if (!useSallaLoading) {
-    try {
-      if (window.customElements && window.customElements.whenDefined) {
-        window.customElements
-          .whenDefined("salla-loading")
-          .then(() => {
-            try {
-              spinner.style.display = "block";
-              dot.style.display = "none";
-              bar.style.display = "none";
-            } catch {}
-          })
-          .catch(() => {});
-      }
-    } catch {}
-  }
+  wrap.appendChild(spinner);
   return wrap;
 };
 `,
