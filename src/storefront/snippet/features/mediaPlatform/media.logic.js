@@ -2802,7 +2802,8 @@ const mount = () => {
               uploadCard.style.display = "flex";
               uploadCard.style.flexDirection = "column";
               uploadCard.style.gap = "12px";
-              uploadCard.style.minHeight = "60vh";
+              uploadCard.style.flex = "1 1 auto";
+              uploadCard.style.minHeight = "0";
 
               uploadCard.appendChild(renderUploadHero(state.dash));
               uploadCard.appendChild(renderSmartStats(state.dash));

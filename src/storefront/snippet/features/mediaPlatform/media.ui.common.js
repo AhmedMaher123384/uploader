@@ -567,11 +567,13 @@ const buildSheet = () => {
   const panel = document.createElement("div");
   panel.className = "bundle-app-bottomsheet__panel";
   panel.style.width = "min(760px,100%)";
-  panel.style.maxHeight = "85vh";
-  panel.style.overflow = "auto";
+  panel.style.height = "85vh";
+  panel.style.overflow = "hidden";
   panel.style.background = "#303030";
   panel.style.borderRadius = "16px";
   panel.style.border = "1px solid rgba(24,181,213,.18)";
+  panel.style.display = "flex";
+  panel.style.flexDirection = "column";
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
@@ -607,6 +609,9 @@ const buildSheet = () => {
   body.style.padding = "0 14px 14px";
   body.style.display = "flex";
   body.style.flexDirection = "column";
+  body.style.flex = "1 1 auto";
+  body.style.minHeight = "0";
+  body.style.overflow = "auto";
 
   const topRow = document.createElement("div");
   topRow.style.display = "flex";
@@ -639,6 +644,8 @@ const buildSheet = () => {
   content.style.display = "flex";
   content.style.flexDirection = "column";
   content.style.gap = "12px";
+  content.style.flex = "1 1 auto";
+  content.style.minHeight = "0";
 
   body.appendChild(topRow);
   body.appendChild(uploads);
