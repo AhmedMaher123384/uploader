@@ -352,37 +352,44 @@ const renderConversionPlatform = (opts) => {
       row.style.padding = "8px 10px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
+      row.style.direction = "ltr";
 
       const rm = document.createElement("button");
       rm.type = "button";
       rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
       rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
       rm.disabled = Boolean(state.converting) || planBlocked;
-      rm.style.width = "26px";
-      rm.style.height = "26px";
-      rm.style.borderRadius = "999px";
-      rm.style.border = "1px solid rgba(255,255,255,.12)";
-      rm.style.background = "rgba(0,0,0,.14)";
-      rm.style.color = "rgba(255,255,255,.92)";
-      rm.style.display = "grid";
-      rm.style.placeItems = "center";
+      rm.style.border = "0";
+      rm.style.background = "transparent";
+      rm.style.padding = "0";
+      rm.style.margin = "0";
+      rm.style.width = "20px";
+      rm.style.height = "20px";
+      rm.style.display = "inline-flex";
+      rm.style.alignItems = "center";
+      rm.style.justifyContent = "center";
       rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
       rm.style.opacity = rm.disabled ? "0.55" : "1";
-      rm.style.fontSize = "16px";
-      rm.style.fontWeight = "950";
+      rm.style.color = "rgba(255,255,255,.78)";
+      rm.style.fontSize = "18px";
       rm.style.lineHeight = "1";
-      rm.textContent = "×";
+      const rmIcon = document.createElement("i");
+      rmIcon.className = "sicon-cancel";
+      rmIcon.setAttribute("aria-hidden", "true");
+      rmIcon.style.display = "block";
+      rmIcon.style.fontSize = "18px";
+      rmIcon.style.lineHeight = "1";
+      rmIcon.style.pointerEvents = "none";
+      rm.appendChild(rmIcon);
       rm.onmouseenter = () => {
         try {
           if (rm.disabled) return;
-          rm.style.borderColor = "rgba(239,68,68,.45)";
-          rm.style.background = "rgba(239,68,68,.16)";
+          rm.style.color = "#ef4444";
         } catch {}
       };
       rm.onmouseleave = () => {
         try {
-          rm.style.borderColor = "rgba(255,255,255,.12)";
-          rm.style.background = "rgba(0,0,0,.14)";
+          rm.style.color = "rgba(255,255,255,.78)";
         } catch {}
       };
       rm.onclick = () => {
@@ -431,7 +438,9 @@ const renderConversionPlatform = (opts) => {
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";
       name.style.textAlign = isArabic() ? "right" : "left";
+      name.style.direction = isArabic() ? "rtl" : "ltr";
       name.textContent = String(f.name || "");
+      name.title = String(f.name || "");
 
       const size = document.createElement("div");
       size.style.color = "rgba(255,255,255,.88)";
@@ -613,17 +622,10 @@ const renderConversionPlatform = (opts) => {
         fmtWrap.appendChild(arrow);
         right.appendChild(fmtWrap);
       }
-      if (isArabic()) {
-        row.appendChild(name);
-        row.appendChild(size);
-        row.appendChild(right);
-        row.appendChild(rm);
-      } else {
-        row.appendChild(rm);
-        row.appendChild(name);
-        row.appendChild(size);
-        row.appendChild(right);
-      }
+      row.appendChild(rm);
+      row.appendChild(name);
+      row.appendChild(size);
+      row.appendChild(right);
       list.appendChild(row);
     }
 
@@ -1319,6 +1321,20 @@ const renderConversionPlatform = (opts) => {
         } catch {}
       }
     );
+    try {
+      const box = presetSelect && presetSelect.children && presetSelect.children[1] ? presetSelect.children[1] : null;
+      const s = box && box.querySelector ? box.querySelector("select") : presetSelect.querySelector("select");
+      if (s) {
+        s.style.padding = "8px 24px 8px 10px";
+        s.style.fontSize = "11px";
+        s.style.borderRadius = "12px";
+      }
+      const arrow = box && box.querySelector ? box.querySelector("div") : null;
+      if (arrow) {
+        arrow.style.right = "8px";
+        arrow.style.fontSize = "11px";
+      }
+    } catch {}
     s3.appendChild(presetSelect);
 
     stepWrap.appendChild(s2);
