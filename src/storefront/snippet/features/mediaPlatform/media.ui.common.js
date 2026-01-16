@@ -879,6 +879,14 @@ const renderLoading = () => {
   wrap.style.padding = "14px";
   wrap.style.background = "#373737";
 
+  const useSallaLoading = (() => {
+    try {
+      return Boolean(window.customElements && window.customElements.get && window.customElements.get("salla-loading"));
+    } catch {
+      return false;
+    }
+  })();
+
   const title = document.createElement("div");
   title.style.display = "flex";
   title.style.alignItems = "center";
@@ -890,11 +898,24 @@ const renderLoading = () => {
   left.style.alignItems = "center";
   left.style.gap = "10px";
 
+  const spinner = document.createElement("salla-loading");
+  try {
+    spinner.setAttribute("size", "22");
+    spinner.setAttribute("width", "3");
+    spinner.setAttribute("color", "#18b5d5");
+    spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
+  } catch {}
+  spinner.style.display = useSallaLoading ? "block" : "none";
+
   const dot = document.createElement("div");
   dot.style.width = "10px";
   dot.style.height = "10px";
   dot.style.borderRadius = "999px";
   dot.style.background = "#18b5d5";
+  dot.style.display = useSallaLoading ? "none" : "block";
+
+  left.appendChild(spinner);
+  left.appendChild(dot);
 
   const t = document.createElement("div");
   t.style.color = "#fff";
@@ -902,7 +923,6 @@ const renderLoading = () => {
   t.style.fontWeight = "950";
   t.textContent = isArabic() ? "جاري التحميل" : "Loading";
 
-  left.appendChild(dot);
   left.appendChild(t);
 
   const hint = document.createElement("div");
@@ -922,6 +942,7 @@ const renderLoading = () => {
   bar.style.overflow = "hidden";
   bar.style.position = "relative";
   bar.style.border = "1px solid rgba(255,255,255,.10)";
+  bar.style.display = useSallaLoading ? "none" : "block";
 
   const fill = document.createElement("div");
   fill.style.position = "absolute";
@@ -935,6 +956,23 @@ const renderLoading = () => {
   bar.appendChild(fill);
   wrap.appendChild(title);
   wrap.appendChild(bar);
+
+  if (!useSallaLoading) {
+    try {
+      if (window.customElements && window.customElements.whenDefined) {
+        window.customElements
+          .whenDefined("salla-loading")
+          .then(() => {
+            try {
+              spinner.style.display = "block";
+              dot.style.display = "none";
+              bar.style.display = "none";
+            } catch {}
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }
   return wrap;
 };
 `,
