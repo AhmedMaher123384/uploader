@@ -263,6 +263,18 @@ const renderConversionPlatform = (opts) => {
   };
 
   const convertIsVideo = String(state.convertKind || "image") === "video";
+  const resizeOptions = [
+    { value: "original", label: isArabic() ? "الأصل (بدون تغيير)" : "Original (no resize)" },
+    { value: "1080x1080", label: isArabic() ? "إنستجرام مربع — 1080×1080" : "Instagram Square — 1080×1080" },
+    { value: "1080x1350", label: isArabic() ? "إنستجرام عمودي (4:5) — 1080×1350" : "Instagram Portrait (4:5) — 1080×1350" },
+    { value: "1080x1920", label: isArabic() ? "ستوري / ريلز — 1080×1920" : "Story / Reels — 1080×1920" },
+    { value: "1200x630", label: isArabic() ? "مشاركة رابط (FB/X) — 1200×630" : "Link share (FB/X) — 1200×630" },
+    { value: "1280x720", label: isArabic() ? "يوتيوب مصغرة (HD) — 1280×720" : "YouTube Thumbnail (HD) — 1280×720" },
+    { value: "1920x1080", label: isArabic() ? "شاشة كاملة (FHD) — 1920×1080" : "Full HD — 1920×1080" },
+    { value: "1000x1000", label: isArabic() ? "مربع متوسط — 1000×1000" : "Medium Square — 1000×1000" },
+    { value: "800x800", label: isArabic() ? "صور منتجات — 800×800" : "Product — 800×800" },
+    { value: "512x512", label: isArabic() ? "مصغرة — 512×512" : "Thumb — 512×512" },
+  ];
 
   const s1 = mkStep(
     1,
@@ -376,6 +388,11 @@ const renderConversionPlatform = (opts) => {
       const fmtValue = String(fileFormats[i] || fallbackFmt || "").trim();
 
       const showPerFileFormat = selectedFiles.length > 1;
+      const filePresets = Array.isArray(state.convertFilePresets) ? state.convertFilePresets : [];
+      const filePresetsCustom = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom : [];
+      const fallbackPreset = convertIsVideo ? "" : String(state.convertPreset || "original");
+      const presetValue = String(filePresets[i] || fallbackPreset || "original").trim();
+      const showPerFilePreset = !convertIsVideo && selectedFiles.length > 1;
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
@@ -436,6 +453,75 @@ const renderConversionPlatform = (opts) => {
           if (onRender) onRender();
         } catch {}
       };
+
+      if (showPerFilePreset) {
+        const preset = document.createElement("select");
+        preset.disabled = Boolean(state.converting) || planBlocked;
+        preset.style.padding = "4px 18px 4px 6px";
+        preset.style.borderRadius = "10px";
+        preset.style.border = "1px solid rgba(255,255,255,.10)";
+        preset.style.background = "#303030";
+        preset.style.color = "rgba(255,255,255,.92)";
+        preset.style.fontSize = "9px";
+        preset.style.fontWeight = "950";
+        preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
+        preset.style.opacity = preset.disabled ? "0.7" : "1";
+        preset.style.appearance = "none";
+        preset.style.webkitAppearance = "none";
+        preset.style.mozAppearance = "none";
+        preset.title = isArabic() ? "المقاس" : "Size";
+        for (let j = 0; j < resizeOptions.length; j += 1) {
+          const o2 = resizeOptions[j] || {};
+          const opt = document.createElement("option");
+          opt.value = String(o2.value || "");
+          opt.textContent = String(o2.label || "");
+          if (opt.value === presetValue) opt.selected = true;
+          preset.appendChild(opt);
+        }
+        try {
+          preset.value = presetValue;
+        } catch {}
+        preset.onchange = () => {
+          try {
+            if (!Array.isArray(state.convertFilePresets)) state.convertFilePresets = [];
+            if (!Array.isArray(state.convertFilePresetCustom)) state.convertFilePresetCustom = [];
+            state.convertFilePresets[i] = String(preset.value || "");
+            state.convertFilePresetCustom[i] = true;
+            for (let k = 0; k < selectedFiles.length; k += 1) {
+              if (state.convertFilePresets[k] == null) state.convertFilePresets[k] = fallbackPreset;
+              if (state.convertFilePresetCustom[k] == null) state.convertFilePresetCustom[k] = Boolean(filePresetsCustom[k]);
+            }
+            const uniq = new Set();
+            for (let k = 0; k < selectedFiles.length; k += 1) uniq.add(String(state.convertFilePresets[k] || fallbackPreset || "original"));
+            if (uniq.size === 1) {
+              const only = String(Array.from(uniq)[0] || fallbackPreset || "original");
+              state.convertPreset = only;
+              state.convertFilePresetCustom = selectedFiles.map(() => false);
+            }
+            if (onRender) onRender();
+          } catch {}
+        };
+
+        const presetWrap = document.createElement("div");
+        presetWrap.style.position = "relative";
+        presetWrap.style.display = "inline-block";
+
+        const arrow2 = document.createElement("div");
+        arrow2.textContent = "▾";
+        arrow2.style.position = "absolute";
+        arrow2.style.right = "7px";
+        arrow2.style.top = "50%";
+        arrow2.style.transform = "translateY(-50%)";
+        arrow2.style.pointerEvents = "none";
+        arrow2.style.color = "rgba(255,255,255,.70)";
+        arrow2.style.fontSize = "9px";
+        arrow2.style.fontWeight = "950";
+        arrow2.style.lineHeight = "1";
+
+        presetWrap.appendChild(preset);
+        presetWrap.appendChild(arrow2);
+        right.appendChild(presetWrap);
+      }
 
       if (showPerFileFormat) {
         const fmtWrap = document.createElement("div");
@@ -1106,37 +1192,75 @@ const renderConversionPlatform = (opts) => {
         } catch {}
       }
     );
-    s2.appendChild(fmtSelect);
-    const note = document.createElement("div");
-    note.style.color = "rgba(255,255,255,.55)";
-    note.style.fontSize = "11px";
-    note.style.fontWeight = "900";
-    note.style.lineHeight = "1.6";
-    note.textContent = hasCustom
-      ? (isArabic() ? "بعض الملفات لها صيغة مختلفة من القائمة بالأعلى." : "Some files use custom formats from the list above.")
-      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
-    s2.appendChild(note);
+    fmtSelect.style.flex = "1 1 220px";
 
-    const s3 = mkStep(3, isArabic() ? "المقاس" : "Resize", isArabic() ? "اختر مقاس جاهز" : "Pick a preset size");
-
-    const presetOptions = [
-      { value: "original", label: isArabic() ? "الأصل (بدون تغيير)" : "Original (no resize)" },
-      { value: "square", label: isArabic() ? "مربع — 1080×1080" : "Square — 1080×1080" },
-      { value: "story", label: isArabic() ? "ستوري — 1080×1920" : "Story — 1080×1920" },
-      { value: "banner", label: isArabic() ? "بانر — 1920×1080" : "Banner — 1920×1080" },
-      { value: "thumb", label: isArabic() ? "مصغرة — 512×512" : "Thumb — 512×512" }
-    ];
-
-    const presetSelectValue = String(state.convertPreset || "original") || "original";
-
-    const presetSelect = mkSelect(
-      presetSelectValue,
-      presetOptions,
+    const presetValue2 = String(state.convertPreset || "original") || "original";
+    const hasCustomPreset = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom.some(Boolean) : false;
+    const presetSelectTop = mkSelect(
+      isArabic() ? "المقاس (افتراضي)" : "Size (default)",
+      presetValue2,
+      resizeOptions,
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
           const next = String(v || "original") || "original";
           state.convertPreset = next;
+          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          if (!Array.isArray(state.convertFilePresets) || state.convertFilePresets.length !== fs.length) {
+            state.convertFilePresets = fs.map(() => next);
+          }
+          if (!Array.isArray(state.convertFilePresetCustom) || state.convertFilePresetCustom.length !== fs.length) {
+            state.convertFilePresetCustom = fs.map(() => false);
+          }
+          for (let i = 0; i < fs.length; i += 1) {
+            if (!state.convertFilePresetCustom[i]) state.convertFilePresets[i] = next;
+          }
+          state.convertError = "";
+          if (onRender) onRender();
+        } catch {}
+      }
+    );
+    presetSelectTop.style.flex = "1 1 260px";
+
+    const topControls = document.createElement("div");
+    topControls.style.display = "flex";
+    topControls.style.gap = "10px";
+    topControls.style.flexWrap = "wrap";
+    topControls.appendChild(fmtSelect);
+    topControls.appendChild(presetSelectTop);
+    s2.appendChild(topControls);
+    const note = document.createElement("div");
+    note.style.color = "rgba(255,255,255,.55)";
+    note.style.fontSize = "11px";
+    note.style.fontWeight = "900";
+    note.style.lineHeight = "1.6";
+    note.textContent =
+      (hasCustom || hasCustomPreset)
+        ? (isArabic() ? "بعض الملفات لها إعدادات مختلفة من القائمة بالأعلى." : "Some files use custom settings from the list above.")
+        : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
+    s2.appendChild(note);
+
+    const s3 = mkStep(3, isArabic() ? "المقاس" : "Resize", isArabic() ? "اختر مقاس جاهز" : "Pick a preset size");
+    const presetSelectValue = String(state.convertPreset || "original") || "original";
+    const presetSelect = mkSelect(
+      isArabic() ? "اختر المقاس" : "Choose size",
+      presetSelectValue,
+      resizeOptions,
+      Boolean(state.converting) || planBlocked,
+      (v) => {
+        try {
+          const next = String(v || "original") || "original";
+          state.convertPreset = next;
+          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          if (!Array.isArray(state.convertFilePresets) || state.convertFilePresets.length !== fs.length) {
+            state.convertFilePresets = fs.map(() => next);
+          }
+          if (!Array.isArray(state.convertFilePresetCustom) || state.convertFilePresetCustom.length !== fs.length) {
+            state.convertFilePresetCustom = fs.map(() => false);
+          }
+          for (let i = 0; i < fs.length; i += 1) {
+            if (!state.convertFilePresetCustom[i]) state.convertFilePresets[i] = next;
+          }
           state.convertError = "";
           if (onRender) onRender();
         } catch {}
