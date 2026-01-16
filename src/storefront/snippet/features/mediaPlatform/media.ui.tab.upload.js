@@ -153,6 +153,7 @@ const renderUploadHero = (dash) => {
   visit.style.display = "inline-flex";
   visit.style.alignItems = "center";
   visit.style.justifyContent = "center";
+  visit.style.gap = "8px";
   visit.style.padding = "10px 12px";
   visit.style.borderRadius = "12px";
   visit.style.border = "1px solid rgba(255,255,255,.12)";
@@ -172,6 +173,17 @@ const renderUploadHero = (dash) => {
     } catch {}
   };
 
+  const arrow = document.createElement("span");
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.textContent = "↖";
+  arrow.style.display = "block";
+  arrow.style.fontSize = "14px";
+  arrow.style.lineHeight = "1";
+  arrow.style.color = "rgba(255,255,255,.80)";
+  arrow.style.transform = "translateY(-1px)";
+  arrow.style.pointerEvents = "none";
+  visit.appendChild(arrow);
+
   right.appendChild(plan);
   right.appendChild(visit);
 
@@ -183,7 +195,7 @@ const renderUploadHero = (dash) => {
   `
 const statCard = (label, value) => {
   const c = document.createElement("div");
-  c.style.border = "1px solid rgba(24,181,213,.20)";
+  c.style.border = "1px solid rgba(255,255,255,.10)";
   c.style.borderRadius = "14px";
   c.style.background = "#373737";
   c.style.padding = "12px";
@@ -244,7 +256,7 @@ const renderSmartStats = (dash) => {
     const remain = Math.max(0, maxBytes - usedBytes);
 
     const c = document.createElement("div");
-    c.style.border = "1px solid rgba(24,181,213,.20)";
+    c.style.border = "1px solid rgba(255,255,255,.10)";
     c.style.borderRadius = "14px";
     c.style.background = "#373737";
     c.style.padding = "12px";
