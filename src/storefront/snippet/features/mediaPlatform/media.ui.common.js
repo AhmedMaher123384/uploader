@@ -772,316 +772,103 @@ const planLabel = (k) => {
 `,
   `
 const renderDropzone = ({ disabled, onPick, onFiles }) => {
-  const opts = arguments && arguments[0] && typeof arguments[0] === "object" ? arguments[0] : {};
-  const maxFiles = Math.max(1, Number(opts.maxFiles || 1) || 1);
-  const accept = String(opts.accept || "image/*,video/*");
-  const wrap = document.createElement("div");
-  wrap.style.width = "100%";
-  wrap.style.display = "flex";
-  wrap.style.flexDirection = "column";
-  wrap.style.gap = "0";
-  wrap.style.opacity = disabled ? "0.55" : "1";
-  wrap.style.pointerEvents = disabled ? "none" : "auto";
+  const z = document.createElement("div");
+  z.style.border = "1px dashed rgba(255,255,255,.12)";
+  z.style.borderRadius = "12px";
+  z.style.background = "#373737";
+  z.style.padding = "32px 20px";
+  z.style.display = "flex";
+  z.style.flexDirection = "column";
+  z.style.alignItems = "center";
+  z.style.justifyContent = "center";
+  z.style.gap = "10px";
+  z.style.cursor = disabled ? "not-allowed" : "pointer";
+  z.style.opacity = disabled ? "0.5" : "1";
 
-  const uploader = document.createElement("salla-file-upload");
-  try {
-    uploader.setAttribute("accept", accept);
-    uploader.setAttribute("allow-browse", "true");
-    uploader.setAttribute("allow-drop", "true");
-    uploader.setAttribute("allow-paste", "true");
-    uploader.setAttribute("allow-process", "false");
-    uploader.setAttribute("instant-upload", "false");
-    uploader.setAttribute("allow-multiple", maxFiles > 1 ? "true" : "false");
-    uploader.setAttribute("max-files-count", String(maxFiles));
-    uploader.setAttribute("credits", "false");
-  } catch {}
+  const icon = document.createElement("div");
+  icon.style.color = "rgba(255,255,255,.40)";
+  icon.style.fontSize = "32px";
+  icon.style.lineHeight = "1";
+  icon.textContent = "📁";
 
-  try {
-    uploader.style.width = "100%";
-    uploader.style.display = "block";
-    uploader.style.minHeight = "152px";
-    uploader.style.setProperty("--filepond--color-primary", "#18b5d5");
-    uploader.style.setProperty("--filepond--color-primary-light", "rgba(24,181,213,.18)");
-    uploader.style.setProperty("--filepond--color-primary-dark", "#18b5d5");
-    uploader.style.setProperty("--filepond--color-error", "#ef4444");
-    uploader.style.setProperty("--filepond--color-warning", "#f59e0b");
-    uploader.style.setProperty("--filepond--panel-root-background", "#303030");
-    uploader.style.setProperty("--filepond--panel-root-border-radius", "16px");
-    uploader.style.setProperty("--filepond--panel-root-border-color", "rgba(255,255,255,.10)");
-    uploader.style.setProperty("--filepond--item-panel-background", "#373737");
-    uploader.style.setProperty("--filepond--item-panel-border-radius", "14px");
-    uploader.style.setProperty("--filepond--drop-label-color", "rgba(255,255,255,.82)");
-    uploader.style.setProperty("--filepond--label-action-color", "#18b5d5");
-    uploader.style.setProperty("--filepond--file-info-main-color", "rgba(255,255,255,.92)");
-    uploader.style.setProperty("--filepond--file-info-sub-color", "rgba(255,255,255,.65)");
-    uploader.style.setProperty("--filepond--file-status-text-color", "rgba(255,255,255,.72)");
-    uploader.style.setProperty("--filepond--file-action-button-color", "rgba(255,255,255,.92)");
-    uploader.style.setProperty("--filepond--file-action-button-bg", "rgba(255,255,255,.10)");
-  } catch {}
+  const t1 = document.createElement("div");
+  t1.style.color = "rgba(255,255,255,.70)";
+  t1.style.fontSize = "13px";
+  t1.style.fontWeight = "900";
+  t1.style.textAlign = "center";
+  t1.textContent = isArabic() ? "اسحب الملفات هنا أو اضغط للاختيار" : "Drag files here or click to select";
 
-  const buildFallbackDropzone = () => {
-    const z = document.createElement("div");
-    z.style.border = "1px dashed rgba(255,255,255,.12)";
-    z.style.borderRadius = "12px";
-    z.style.background = "#373737";
-    z.style.padding = "32px 20px";
-    z.style.display = "flex";
-    z.style.flexDirection = "column";
-    z.style.alignItems = "center";
-    z.style.justifyContent = "center";
-    z.style.gap = "10px";
-    z.style.cursor = disabled ? "not-allowed" : "pointer";
-    z.style.opacity = disabled ? "0.5" : "1";
+  const t2 = document.createElement("div");
+  t2.style.color = "rgba(255,255,255,.45)";
+  t2.style.fontSize = "11px";
+  t2.style.fontWeight = "900";
+  t2.style.textAlign = "center";
+  t2.textContent = isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type";
 
-    const icon = document.createElement("div");
-    icon.style.color = "rgba(255,255,255,.40)";
-    icon.style.fontSize = "32px";
-    icon.style.lineHeight = "1";
-    icon.textContent = "📁";
-
-    const t1 = document.createElement("div");
-    t1.style.color = "rgba(255,255,255,.70)";
-    t1.style.fontSize = "13px";
-    t1.style.fontWeight = "900";
-    t1.style.textAlign = "center";
-    t1.textContent = isArabic() ? "اسحب الملفات هنا أو اضغط للاختيار" : "Drag files here or click to select";
-
-    const t2 = document.createElement("div");
-    t2.style.color = "rgba(255,255,255,.45)";
-    t2.style.fontSize = "11px";
-    t2.style.fontWeight = "900";
-    t2.style.textAlign = "center";
-    t2.textContent = isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type";
-
-    const pick = () => {
-      try {
-        if (disabled) return;
-        if (typeof onPick === "function") onPick();
-      } catch {}
-    };
-
-    const emit = (files) => {
-      try {
-        if (disabled) return;
-        const fs = files ? Array.from(files) : [];
-        if (!fs.length) return;
-        if (typeof onFiles === "function") onFiles(fs);
-      } catch {}
-    };
-
-    z.onclick = () => pick();
-
-    const onDrag = (ev) => {
-      try {
-        if (disabled) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-      } catch {}
-    };
-    z.addEventListener("dragenter", (ev) => {
-      onDrag(ev);
-      try {
-        if (disabled) return;
-        z.style.borderColor = "rgba(24,181,213,.5)";
-        z.style.background = "#373737";
-      } catch {}
-    });
-    z.addEventListener("dragover", (ev) => {
-      onDrag(ev);
-      try {
-        if (disabled) return;
-        z.style.borderColor = "rgba(24,181,213,.5)";
-        z.style.background = "#373737";
-      } catch {}
-    });
-    z.addEventListener("dragleave", (ev) => {
-      onDrag(ev);
-      try {
-        if (disabled) return;
-        z.style.borderColor = "rgba(255,255,255,.12)";
-        z.style.background = "#373737";
-      } catch {}
-    });
-    z.addEventListener("drop", (ev) => {
-      try {
-        if (disabled) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        z.style.borderColor = "rgba(255,255,255,.12)";
-        z.style.background = "#373737";
-        emit(ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : []);
-      } catch {}
-    });
-
-    z.appendChild(icon);
-    z.appendChild(t1);
-    z.appendChild(t2);
-    return z;
-  };
-
-  const fallback = buildFallbackDropzone();
-  fallback.style.width = "100%";
-
-  const isSallaDefined = () => {
-    try {
-      return typeof customElements !== "undefined" && typeof customElements.get === "function" && !!customElements.get("salla-file-upload");
-    } catch {
-      return false;
-    }
-  };
-
-  const setMode = (mode) => {
-    const m = String(mode || "");
-    try {
-      uploader.style.display = m === "salla" ? "block" : "none";
-    } catch {}
-    try {
-      fallback.style.display = m === "fallback" ? "flex" : "none";
-    } catch {}
-  };
-
-  setMode("salla");
-  let showFallbackTimer = null;
-  try {
-    showFallbackTimer = setTimeout(() => {
-      try {
-        if (!isSallaDefined()) setMode("fallback");
-      } catch {}
-    }, 900);
-  } catch {}
-
-  try {
-    if (isSallaDefined()) {
-      try {
-        if (showFallbackTimer) clearTimeout(showFallbackTimer);
-      } catch {}
-      setMode("salla");
-    } else if (typeof customElements !== "undefined" && customElements && typeof customElements.whenDefined === "function") {
-      customElements
-        .whenDefined("salla-file-upload")
-        .then(() => {
-          try {
-            if (showFallbackTimer) clearTimeout(showFallbackTimer);
-          } catch {}
-          setMode("salla");
-        })
-        .catch(() => {});
-    }
-  } catch {}
-
-  const fileKey = (f) => {
-    try {
-      return String(f && f.name) + "|" + String(f && f.size) + "|" + String(f && f.lastModified);
-    } catch {
-      return "";
-    }
-  };
-
-  const chosen = [];
-  const chosenKeys = new Set();
-  let t = null;
-
-  const flush = () => {
+  const pick = () => {
     try {
       if (disabled) return;
-      if (!chosen.length) return;
-      const out = chosen.slice(0, maxFiles);
-      chosen.length = 0;
-      chosenKeys.clear();
-      if (typeof onFiles === "function") onFiles(out);
+      if (typeof onPick === "function") onPick();
     } catch {}
   };
 
-  const scheduleFlush = () => {
-    try {
-      if (t) clearTimeout(t);
-    } catch {}
-    try {
-      t = setTimeout(() => flush(), 120);
-    } catch {
-      flush();
-    }
-  };
-
-  const take = (file) => {
-    try {
-      if (!file) return;
-      const k = fileKey(file);
-      if (!k) return;
-      if (chosenKeys.has(k)) return;
-      chosenKeys.add(k);
-      chosen.push(file);
-      scheduleFlush();
-    } catch {}
-  };
-
-  const onAddFile = (ev) => {
+  const emit = (files) => {
     try {
       if (disabled) return;
-      const d = ev && ev.detail ? ev.detail : null;
-      if (d && d.error) return;
-      const ff = d && d.file ? d.file : null;
-      const f = ff && ff.file ? ff.file : ff;
-      if (f && typeof File !== "undefined" && f instanceof File) take(f);
+      const fs = files ? Array.from(files) : [];
+      if (!fs.length) return;
+      if (typeof onFiles === "function") onFiles(fs);
     } catch {}
   };
 
-  try {
-    uploader.addEventListener("FilePond:addfile", onAddFile);
-  } catch {}
+  z.onclick = () => pick();
 
-  try {
-    if (!window.__bundleAppFileUploadBus) window.__bundleAppFileUploadBus = { attached: false, current: null };
-  } catch {}
-  const bus = (() => {
+  const onDrag = (ev) => {
     try {
-      return window.__bundleAppFileUploadBus;
-    } catch {
-      return null;
-    }
-  })();
-  if (bus) {
-    bus.current = { el: uploader, onAddFile };
-    if (!bus.attached) {
-      bus.attached = true;
-      try {
-        document.addEventListener(
-          "FilePond:addfile",
-          (ev) => {
-            try {
-              const b = window.__bundleAppFileUploadBus;
-              const c = b && b.current ? b.current : null;
-              const el = c && c.el ? c.el : null;
-              const cb = c && c.onAddFile ? c.onAddFile : null;
-              if (!el || !cb) return;
-              const path = ev && typeof ev.composedPath === "function" ? ev.composedPath() : [];
-              if (path && path.indexOf(el) !== -1) cb(ev);
-            } catch {}
-          },
-          true
-        );
-      } catch {}
-    }
-  }
+      if (disabled) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+    } catch {}
+  };
+  z.addEventListener("dragenter", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(24,181,213,.5)";
+      z.style.background = "#373737";
+    } catch {}
+  });
+  z.addEventListener("dragover", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(24,181,213,.5)";
+      z.style.background = "#373737";
+    } catch {}
+  });
+  z.addEventListener("dragleave", (ev) => {
+    onDrag(ev);
+    try {
+      if (disabled) return;
+      z.style.borderColor = "rgba(255,255,255,.12)";
+      z.style.background = "#373737";
+    } catch {}
+  });
+  z.addEventListener("drop", (ev) => {
+    try {
+      if (disabled) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      z.style.borderColor = "rgba(255,255,255,.12)";
+      z.style.background = "#373737";
+      emit(ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : []);
+    } catch {}
+  });
 
-  try {
-    setTimeout(() => {
-      try {
-        const root =
-          (uploader.shadowRoot && uploader.shadowRoot.querySelector ? uploader.shadowRoot.querySelector(".filepond--root") : null) ||
-          (uploader.querySelector ? uploader.querySelector(".filepond--root") : null) ||
-          null;
-        if (root) root.addEventListener("FilePond:addfile", onAddFile);
-      } catch {}
-    }, 0);
-  } catch {}
-
-  wrap.appendChild(uploader);
-  wrap.appendChild(fallback);
-  try {
-    fallback.style.display = "none";
-  } catch {}
-  return wrap;
+  z.appendChild(icon);
+  z.appendChild(t1);
+  z.appendChild(t2);
+  return z;
 };
 `,
   `
