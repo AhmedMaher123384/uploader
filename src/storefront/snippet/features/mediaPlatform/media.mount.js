@@ -8,9 +8,8 @@ module.exports = function mountMediaPlatform(context) {
   const cssBase = context.cssBase;
   const cssPickers = context.cssPickers;
   const cssTraditional = context.cssTraditional;
-  const cssIcomoon = context.cssIcomoon;
 
-  parts.push(buildStylesJs({ cssBase, cssPickers, cssTraditional, cssIcomoon }));
+  parts.push(buildStylesJs({ cssBase, cssPickers, cssTraditional }));
 
   for (let i = 0; i < mediaLogicParts.length; i += 1) {
     if (i === 3) {

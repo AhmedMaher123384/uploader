@@ -254,7 +254,9 @@ const buildLegalHead = (titleText, theme, onClose) => {
 
   const close = document.createElement("button");
   close.type = "button";
-  close.textContent = isArabic() ? "إغلاق" : "Close";
+  close.setAttribute("aria-label", isArabic() ? "إغلاق" : "Close");
+  close.setAttribute("title", isArabic() ? "إغلاق" : "Close");
+  close.textContent = "";
   close.style.padding = "6px 10px";
   close.style.borderRadius = "10px";
   close.style.border = "1px solid rgba(24,181,213,.3)";
@@ -263,6 +265,14 @@ const buildLegalHead = (titleText, theme, onClose) => {
   close.style.fontSize = "13px";
   close.style.fontWeight = "900";
   close.style.cursor = "pointer";
+  const closeIcon = document.createElement("i");
+  closeIcon.className = "sicon-cancel";
+  closeIcon.setAttribute("aria-hidden", "true");
+  closeIcon.style.display = "block";
+  closeIcon.style.fontSize = "18px";
+  closeIcon.style.lineHeight = "1";
+  closeIcon.style.pointerEvents = "none";
+  close.appendChild(closeIcon);
   close.onclick = () => {
     try {
       if (typeof onClose === "function") onClose();
@@ -593,12 +603,10 @@ const buildSheet = () => {
   const close = document.createElement("button");
   close.type = "button";
   close.setAttribute("aria-label", isArabic() ? "إغلاق" : "Close");
-  close.style.padding = "0";
-  close.style.width = "36px";
-  close.style.height = "36px";
-  close.style.display = "grid";
-  close.style.placeItems = "center";
-  close.style.borderRadius = "12px";
+  close.setAttribute("title", isArabic() ? "إغلاق" : "Close");
+  close.textContent = "";
+  close.style.padding = "6px 10px";
+  close.style.borderRadius = "10px";
   close.style.border = "1px solid rgba(24,181,213,.3)";
   close.style.background = "#373737";
   close.style.color = "#fff";
@@ -606,20 +614,12 @@ const buildSheet = () => {
   close.style.fontWeight = "900";
   close.style.cursor = "pointer";
   const closeIcon = document.createElement("i");
-  closeIcon.className = "bundle-app-ico sicon-cancel";
+  closeIcon.className = "sicon-cancel";
   closeIcon.setAttribute("aria-hidden", "true");
+  closeIcon.style.display = "block";
   closeIcon.style.fontSize = "18px";
   closeIcon.style.lineHeight = "1";
-  close.appendChild(closeIcon);
-  close.style.color = "#fff";
-  close.style.fontSize = "13px";
-  close.style.fontWeight = "900";
-  close.style.cursor = "pointer";
-  const closeIcon = document.createElement("i");
-  closeIcon.className = "bundle-app-ico sicon-cancel";
-  closeIcon.setAttribute("aria-hidden", "true");
-  closeIcon.style.fontSize = "18px";
-  closeIcon.style.lineHeight = "1";
+  closeIcon.style.pointerEvents = "none";
   close.appendChild(closeIcon);
 
   head.appendChild(title);
