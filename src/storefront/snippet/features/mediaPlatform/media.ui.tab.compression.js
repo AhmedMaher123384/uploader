@@ -427,6 +427,18 @@ const renderCompressionPlatform = (opts) => {
   actions.appendChild(resetBtn);
   s3.appendChild(actions);
 
+  if (busy || Number(state.compressOverallProgress || 0) > 0) {
+    const pct = Math.max(0, Math.min(100, Math.round(Number(state.compressOverallProgress || 0) || 0)));
+    s3.appendChild(
+      renderSallaProgressBar({
+        header: isArabic() ? "التقدم" : "Progress",
+        value: pct,
+        target: 100,
+        message: (busy ? (isArabic() ? "جاري الضغط" : "Compressing") : (isArabic() ? "تم" : "Done")) + " " + String(pct) + "%"
+      })
+    );
+  }
+
   if (items.length) {
     const list = document.createElement("div");
     list.style.display = "flex";
@@ -692,17 +704,13 @@ const renderCompressionPlatform = (opts) => {
       box.appendChild(top);
 
       if (st === "compressing") {
-        const prog = document.createElement("div");
-        prog.style.border = "1px solid rgba(255,255,255,.08)";
-        prog.style.borderRadius = "14px";
-        prog.style.background = "#303030";
-        prog.style.overflow = "hidden";
-        const bar = document.createElement("div");
-        bar.style.height = "10px";
-        bar.style.width = Math.max(0, Math.min(100, Number((it && it.progress) || 0) || 0)) + "%";
-        bar.style.background = "#18b5d5";
-        prog.appendChild(bar);
-        box.appendChild(prog);
+        const pct = Math.max(0, Math.min(100, Math.round(Number((it && it.progress) || 0) || 0)));
+        box.appendChild(
+          renderSallaProgressBar({
+            value: pct,
+            target: 100
+          })
+        );
       }
 
       return box;

@@ -912,13 +912,39 @@ const renderLoading = () => {
 
   const spinner = document.createElement("salla-loading");
   try {
-    spinner.setAttribute("size", "68");
-    spinner.setAttribute("width", "5");
-    spinner.setAttribute("color", "#18b5d5");
-    spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
+    spinner.setAttribute("size", "52");
   } catch {}
   wrap.appendChild(spinner);
   return wrap;
+};
+`,
+  `
+const renderSallaProgressBar = (opts) => {
+  const o = opts && typeof opts === "object" ? opts : {};
+  const el = document.createElement("salla-progress-bar");
+  try {
+    const color = o.color != null ? String(o.color || "") : "";
+    const header = o.header != null ? String(o.header || "") : "";
+    const message = o.message != null ? String(o.message || "") : "";
+    const height = o.height != null ? String(o.height || "") : "";
+    const unit = o.unit != null ? String(o.unit || "") : "";
+    const stripped = Boolean(o.stripped);
+    const target = o.target != null ? Number(o.target) : null;
+    const value = o.value != null ? Number(o.value) : null;
+
+    if (color) el.setAttribute("color", color);
+    if (header) el.setAttribute("header", header);
+    if (message) el.setAttribute("message", message);
+    if (height) el.setAttribute("height", height);
+    if (unit) el.setAttribute("unit", unit);
+    if (stripped) el.setAttribute("stripped", "");
+    if (target != null && Number.isFinite(target)) el.setAttribute("target", String(target));
+    if (value != null && Number.isFinite(value)) el.setAttribute("value", String(value));
+  } catch {}
+  try {
+    el.style.width = "100%";
+  } catch {}
+  return el;
 };
 `,
   `
