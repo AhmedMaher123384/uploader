@@ -1,5 +1,25 @@
 const mediaLogicParts = require("./media.logic");
-const { buildStylesJs } = require("../../core/stylesJs");
+
+function buildStylesJs({ cssBase, cssPickers, cssTraditional }) {
+  const css = [cssBase, cssPickers, cssTraditional].filter(Boolean).join("\n");
+  const payload = JSON.stringify(String(css || ""));
+  return `
+const ensureStyles = (() => {
+  const STYLE_ID = "bundle-app-snippet-styles";
+  return () => {
+    try {
+      if (document.getElementById(STYLE_ID)) return;
+      const el = document.createElement("style");
+      el.id = STYLE_ID;
+      el.type = "text/css";
+      el.textContent = ${payload};
+      const head = document.head || document.documentElement || document.body;
+      if (head && head.appendChild) head.appendChild(el);
+    } catch {}
+  };
+})();
+`;
+}
 
 module.exports = function mountMediaPlatform(context) {
   const parts = context.parts;

@@ -922,6 +922,101 @@ const renderLoading = () => {
 };
 `,
   `
+const renderSallaProgressBar = (opts = {}) => {
+  const o = opts && typeof opts === "object" ? opts : {};
+  const header = String(o.header || "");
+  const message = String(o.message || "");
+  const color = String(o.color || "#18b5d5");
+  const unit = String(o.unit == null ? "%" : o.unit);
+  const height = String(o.height || "10px");
+  const compact = Boolean(o.compact);
+  const showTarget = Boolean(o.showTarget);
+
+  const value = (() => {
+    const v = Number(o.value);
+    if (!Number.isFinite(v)) return 0;
+    return v;
+  })();
+  const target = (() => {
+    const t = Number(o.target);
+    if (!Number.isFinite(t)) return 100;
+    return t > 0 ? t : 100;
+  })();
+  const pct = Math.max(0, Math.min(100, Math.round((value / target) * 100)));
+
+  const root = document.createElement("div");
+  root.style.display = "flex";
+  root.style.flexDirection = "column";
+  root.style.gap = compact ? "0" : "6px";
+
+  if (!compact && header) {
+    const h = document.createElement("div");
+    h.style.fontSize = "12px";
+    h.style.lineHeight = "1.25rem";
+    h.style.color = "rgba(255,255,255,.78)";
+    h.style.fontWeight = "950";
+    h.textContent = header;
+    root.appendChild(h);
+  }
+
+  if (!compact && showTarget) {
+    const ts = document.createElement("div");
+    ts.style.display = "flex";
+    ts.style.marginBottom = "0";
+    ts.style.fontSize = "12px";
+    ts.style.lineHeight = "1.25rem";
+    ts.style.justifyContent = "space-between";
+    ts.style.gap = "10px";
+    ts.style.color = "rgba(255,255,255,.72)";
+    ts.style.fontWeight = "900";
+
+    const left = document.createElement("div");
+    left.style.direction = "ltr";
+    left.textContent = String(Math.round(value)) + unit;
+
+    const right = document.createElement("div");
+    right.style.direction = "ltr";
+    right.textContent = String(Math.round(target)) + unit;
+
+    ts.appendChild(left);
+    ts.appendChild(right);
+    root.appendChild(ts);
+  }
+
+  const wrap = document.createElement("div");
+  wrap.style.background = "rgba(255,255,255,.14)";
+  wrap.style.width = "100%";
+  wrap.style.height = height;
+  wrap.style.borderRadius = "9999px";
+  wrap.style.overflow = "hidden";
+  wrap.setAttribute("role", "progressbar");
+  wrap.setAttribute("aria-valuemin", "0");
+  wrap.setAttribute("aria-valuemax", String(target));
+  wrap.setAttribute("aria-valuenow", String(Math.max(0, Math.min(target, value))));
+
+  const bar = document.createElement("div");
+  bar.style.height = "100%";
+  bar.style.width = String(pct) + "%";
+  bar.style.borderRadius = "9999px";
+  bar.style.background = color;
+  wrap.appendChild(bar);
+  root.appendChild(wrap);
+
+  if (!compact && message) {
+    const m = document.createElement("div");
+    m.style.color = "rgba(255,255,255,.55)";
+    m.style.fontSize = "12px";
+    m.style.lineHeight = "1rem";
+    m.style.fontWeight = "900";
+    m.style.display = "block";
+    m.textContent = message;
+    root.appendChild(m);
+  }
+
+  return root;
+};
+`,
+  `
 const copyText = (text, onDone) => {
   try {
     const t = String(text || "");

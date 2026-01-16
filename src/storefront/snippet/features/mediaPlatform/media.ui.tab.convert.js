@@ -688,17 +688,19 @@ const renderConversionPlatform = (opts) => {
     s.appendChild(actions);
 
     if (state.converting || Number(state.convertOverallProgress || 0) > 0) {
-      const prog = document.createElement("div");
-      prog.style.border = "1px solid rgba(255,255,255,.08)";
-      prog.style.borderRadius = "14px";
-      prog.style.background = "#373737";
-      prog.style.overflow = "hidden";
-      const bar = document.createElement("div");
-      bar.style.height = "10px";
-      bar.style.width = Math.max(0, Math.min(100, Number(state.convertOverallProgress || 0) || 0)) + "%";
-      bar.style.background = "#18b5d5";
-      prog.appendChild(bar);
-      s.appendChild(prog);
+      const pct = Math.max(0, Math.min(100, Math.round(Number(state.convertOverallProgress || 0) || 0)));
+      s.appendChild(
+        renderSallaProgressBar({
+          header: isArabic() ? "التقدم" : "Progress",
+          value: pct,
+          target: 100,
+          unit: "%",
+          color: "#18b5d5",
+          height: "10px",
+          showTarget: true,
+          message: state.converting ? (isArabic() ? "جاري التحويل…" : "Converting…") : ""
+        })
+      );
     }
 
     if (state.convertError) {

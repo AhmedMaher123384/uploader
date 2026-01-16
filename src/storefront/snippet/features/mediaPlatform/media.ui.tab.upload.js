@@ -427,22 +427,16 @@ const renderUploadRow = (rec) => {
   wrap.appendChild(row);
 
   if (rec.status === "uploading") {
-    const bar = document.createElement("div");
-    bar.style.height = "10px";
-    bar.style.borderRadius = "999px";
-    bar.style.background = "rgba(255,255,255,.08)";
-    bar.style.border = "1px solid rgba(255,255,255,.10)";
-    bar.style.overflow = "hidden";
-    bar.style.position = "relative";
-
-    const fill = document.createElement("div");
-    fill.style.height = "100%";
-    fill.style.width = String(pct) + "%";
-    fill.style.borderRadius = "999px";
-    fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.35) 0%, rgba(24,181,213,.95) 50%, rgba(255,255,255,.55) 100%)";
-
-    bar.appendChild(fill);
-    wrap.appendChild(bar);
+    wrap.appendChild(
+      renderSallaProgressBar({
+        value: pct,
+        target: 100,
+        unit: "%",
+        color: "#18b5d5",
+        height: "10px",
+        compact: true
+      })
+    );
   }
 
   const url = String((rec && rec.url) || "");
