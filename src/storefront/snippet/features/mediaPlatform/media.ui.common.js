@@ -672,7 +672,6 @@ const buildSheet = () => {
   body.appendChild(topRow);
   body.appendChild(uploads);
   body.appendChild(content);
-  body.appendChild(buildLegalFooter());
   panel.appendChild(head);
   panel.appendChild(body);
   overlay.appendChild(panel);

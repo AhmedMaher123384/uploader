@@ -2728,6 +2728,12 @@ const mount = () => {
             sheet.uploads.innerHTML = "";
             sheet.content.innerHTML = "";
 
+            const appendLegalFooter = () => {
+              try {
+                sheet.content.appendChild(buildLegalFooter());
+              } catch {}
+            };
+
             const labels = isArabic()
               ? { upload: "مركز الرفع", compress: "ضغط الصور", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
               : { upload: "Upload Center", compress: "Compression", convert: "Conversion Platform", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
@@ -2838,6 +2844,7 @@ const mount = () => {
               if (state.uploadError) uploadCard.appendChild(renderError(state.uploadError));
               sheet.content.appendChild(uploadCard);
             }
+            appendLegalFooter();
             return;
           }
 
@@ -2873,6 +2880,7 @@ const mount = () => {
                 });
                 if (card) sheet.content.appendChild(card);
               }
+              appendLegalFooter();
               return;
             }
 
@@ -2901,6 +2909,7 @@ const mount = () => {
                 onReset: resetConvert
               });
               if (card) sheet.content.appendChild(card);
+              appendLegalFooter();
               return;
             }
 
@@ -2955,6 +2964,8 @@ const mount = () => {
               });
               if (pager) sheet.content.appendChild(pager);
             }
+
+            appendLegalFooter();
           } catch {}
         };
 
