@@ -431,33 +431,11 @@ const renderCompressionPlatform = (opts) => {
     list.style.flexDirection = "column";
     list.style.gap = "10px";
 
-    const mkBadge = (label, tone) => {
-      const b = document.createElement("div");
-      b.textContent = String(label || "");
-      b.style.padding = "6px 10px";
-      b.style.borderRadius = "999px";
-      b.style.fontSize = "11px";
-      b.style.fontWeight = "950";
-      b.style.border = "1px solid rgba(255,255,255,.12)";
-      b.style.background = "#303030";
-      b.style.color = "rgba(255,255,255,.85)";
-      if (tone === "ok") {
-        b.style.border = "1px solid rgba(24,181,213,.35)";
-        b.style.background = "rgba(24,181,213,.10)";
-        b.style.color = "#18b5d5";
-      } else if (tone === "err") {
-        b.style.border = "1px solid rgba(239,68,68,.35)";
-        b.style.background = "rgba(239,68,68,.10)";
-        b.style.color = "#fecaca";
-      }
-      return b;
-    };
-
     const mkRow = (it) => {
       const box = document.createElement("div");
-      box.style.border = "1px solid rgba(24,181,213,.25)";
+      box.style.border = "1px solid rgba(255,255,255,.08)";
       box.style.borderRadius = "14px";
-      box.style.background = "#373737";
+      box.style.background = "#303030";
       box.style.padding = "12px";
       box.style.display = "flex";
       box.style.flexDirection = "column";
@@ -465,7 +443,7 @@ const renderCompressionPlatform = (opts) => {
 
       const top = document.createElement("div");
       top.style.display = "flex";
-      top.style.alignItems = "flex-start";
+      top.style.alignItems = "center";
       top.style.justifyContent = "space-between";
       top.style.gap = "10px";
       top.style.flexWrap = "wrap";
@@ -612,45 +590,49 @@ const renderCompressionPlatform = (opts) => {
         if (editBtn) nameRow.appendChild(editBtn);
       }
 
-      const meta = document.createElement("div");
-      meta.style.fontSize = "12px";
-      meta.style.fontWeight = "900";
-      meta.style.color = "rgba(255,255,255,.65)";
-      meta.style.display = "flex";
-      meta.style.flexDirection = "column";
-      meta.style.gap = "2px";
+      const sub = document.createElement("div");
+      sub.style.fontSize = "12px";
+      sub.style.fontWeight = "900";
+      sub.style.lineHeight = "1.5";
+      sub.style.display = "flex";
+      sub.style.flexDirection = "column";
+      sub.style.gap = "2px";
+      sub.style.color = "rgba(255,255,255,.62)";
       const inB = Number((it && it.inBytes) || 0) || 0;
       const outB = Number((it && it.outBytes) || 0) || 0;
       const ratio = inB > 0 && outB > 0 ? Math.max(0, Math.min(100, Math.round((1 - outB / inB) * 100))) : 0;
       const fmt2 = String((it && it.outFormat) || "").trim();
-      if (outB && fmt2) {
-        const line1 = document.createElement("div");
-        line1.style.direction = "ltr";
-        line1.style.color = "rgba(255,255,255,.78)";
-        line1.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
+      const pct = Math.max(0, Math.min(100, Math.round(Number((it && it.progress) || 0) || 0)));
 
-        const savedLine = document.createElement("div");
-        savedLine.style.direction = isArabic() ? "rtl" : "ltr";
-        savedLine.style.color = "rgba(255,255,255,.65)";
-        savedLine.textContent = (isArabic() ? "التوفير " : "Saved ") + String(ratio) + "%";
+      if (st === "compressing") {
+        sub.textContent = (isArabic() ? "جاري الضغط " : "Compressing ") + String(pct) + "%";
+      } else if (st === "queued") {
+        sub.textContent = isArabic() ? "في الانتظار" : "Queued";
+      } else if (st === "error") {
+        sub.style.color = "#ef4444";
+        sub.textContent = String((it && it.error) || (isArabic() ? "فشل الضغط" : "Compression failed"));
+      } else if (st === "done") {
+        if (outB && fmt2) {
+          const line1 = document.createElement("div");
+          line1.style.direction = "ltr";
+          line1.style.color = "rgba(255,255,255,.72)";
+          line1.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
 
-        const fmtLine = document.createElement("div");
-        fmtLine.style.direction = "ltr";
-        fmtLine.style.color = "rgba(255,255,255,.86)";
-        fmtLine.textContent = fmt2.toUpperCase();
+          const line2 = document.createElement("div");
+          line2.style.direction = isArabic() ? "rtl" : "ltr";
+          line2.style.color = "rgba(255,255,255,.62)";
+          line2.textContent =
+            (isArabic() ? "التوفير " : "Saved ") + String(ratio) + "% · " + String(fmt2 || "").toUpperCase();
 
-        meta.appendChild(line1);
-        meta.appendChild(savedLine);
-        meta.appendChild(fmtLine);
-      } else {
-        const only = document.createElement("div");
-        only.style.direction = "ltr";
-        only.textContent = fmtBytes(inB);
-        meta.appendChild(only);
+          sub.appendChild(line1);
+          sub.appendChild(line2);
+        } else {
+          sub.textContent = fmtBytes(inB);
+        }
       }
 
       left.appendChild(nameRow);
-      left.appendChild(meta);
+      if (sub.textContent || (sub.childNodes && sub.childNodes.length)) left.appendChild(sub);
 
       const right = document.createElement("div");
       right.style.display = "flex";
@@ -658,20 +640,30 @@ const renderCompressionPlatform = (opts) => {
       right.style.gap = "8px";
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
-
-      const badge =
-        st === "done"
-          ? mkBadge(isArabic() ? "تم" : "Done", "ok")
-          : st === "error"
-            ? mkBadge(isArabic() ? "خطأ" : "Error", "err")
-            : st === "compressing"
-              ? mkBadge(isArabic() ? "جاري الضغط" : "Compressing", "neutral")
-              : mkBadge(isArabic() ? "قائمة" : "Queued", "neutral");
-
-      right.appendChild(badge);
+      const resUrl = String((it && it.resultUrl) || "");
+      if (resUrl && st === "done") {
+        const dl = btnPrimary(isArabic() ? "تحميل" : "Download");
+        dl.onclick = () => {
+          try {
+            const a = document.createElement("a");
+            a.href = resUrl;
+            const raw = String((it && it.name) || "compressed");
+            let base = raw;
+            const dot = base.lastIndexOf(".");
+            if (dot > 0) base = base.slice(0, dot);
+            base = base.slice(0, 120) || "compressed";
+            const ext = String((it && it.outFormat) || "").trim().toLowerCase() || "webp";
+            a.download = base + "." + ext;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          } catch {}
+        };
+        right.appendChild(dl);
+      }
 
       top.appendChild(left);
-      top.appendChild(right);
+      if (right.childNodes && right.childNodes.length) top.appendChild(right);
       box.appendChild(top);
 
       if (st === "compressing") {
@@ -686,45 +678,6 @@ const renderCompressionPlatform = (opts) => {
         bar.style.background = "#18b5d5";
         prog.appendChild(bar);
         box.appendChild(prog);
-      }
-
-      if (st === "error") {
-        const e = document.createElement("div");
-        e.style.fontSize = "12px";
-        e.style.fontWeight = "900";
-        e.style.color = "#ef4444";
-        e.style.lineHeight = "1.6";
-        e.textContent = String((it && it.error) || "");
-        box.appendChild(e);
-      }
-
-      if (st === "done" && it && it.resultUrl) {
-        const act = document.createElement("div");
-        act.style.display = "flex";
-        act.style.gap = "10px";
-        act.style.flexWrap = "wrap";
-
-        const dl = btnGhost(isArabic() ? "تحميل" : "Download");
-        dl.onclick = () => {
-          try {
-            const a = document.createElement("a");
-            a.href = String(it.resultUrl || "");
-            const raw = String((it && it.name) || "compressed");
-            let base = raw;
-            const dot = base.lastIndexOf(".");
-            if (dot > 0) base = base.slice(0, dot);
-            base = base.slice(0, 120) || "compressed";
-            const ext = String((it && it.outFormat) || "").trim().toLowerCase() || "webp";
-            a.download = base + "." + ext;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-          } catch {}
-        };
-
-        act.appendChild(dl);
-
-        box.appendChild(act);
       }
 
       return box;
