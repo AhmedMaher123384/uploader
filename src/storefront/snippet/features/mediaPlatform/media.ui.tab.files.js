@@ -235,9 +235,6 @@ const renderThumbActions = (opts) => {
 };
 `,
   `
-const BLANK_IMG =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-
 const fetchMediaObjectUrl = async (src) => {
   const u = String(src || "");
   if (!u) return "";
@@ -457,7 +454,6 @@ const renderGrid = (items, opts) => {
       img.alt = "";
       img.loading = "lazy";
       img.decoding = "async";
-      img.src = BLANK_IMG;
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = "contain";
@@ -488,12 +484,14 @@ const renderGrid = (items, opts) => {
         fetchMediaObjectUrl(src)
           .then((obj) => {
             try {
-              if (obj) img.src = obj;
+              const u = String(obj || src || "").trim();
+              if (u) img.src = u;
             } catch {}
           })
           .catch(() => {
             try {
-              img.src = src;
+              const u = String(src || "").trim();
+              if (u) img.src = u;
             } catch {}
           });
       }

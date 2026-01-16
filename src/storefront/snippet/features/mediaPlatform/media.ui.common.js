@@ -73,28 +73,35 @@ const setupFabFooterReveal = (btn) => {
 const createFab = () => {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.setAttribute("aria-label", isArabic() ? "منصة الرفع" : "Upload platform");
+  const labelText = isArabic() ? "فتح منصة الرفع" : "Open upload center";
+  btn.setAttribute("aria-label", labelText);
+  btn.setAttribute("title", labelText);
   btn.style.position = "fixed";
-  btn.style.top = "calc(env(safe-area-inset-top, 0px) + 12px)";
+  btn.style.top = "12px";
+  try {
+    btn.style.top = "calc(env(safe-area-inset-top, 0px) + 12px)";
+  } catch {}
   if (typeof isRtl === "function" && isRtl()) {
     btn.style.right = "12px";
   } else {
     btn.style.left = "12px";
   }
-  btn.style.zIndex = "100002";
+  btn.style.zIndex = "2147483647";
   btn.style.border = "1px solid rgba(24,181,213,.55)";
   btn.style.cursor = "pointer";
-  btn.style.borderRadius = "999px";
   btn.style.background = "#373737";
   btn.style.color = "#fff";
-  btn.style.display = "grid";
-  btn.style.placeItems = "center";
+  btn.style.display = "inline-flex";
+  btn.style.alignItems = "center";
+  btn.style.justifyContent = "center";
+  btn.style.gap = "10px";
   btn.style.userSelect = "none";
   btn.style.webkitUserSelect = "none";
   btn.style.lineHeight = "1";
-  btn.style.fontWeight = "900";
+  btn.style.fontWeight = "950";
   btn.style.opacity = "1";
   btn.style.pointerEvents = "auto";
+  btn.style.boxShadow = "0 18px 44px rgba(0,0,0,.30)";
 
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24");
@@ -111,14 +118,25 @@ const createFab = () => {
   icon.appendChild(path);
   btn.appendChild(icon);
 
+  const label = document.createElement("span");
+  label.textContent = labelText;
+  label.style.fontSize = "12px";
+  label.style.fontWeight = "950";
+  label.style.whiteSpace = "nowrap";
+  label.style.pointerEvents = "none";
+  btn.appendChild(label);
+
   const applySize = () => {
     try {
       const vw = Math.min(Number(window.innerWidth || 0) || 0, Number(window.innerHeight || 0) || 0);
+      const compact = Boolean(vw && vw < 480);
       const s = vw && vw < 380 ? 42 : 48;
-      btn.style.width = \`\${s}px\`;
-      btn.style.height = \`\${s}px\`;
-      btn.style.padding = "0";
-      const isSmall = s < 46;
+      btn.style.borderRadius = "999px";
+      btn.style.height = compact ? \`\${s}px\` : "44px";
+      btn.style.width = compact ? \`\${s}px\` : "auto";
+      btn.style.padding = compact ? "0" : "0 14px";
+      label.style.display = compact ? "none" : "inline";
+      const isSmall = compact && s < 46;
       icon.setAttribute("width", isSmall ? "18" : "20");
       icon.setAttribute("height", isSmall ? "18" : "20");
     } catch {}
