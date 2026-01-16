@@ -14,6 +14,7 @@ const { URL } = require("url");
 const crypto = require("crypto");
 const axios = require("axios");
 const sharp = require("sharp");
+const zlib = require("zlib");
 const {
   S3Client,
   PutObjectCommand,
@@ -274,6 +275,24 @@ function createApiRouter(config) {
       res.setHeader("X-BundleApp-Snippet-Path", "/api/storefront/snippet.js");
       res.setHeader("X-BundleApp-Snippet-Sha256", sha256Hex(js));
       res.setHeader("X-BundleApp-Snippet-Bytes", String(Buffer.byteLength(js, "utf8")));
+      const acceptEnc = String(req.headers["accept-encoding"] || "");
+      const wantsBr = /\bbr\b/i.test(acceptEnc);
+      const wantsGzip = /\bgzip\b/i.test(acceptEnc);
+      if (wantsBr) {
+        const buf = zlib.brotliCompressSync(Buffer.from(js, "utf8"), {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 }
+        });
+        res.setHeader("Content-Encoding", "br");
+        res.setHeader("Vary", "Accept-Encoding");
+        return res.send(buf);
+      }
+      if (wantsGzip) {
+        const buf = zlib.gzipSync(Buffer.from(js, "utf8"), { level: 9 });
+        res.setHeader("Content-Encoding", "gzip");
+        res.setHeader("Vary", "Accept-Encoding");
+        return res.send(buf);
+      }
+      res.setHeader("Vary", "Accept-Encoding");
       return res.send(js);
     } catch (err) {
       return next(err);
