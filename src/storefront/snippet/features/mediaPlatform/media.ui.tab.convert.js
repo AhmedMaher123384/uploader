@@ -13,7 +13,6 @@ const renderConversionPlatform = (opts) => {
   const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
   const onSetConvertFiles = typeof o.onSetConvertFiles === "function" ? o.onSetConvertFiles : null;
-  const onRemoveFile = typeof o.onRemoveFile === "function" ? o.onRemoveFile : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
 
@@ -214,7 +213,7 @@ const renderConversionPlatform = (opts) => {
     const s = document.createElement("select");
     s.disabled = Boolean(disabled);
     s.style.width = "100%";
-    s.style.padding = "9px 34px 9px 10px";
+    s.style.padding = "9px 28px 9px 10px";
     s.style.borderRadius = "12px";
     s.style.border = "1px solid rgba(255,255,255,.08)";
     s.style.background = "#373737";
@@ -238,7 +237,7 @@ const renderConversionPlatform = (opts) => {
     arrow.style.transform = "translateY(-50%)";
     arrow.style.pointerEvents = "none";
     arrow.style.color = "rgba(255,255,255,.75)";
-    arrow.style.fontSize = "14px";
+    arrow.style.fontSize = "11px";
     arrow.style.fontWeight = "950";
     arrow.style.lineHeight = "1";
 
@@ -341,62 +340,6 @@ const renderConversionPlatform = (opts) => {
     list.style.background = "rgba(24,181,213,.12)";
     list.style.direction = isArabic() ? "rtl" : "ltr";
 
-    const mkRemoveBtn = () => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = "×";
-      b.title = isArabic() ? "حذف الملف" : "Remove file";
-      b.disabled = Boolean(state.converting) || planBlocked || !onRemoveFile;
-      b.style.position = "absolute";
-      b.style.left = "6px";
-      b.style.top = "50%";
-      b.style.transform = "translateY(-50%)";
-      b.style.zIndex = "2";
-      b.style.width = "22px";
-      b.style.height = "22px";
-      b.style.display = "grid";
-      b.style.placeItems = "center";
-      b.style.borderRadius = "8px";
-      b.style.border = "1px solid rgba(255,107,107,.28)";
-      b.style.background = "rgba(255,107,107,.10)";
-      b.style.color = "rgba(255,255,255,.92)";
-      b.style.fontSize = "16px";
-      b.style.fontWeight = "950";
-      b.style.lineHeight = "1";
-      b.style.cursor = b.disabled ? "not-allowed" : "pointer";
-      b.style.opacity = b.disabled ? "0.6" : "1";
-      b.style.padding = "0";
-      return b;
-    };
-
-    const mkModeBadge = (custom, subject) => {
-      const isCustom = Boolean(custom);
-      if (!isCustom) return null;
-      const b = document.createElement("div");
-      b.textContent = isArabic() ? "تخصيص" : "Custom";
-      const subj = String(subject || "");
-      const titleAr = isCustom
-        ? ((subj === "preset") ? "المقاس لهذا الملف تم تحديده يدويًا" : "الصيغة لهذا الملف تم تحديدها يدويًا")
-      const titleEn = isCustom
-        ? ((subj === "preset") ? "This file size was set manually" : "This file format was set manually")
-      b.title = isArabic() ? titleAr : titleEn;
-      b.style.display = "inline-flex";
-      b.style.alignItems = "center";
-      b.style.justifyContent = "center";
-      b.style.padding = "2px 7px";
-      b.style.borderRadius = "999px";
-      b.style.fontSize = "9px";
-      b.style.fontWeight = "950";
-      b.style.whiteSpace = "nowrap";
-      b.style.lineHeight = "1.6";
-      b.style.userSelect = "none";
-      b.style.webkitUserSelect = "none";
-      b.style.color = "#ffcc66";
-      b.style.border = "1px solid rgba(255,204,102,.35)";
-      b.style.background = "rgba(255,204,102,.12)";
-      return b;
-    };
-
     for (let i = 0; i < selectedFiles.length; i += 1) {
       const f = selectedFiles[i];
       if (!f) continue;
@@ -407,10 +350,8 @@ const renderConversionPlatform = (opts) => {
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
-      row.style.paddingLeft = "34px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
-      row.style.position = "relative";
 
       const name = document.createElement("div");
       name.style.color = "#fff";
@@ -455,7 +396,7 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "4px 26px 4px 8px";
+      fmt.style.padding = "4px 18px 4px 6px";
       fmt.style.borderRadius = "10px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
@@ -517,7 +458,7 @@ const renderConversionPlatform = (opts) => {
       if (showPerFilePreset) {
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
-        preset.style.padding = "4px 26px 4px 8px";
+        preset.style.padding = "4px 18px 4px 6px";
         preset.style.borderRadius = "10px";
         preset.style.border = "1px solid rgba(255,255,255,.10)";
         preset.style.background = "#303030";
@@ -569,25 +510,18 @@ const renderConversionPlatform = (opts) => {
         const arrow2 = document.createElement("div");
         arrow2.textContent = "▾";
         arrow2.style.position = "absolute";
-        arrow2.style.right = "8px";
+        arrow2.style.right = "7px";
         arrow2.style.top = "50%";
         arrow2.style.transform = "translateY(-50%)";
         arrow2.style.pointerEvents = "none";
         arrow2.style.color = "rgba(255,255,255,.70)";
-        arrow2.style.fontSize = "12px";
+        arrow2.style.fontSize = "9px";
         arrow2.style.fontWeight = "950";
         arrow2.style.lineHeight = "1";
 
         presetWrap.appendChild(preset);
         presetWrap.appendChild(arrow2);
-        const presetGroup = document.createElement("div");
-        presetGroup.style.display = "inline-flex";
-        presetGroup.style.alignItems = "center";
-        presetGroup.style.gap = "6px";
-        presetGroup.appendChild(presetWrap);
-        const presetBadge = mkModeBadge(Boolean(filePresetsCustom[i]), "preset");
-        if (presetBadge) presetGroup.appendChild(presetBadge);
-        right.appendChild(presetGroup);
+        right.appendChild(presetWrap);
       }
 
       if (showPerFileFormat) {
@@ -598,38 +532,23 @@ const renderConversionPlatform = (opts) => {
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
         arrow.style.position = "absolute";
-        arrow.style.right = "8px";
+        arrow.style.right = "7px";
         arrow.style.top = "50%";
         arrow.style.transform = "translateY(-50%)";
         arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "12px";
+        arrow.style.fontSize = "9px";
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
         fmtWrap.appendChild(fmt);
         fmtWrap.appendChild(arrow);
-        const fmtGroup = document.createElement("div");
-        fmtGroup.style.display = "inline-flex";
-        fmtGroup.style.alignItems = "center";
-        fmtGroup.style.gap = "6px";
-        fmtGroup.appendChild(fmtWrap);
-        const fmtBadge = mkModeBadge(Boolean(fileFormatsCustom[i]), "format");
-        if (fmtBadge) fmtGroup.appendChild(fmtBadge);
-        right.appendChild(fmtGroup);
+        right.appendChild(fmtWrap);
       }
       right.appendChild(size);
-      const rm = mkRemoveBtn();
-      rm.onclick = () => {
-        try {
-          if (rm.disabled) return;
-          if (onRemoveFile) onRemoveFile(i);
-        } catch {}
-      };
 
       row.appendChild(name);
       row.appendChild(right);
-      row.appendChild(rm);
       list.appendChild(row);
     }
 
@@ -1234,8 +1153,8 @@ const renderConversionPlatform = (opts) => {
     note.style.fontWeight = "900";
     note.style.lineHeight = "1.6";
     note.textContent = hasCustom
-      ? (isArabic() ? "في ملفات عليها تخصيصات مختلفة." : "Some files have custom settings.")
-      : (isArabic() ? "الإعداد ده افتراضي لكل الملفات (تقدر تخصص لكل ملف من القائمة)." : "Applies to all files (you can customize per file from the list).");
+      ? (isArabic() ? "بعض الملفات لها صيغة مختلفة من القائمة بالأعلى." : "Some files use custom formats from the list above.")
+      : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
     s2.appendChild(note);
     stepWrap.appendChild(s2);
     stepWrap.appendChild(buildQualityStep(3));
@@ -1322,16 +1241,6 @@ const renderConversionPlatform = (opts) => {
       }
     );
     s3.appendChild(presetSelect);
-    const hasCustomSize = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom.some(Boolean) : false;
-    const note3 = document.createElement("div");
-    note3.style.color = "rgba(255,255,255,.55)";
-    note3.style.fontSize = "11px";
-    note3.style.fontWeight = "900";
-    note3.style.lineHeight = "1.6";
-    note3.textContent = hasCustomSize
-      ? (isArabic() ? "في ملفات عليها تخصيصات مختلفة." : "Some files have custom settings.")
-      : (isArabic() ? "الإعداد ده افتراضي لكل الملفات (تقدر تخصص لكل ملف من القائمة)." : "Applies to all files (you can customize per file from the list).");
-    s3.appendChild(note3);
 
     stepWrap.appendChild(s2);
     stepWrap.appendChild(s3);

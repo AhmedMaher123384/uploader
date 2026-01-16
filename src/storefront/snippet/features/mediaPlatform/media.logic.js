@@ -1706,28 +1706,10 @@ const mount = () => {
           return new Blob(parts, { type: "application/zip" });
         };
 
-        const downloadBlob = async (blob, filename) => {
+        const downloadBlob = (blob, filename) => {
           const b = blob || null;
           if (!b) return;
           const name = String(filename || "download.zip") || "download.zip";
-          try {
-            if (window && window.showSaveFilePicker && window.isSecureContext) {
-              const pickerOpts = {
-                suggestedName: name,
-                types: [
-                  {
-                    description: "ZIP",
-                    accept: { "application/zip": [".zip"] }
-                  }
-                ]
-              };
-              const handle = await window.showSaveFilePicker(pickerOpts);
-              const writable = await handle.createWritable();
-              await writable.write(b);
-              await writable.close();
-              return;
-            }
-          } catch {}
           let u = "";
           try {
             u = URL.createObjectURL(b);
@@ -1826,71 +1808,6 @@ const mount = () => {
             state.convertError = "";
           }
 
-          render();
-        };
-
-        const removeConvertFileAt = (index) => {
-          if (state.converting) return;
-          const i = Number(index);
-          if (!Number.isFinite(i)) return;
-          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
-          if (i < 0 || i >= fs.length) return;
-
-          try {
-            revokeConvertObjectUrls();
-          } catch {}
-
-          try {
-            fs.splice(i, 1);
-          } catch {}
-          state.convertFiles = fs;
-          state.convertFile = fs[0] || null;
-
-          const fmt = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
-          const fmtCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom : [];
-          try {
-            fmt.splice(i, 1);
-          } catch {}
-          try {
-            fmtCustom.splice(i, 1);
-          } catch {}
-          state.convertFileFormats = fmt.slice(0, fs.length);
-          state.convertFileFormatCustom = fmtCustom.slice(0, fs.length);
-
-          const kind = String(state.convertKind || "image") === "video" ? "video" : "image";
-          if (kind !== "video") {
-            const presets = Array.isArray(state.convertFilePresets) ? state.convertFilePresets : [];
-            const presetsCustom = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom : [];
-            try {
-              presets.splice(i, 1);
-            } catch {}
-            try {
-              presetsCustom.splice(i, 1);
-            } catch {}
-            state.convertFilePresets = presets.slice(0, fs.length);
-            state.convertFilePresetCustom = presetsCustom.slice(0, fs.length);
-          }
-
-          state.convertError = "";
-          state.convertItems = [];
-          state.convertProgress = 0;
-          state.convertOverallProgress = 0;
-          state.convertResultUrl = "";
-          state.convertResultBytes = 0;
-          state.convertResultFormat = "";
-          state.convertUploading = false;
-          state.convertUploadProgress = 0;
-          state.convertUploadLoaded = 0;
-          state.convertUploadTotal = 0;
-          state.convertUploadError = "";
-          state.convertUploadUrl = "";
-          state.convertUploadPublicId = "";
-          state.convertDownloadingAll = false;
-          state.convertUploadingAll = false;
-          try {
-            if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
-          } catch {}
-          convertObjUrl = "";
           render();
         };
 
@@ -2273,7 +2190,7 @@ const mount = () => {
                 return String(Date.now());
               }
             })();
-            await downloadBlob(zip, "converted_" + stamp + ".zip");
+            downloadBlob(zip, "converted_" + stamp + ".zip");
           } catch (e) {
             state.convertError = friendlyApiErrorMessage(e);
           } finally {
@@ -2442,28 +2359,6 @@ const mount = () => {
           } else {
             state.compressError = "";
           }
-          render();
-        };
-
-        const removeCompressFileAt = (index) => {
-          if (state.compressRunning) return;
-          const i = Number(index);
-          if (!Number.isFinite(i)) return;
-          const fs = Array.isArray(state.compressFiles) ? state.compressFiles : [];
-          if (i < 0 || i >= fs.length) return;
-          try {
-            revokeCompressObjectUrls();
-          } catch {}
-          try {
-            fs.splice(i, 1);
-          } catch {}
-          state.compressFiles = fs;
-          state.compressError = "";
-          state.compressItems = [];
-          state.compressRunning = false;
-          state.compressOverallProgress = 0;
-          state.compressUploadingAny = false;
-          state.compressDownloadingAll = false;
           render();
         };
 
@@ -2854,7 +2749,7 @@ const mount = () => {
                 return String(Date.now());
               }
             })();
-            await downloadBlob(zip, "compressed_" + stamp + ".zip");
+            downloadBlob(zip, "compressed_" + stamp + ".zip");
           } catch (e) {
             state.compressError = friendlyApiErrorMessage(e);
           } finally {
@@ -3028,7 +2923,6 @@ const mount = () => {
                     } catch {}
                   },
                   onSetFiles: (fs) => setCompressFiles(fs),
-                  onRemoveFile: removeCompressFileAt,
                   onRunCompress: runCompress,
                   onReset: resetCompress,
                   onUploadItem: uploadCompressedById,
@@ -3061,7 +2955,6 @@ const mount = () => {
                 onDownloadAll: downloadAllConverted,
                 onOpenFiles: openFilesFromConvert,
                 onSetConvertFiles: setConvertFiles,
-                onRemoveFile: removeConvertFileAt,
                 onSetKind: setConvertKind,
                 onReset: resetConvert
               });

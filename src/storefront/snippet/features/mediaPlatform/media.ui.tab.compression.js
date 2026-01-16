@@ -8,7 +8,6 @@ const renderCompressionPlatform = (opts) => {
   const onRender = typeof o.onRender === "function" ? o.onRender : null;
   const onPick = typeof o.onPick === "function" ? o.onPick : null;
   const onSetFiles = typeof o.onSetFiles === "function" ? o.onSetFiles : null;
-  const onRemoveFile = typeof o.onRemoveFile === "function" ? o.onRemoveFile : null;
   const onRunCompress = typeof o.onRunCompress === "function" ? o.onRunCompress : null;
   const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
@@ -226,34 +225,6 @@ const renderCompressionPlatform = (opts) => {
     list.style.background = "rgba(24,181,213,.12)";
     list.style.direction = isArabic() ? "rtl" : "ltr";
 
-    const mkRemoveBtn = () => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = "×";
-      b.title = isArabic() ? "حذف" : "Remove";
-      b.disabled = busy || !onRemoveFile;
-      b.style.position = "absolute";
-      b.style.left = "6px";
-      b.style.top = "50%";
-      b.style.transform = "translateY(-50%)";
-      b.style.zIndex = "2";
-      b.style.width = "22px";
-      b.style.height = "22px";
-      b.style.display = "grid";
-      b.style.placeItems = "center";
-      b.style.borderRadius = "8px";
-      b.style.border = "1px solid rgba(255,107,107,.28)";
-      b.style.background = "rgba(255,107,107,.10)";
-      b.style.color = "rgba(255,255,255,.92)";
-      b.style.fontSize = "16px";
-      b.style.fontWeight = "950";
-      b.style.lineHeight = "1";
-      b.style.cursor = b.disabled ? "not-allowed" : "pointer";
-      b.style.opacity = b.disabled ? "0.6" : "1";
-      b.style.padding = "0";
-      return b;
-    };
-
     for (let i = 0; i < selected.length; i += 1) {
       const f = selected[i];
       if (!f) continue;
@@ -264,10 +235,8 @@ const renderCompressionPlatform = (opts) => {
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
       row.style.padding = "8px 10px";
-      row.style.paddingLeft = "34px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
-      row.style.position = "relative";
 
       const name = document.createElement("div");
       name.style.color = "#fff";
@@ -290,25 +259,8 @@ const renderCompressionPlatform = (opts) => {
       size.style.textAlign = "left";
       size.textContent = fmtBytes(Number(f.size || 0) || 0);
 
-      const right = document.createElement("div");
-      right.style.display = "flex";
-      right.style.alignItems = "center";
-      right.style.gap = "8px";
-      right.style.flex = "0 0 auto";
-      right.style.direction = "ltr";
-
-      const rm = mkRemoveBtn();
-      rm.onclick = () => {
-        try {
-          if (rm.disabled) return;
-          if (onRemoveFile) onRemoveFile(i);
-        } catch {}
-      };
-
       row.appendChild(name);
-      right.appendChild(size);
-      row.appendChild(right);
-      row.appendChild(rm);
+      row.appendChild(size);
       list.appendChild(row);
     }
 
