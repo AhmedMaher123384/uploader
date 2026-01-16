@@ -2838,8 +2838,13 @@ const mount = () => {
               uploadCard.appendChild(
                 renderDropzone({
                   disabled: state.uploading,
+                  maxFiles,
+                  accept: "image/*,video/*",
                   onPick: () => {
                     try {
+                      try {
+                        input.accept = "image/*,video/*";
+                      } catch {}
                       input.click();
                     } catch {}
                   },

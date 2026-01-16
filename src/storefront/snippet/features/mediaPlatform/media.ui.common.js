@@ -772,6 +772,167 @@ const planLabel = (k) => {
 `,
   `
 const renderDropzone = ({ disabled, onPick, onFiles }) => {
+  const opts = arguments && arguments[0] && typeof arguments[0] === "object" ? arguments[0] : {};
+  const maxFiles = Math.max(1, Number(opts.maxFiles || 1) || 1);
+  const accept = String(opts.accept || "image/*,video/*");
+
+  const canUseSalla = (() => {
+    try {
+      return typeof customElements !== "undefined" && typeof customElements.get === "function" && !!customElements.get("salla-file-upload");
+    } catch {
+      return false;
+    }
+  })();
+
+  if (canUseSalla) {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.gap = "0";
+    wrap.style.opacity = disabled ? "0.55" : "1";
+    wrap.style.pointerEvents = disabled ? "none" : "auto";
+
+    const uploader = document.createElement("salla-file-upload");
+    try {
+      uploader.setAttribute("accept", accept);
+      uploader.setAttribute("allow-browse", "true");
+      uploader.setAttribute("allow-drop", "true");
+      uploader.setAttribute("allow-paste", "true");
+      uploader.setAttribute("allow-process", "false");
+      uploader.setAttribute("instant-upload", "false");
+      uploader.setAttribute("allow-multiple", maxFiles > 1 ? "true" : "false");
+      uploader.setAttribute("max-files-count", String(maxFiles));
+      uploader.setAttribute("credits", "false");
+    } catch {}
+
+    try {
+      uploader.style.width = "100%";
+      uploader.style.display = "block";
+      uploader.style.setProperty("--filepond--color-primary", "#18b5d5");
+      uploader.style.setProperty("--filepond--color-primary-light", "rgba(24,181,213,.18)");
+      uploader.style.setProperty("--filepond--color-primary-dark", "#0ea5e9");
+      uploader.style.setProperty("--filepond--panel-root-background", "#373737");
+      uploader.style.setProperty("--filepond--panel-root-border-radius", "14px");
+      uploader.style.setProperty("--filepond--panel-root-border-color", "rgba(255,255,255,.10)");
+      uploader.style.setProperty("--filepond--drop-label-color", "rgba(255,255,255,.80)");
+      uploader.style.setProperty("--filepond--label-action-color", "#18b5d5");
+      uploader.style.setProperty("--filepond--file-action-button-color", "rgba(255,255,255,.90)");
+      uploader.style.setProperty("--filepond--file-action-button-bg", "rgba(255,255,255,.10)");
+      uploader.style.setProperty("--filepond--file-status-text-color", "rgba(255,255,255,.72)");
+    } catch {}
+
+    const fileKey = (f) => {
+      try {
+        return String(f && f.name) + "|" + String(f && f.size) + "|" + String(f && f.lastModified);
+      } catch {
+        return "";
+      }
+    };
+
+    const chosen = [];
+    const chosenKeys = new Set();
+    let t = null;
+
+    const flush = () => {
+      try {
+        if (disabled) return;
+        if (!chosen.length) return;
+        const out = chosen.slice(0, maxFiles);
+        chosen.length = 0;
+        chosenKeys.clear();
+        if (typeof onFiles === "function") onFiles(out);
+      } catch {}
+    };
+
+    const scheduleFlush = () => {
+      try {
+        if (t) clearTimeout(t);
+      } catch {}
+      try {
+        t = setTimeout(() => flush(), 120);
+      } catch {
+        flush();
+      }
+    };
+
+    const take = (file) => {
+      try {
+        if (!file) return;
+        const k = fileKey(file);
+        if (!k) return;
+        if (chosenKeys.has(k)) return;
+        chosenKeys.add(k);
+        chosen.push(file);
+        scheduleFlush();
+      } catch {}
+    };
+
+    const onAddFile = (ev) => {
+      try {
+        if (disabled) return;
+        const d = ev && ev.detail ? ev.detail : null;
+        if (d && d.error) return;
+        const ff = d && d.file ? d.file : null;
+        const f = ff && ff.file ? ff.file : ff;
+        if (f && typeof File !== "undefined" && f instanceof File) take(f);
+      } catch {}
+    };
+
+    try {
+      uploader.addEventListener("FilePond:addfile", onAddFile);
+    } catch {}
+
+    try {
+      if (!window.__bundleAppFileUploadBus) window.__bundleAppFileUploadBus = { attached: false, current: null };
+    } catch {}
+    const bus = (() => {
+      try {
+        return window.__bundleAppFileUploadBus;
+      } catch {
+        return null;
+      }
+    })();
+    if (bus) {
+      bus.current = { el: uploader, onAddFile };
+      if (!bus.attached) {
+        bus.attached = true;
+        try {
+          document.addEventListener(
+            "FilePond:addfile",
+            (ev) => {
+              try {
+                const b = window.__bundleAppFileUploadBus;
+                const c = b && b.current ? b.current : null;
+                const el = c && c.el ? c.el : null;
+                const cb = c && c.onAddFile ? c.onAddFile : null;
+                if (!el || !cb) return;
+                const path = ev && typeof ev.composedPath === "function" ? ev.composedPath() : [];
+                if (path && path.indexOf(el) !== -1) cb(ev);
+              } catch {}
+            },
+            true
+          );
+        } catch {}
+      }
+    }
+
+    try {
+      setTimeout(() => {
+        try {
+          const root =
+            (uploader.shadowRoot && uploader.shadowRoot.querySelector ? uploader.shadowRoot.querySelector(".filepond--root") : null) ||
+            (uploader.querySelector ? uploader.querySelector(".filepond--root") : null) ||
+            null;
+          if (root) root.addEventListener("FilePond:addfile", onAddFile);
+        } catch {}
+      }, 0);
+    } catch {}
+
+    wrap.appendChild(uploader);
+    return wrap;
+  }
+
   const z = document.createElement("div");
   z.style.border = "1px dashed rgba(255,255,255,.12)";
   z.style.borderRadius = "12px";
