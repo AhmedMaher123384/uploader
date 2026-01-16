@@ -203,16 +203,14 @@ const renderCompressionPlatform = (opts) => {
   selMeta.style.flexDirection = "column";
   selMeta.style.gap = "6px";
 
-  const selLine = document.createElement("div");
-  selLine.style.color = "rgba(255,255,255,.85)";
-  selLine.style.fontSize = "12px";
-  selLine.style.fontWeight = "950";
-  selLine.textContent = selected.length
-    ? (isArabic() ? "تم اختيار " : "Selected ") + String(selected.length) + (isArabic() ? " صورة" : " images")
-    : (isArabic() ? "لم يتم اختيار صور" : "No images selected");
-  selMeta.appendChild(selLine);
-
   if (selected.length) {
+    const selLine = document.createElement("div");
+    selLine.style.color = "rgba(255,255,255,.85)";
+    selLine.style.fontSize = "12px";
+    selLine.style.fontWeight = "950";
+    selLine.textContent = (isArabic() ? "تم اختيار " : "Selected ") + String(selected.length) + (isArabic() ? " صورة" : " images");
+    selMeta.appendChild(selLine);
+
     const list = document.createElement("div");
     list.style.display = "flex";
     list.style.flexDirection = "column";
@@ -238,6 +236,56 @@ const renderCompressionPlatform = (opts) => {
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
 
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
+      rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
+      rm.disabled = busy;
+      rm.style.width = "26px";
+      rm.style.height = "26px";
+      rm.style.borderRadius = "999px";
+      rm.style.border = "1px solid rgba(255,255,255,.12)";
+      rm.style.background = "rgba(0,0,0,.14)";
+      rm.style.color = "rgba(255,255,255,.92)";
+      rm.style.display = "grid";
+      rm.style.placeItems = "center";
+      rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
+      rm.style.opacity = rm.disabled ? "0.55" : "1";
+      rm.style.fontSize = "16px";
+      rm.style.fontWeight = "950";
+      rm.style.lineHeight = "1";
+      rm.textContent = "×";
+      rm.onmouseenter = () => {
+        try {
+          if (rm.disabled) return;
+          rm.style.borderColor = "rgba(239,68,68,.45)";
+          rm.style.background = "rgba(239,68,68,.16)";
+        } catch {}
+      };
+      rm.onmouseleave = () => {
+        try {
+          rm.style.borderColor = "rgba(255,255,255,.12)";
+          rm.style.background = "rgba(0,0,0,.14)";
+        } catch {}
+      };
+      rm.onclick = () => {
+        try {
+          if (rm.disabled) return;
+          const next = selected.filter((_, j) => j !== i);
+          if (onSetFiles) {
+            onSetFiles(next);
+            return;
+          }
+          state.compressFiles = next;
+          state.compressItems = [];
+          state.compressError = "";
+          state.compressOverallProgress = 0;
+          state.compressUploadingAny = false;
+          state.compressDownloadingAll = false;
+          if (onRender) onRender();
+        } catch {}
+      };
+
       const name = document.createElement("div");
       name.style.color = "#fff";
       name.style.fontSize = "12px";
@@ -247,7 +295,7 @@ const renderCompressionPlatform = (opts) => {
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";
-      name.style.textAlign = "right";
+      name.style.textAlign = isArabic() ? "right" : "left";
       name.textContent = String(f.name || "");
 
       const size = document.createElement("div");
@@ -259,8 +307,15 @@ const renderCompressionPlatform = (opts) => {
       size.style.textAlign = "left";
       size.textContent = fmtBytes(Number(f.size || 0) || 0);
 
-      row.appendChild(name);
-      row.appendChild(size);
+      if (isArabic()) {
+        row.appendChild(name);
+        row.appendChild(size);
+        row.appendChild(rm);
+      } else {
+        row.appendChild(rm);
+        row.appendChild(name);
+        row.appendChild(size);
+      }
       list.appendChild(row);
     }
 
