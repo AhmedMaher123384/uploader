@@ -532,11 +532,6 @@ const buildLegalFooter = () => {
   wrap.style.marginTop = "12px";
   wrap.style.paddingTop = "10px";
   wrap.style.borderTop = "1px solid rgba(255,255,255,.08)";
-  wrap.style.position = "sticky";
-  wrap.style.bottom = "0";
-  wrap.style.background = "#303030";
-  wrap.style.paddingBottom = "12px";
-  wrap.style.zIndex = "1";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
