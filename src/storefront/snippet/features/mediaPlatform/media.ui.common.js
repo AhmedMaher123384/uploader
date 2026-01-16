@@ -884,12 +884,15 @@ const renderLoading = () => {
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
-  wrap.style.padding = "18px";
+  wrap.style.flex = "1 1 auto";
+  wrap.style.minHeight = "0";
+  wrap.style.width = "100%";
+  wrap.style.padding = "24px";
 
   const spinner = document.createElement("salla-loading");
   try {
-    spinner.setAttribute("size", "56");
-    spinner.setAttribute("width", "4");
+    spinner.setAttribute("size", "68");
+    spinner.setAttribute("width", "5");
     spinner.setAttribute("color", "#18b5d5");
     spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
   } catch {}
