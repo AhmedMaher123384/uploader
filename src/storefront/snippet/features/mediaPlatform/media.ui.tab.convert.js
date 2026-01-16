@@ -13,6 +13,7 @@ const renderConversionPlatform = (opts) => {
   const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
   const onSetConvertFiles = typeof o.onSetConvertFiles === "function" ? o.onSetConvertFiles : null;
+  const onRemoveFile = typeof o.onRemoveFile === "function" ? o.onRemoveFile : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
 
@@ -340,6 +341,29 @@ const renderConversionPlatform = (opts) => {
     list.style.background = "rgba(24,181,213,.12)";
     list.style.direction = isArabic() ? "rtl" : "ltr";
 
+    const mkRemoveBtn = () => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "×";
+      b.title = isArabic() ? "حذف الملف" : "Remove file";
+      b.disabled = Boolean(state.converting) || planBlocked || !onRemoveFile;
+      b.style.width = "22px";
+      b.style.height = "22px";
+      b.style.display = "grid";
+      b.style.placeItems = "center";
+      b.style.borderRadius = "8px";
+      b.style.border = "1px solid rgba(255,107,107,.28)";
+      b.style.background = "rgba(255,107,107,.10)";
+      b.style.color = "rgba(255,255,255,.92)";
+      b.style.fontSize = "16px";
+      b.style.fontWeight = "950";
+      b.style.lineHeight = "1";
+      b.style.cursor = b.disabled ? "not-allowed" : "pointer";
+      b.style.opacity = b.disabled ? "0.6" : "1";
+      b.style.padding = "0";
+      return b;
+    };
+
     const mkModeBadge = (custom, subject) => {
       const isCustom = Boolean(custom);
       const b = document.createElement("div");
@@ -595,6 +619,14 @@ const renderConversionPlatform = (opts) => {
         right.appendChild(fmtGroup);
       }
       right.appendChild(size);
+      const rm = mkRemoveBtn();
+      rm.onclick = () => {
+        try {
+          if (rm.disabled) return;
+          if (onRemoveFile) onRemoveFile(i);
+        } catch {}
+      };
+      right.appendChild(rm);
 
       row.appendChild(name);
       row.appendChild(right);
