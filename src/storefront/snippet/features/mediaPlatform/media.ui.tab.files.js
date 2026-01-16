@@ -595,7 +595,9 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     b.style.background = active ? "rgba(24,181,213,.18)" : "#373737";
     b.style.color = active ? "#18b5d5" : "#fff";
     b.style.padding = "8px 10px";
-    b.style.borderRadius = "8px";
+    b.style.borderRadius = "6px";
+    b.style.minWidth = "36px";
+    b.style.textAlign = "center";
     b.style.fontSize = "12px";
     b.style.fontWeight = "950";
     b.style.cursor = disabled ? "not-allowed" : "pointer";

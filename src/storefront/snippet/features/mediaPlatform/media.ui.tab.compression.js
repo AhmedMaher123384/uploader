@@ -613,19 +613,42 @@ const renderCompressionPlatform = (opts) => {
         sub.textContent = String((it && it.error) || (isArabic() ? "فشل الضغط" : "Compression failed"));
       } else if (st === "done") {
         if (outB && fmt2) {
-          const line1 = document.createElement("div");
-          line1.style.direction = "ltr";
-          line1.style.color = "rgba(255,255,255,.72)";
-          line1.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
+          const line = document.createElement("div");
+          line.style.display = "flex";
+          line.style.alignItems = "center";
+          line.style.justifyContent = "flex-start";
+          line.style.flexWrap = "wrap";
+          line.style.gap = "8px";
 
-          const line2 = document.createElement("div");
-          line2.style.direction = isArabic() ? "rtl" : "ltr";
-          line2.style.color = "rgba(255,255,255,.62)";
-          line2.textContent =
-            (isArabic() ? "التوفير " : "Saved ") + String(ratio) + "% · " + String(fmt2 || "").toUpperCase();
+          const sizes = document.createElement("span");
+          sizes.style.direction = "ltr";
+          sizes.style.color = "rgba(255,255,255,.78)";
+          sizes.textContent = fmtBytes(inB) + " → " + fmtBytes(outB);
 
-          sub.appendChild(line1);
-          sub.appendChild(line2);
+          const sep1 = document.createElement("span");
+          sep1.textContent = "|";
+          sep1.style.opacity = "0.6";
+
+          const saved = document.createElement("span");
+          saved.style.direction = isArabic() ? "rtl" : "ltr";
+          saved.style.color = "rgba(255,255,255,.62)";
+          saved.textContent = (isArabic() ? "التوفير " : "Saved ") + String(ratio) + "%";
+
+          const sep2 = document.createElement("span");
+          sep2.textContent = "•";
+          sep2.style.opacity = "0.6";
+
+          const fmt = document.createElement("span");
+          fmt.style.direction = "ltr";
+          fmt.style.color = "rgba(255,255,255,.72)";
+          fmt.textContent = String(fmt2 || "").toUpperCase();
+
+          line.appendChild(sizes);
+          line.appendChild(sep1);
+          line.appendChild(saved);
+          line.appendChild(sep2);
+          line.appendChild(fmt);
+          sub.appendChild(line);
         } else {
           sub.textContent = fmtBytes(inB);
         }
