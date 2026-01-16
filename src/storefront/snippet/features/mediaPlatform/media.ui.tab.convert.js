@@ -384,7 +384,7 @@ const renderConversionPlatform = (opts) => {
 
       const fileFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
       const fileFormatsCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom : [];
-      const fallbackFmt = convertIsVideo ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
+      const fallbackFmt = convertIsVideo ? String(state.convertFormat || "mp4") : String(state.convertFormat || "keep");
       const fmtValue = String(fileFormats[i] || fallbackFmt || "").trim();
 
       const showPerFileFormat = selectedFiles.length > 1;
@@ -417,6 +417,8 @@ const renderConversionPlatform = (opts) => {
             { value: "mov", label: "MOV" },
           ]
         : [
+            { value: "keep", label: isArabic() ? "الأصل" : "Original" },
+            { value: "auto", label: isArabic() ? "تلقائي" : "Auto" },
             { value: "avif", label: "AVIF" },
             { value: "webp", label: "WebP" },
             { value: "jpeg", label: "JPEG" },
@@ -1161,13 +1163,14 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "قائمة مرتبة للاستخدامات الشائعة" : "A clean list for common use-cases"
     );
 
-    let fmtValue = String(state.convertFormat || "webp");
-    if (fmtValue === "auto") fmtValue = "webp";
+    let fmtValue = String(state.convertFormat || "keep");
     const hasCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom.some(Boolean) : false;
     const fmtSelect = mkSelect(
       isArabic() ? "الصيغة (افتراضي)" : "Format (default)",
       fmtValue,
       [
+        { value: "keep", label: isArabic() ? "الأصل (بدون تغيير الصيغة)" : "Original (keep format)" },
+        { value: "auto", label: isArabic() ? "تلقائي (مقترح)" : "Auto (recommended)" },
         { value: "avif", label: "AVIF" },
         { value: "webp", label: "WebP" },
         { value: "jpeg", label: "JPEG" },
@@ -1176,7 +1179,7 @@ const renderConversionPlatform = (opts) => {
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
-          const next = String(v || "webp");
+          const next = String(v || "keep");
           state.convertFormat = next;
           const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
           if (!Array.isArray(state.convertFileFormats) || state.convertFileFormats.length !== fs.length) {
@@ -1193,49 +1196,14 @@ const renderConversionPlatform = (opts) => {
       }
     );
     fmtSelect.style.flex = "1 1 220px";
-
-    const presetValue2 = String(state.convertPreset || "original") || "original";
-    const hasCustomPreset = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom.some(Boolean) : false;
-    const presetSelectTop = mkSelect(
-      isArabic() ? "المقاس (افتراضي)" : "Size (default)",
-      presetValue2,
-      resizeOptions,
-      Boolean(state.converting) || planBlocked,
-      (v) => {
-        try {
-          const next = String(v || "original") || "original";
-          state.convertPreset = next;
-          const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
-          if (!Array.isArray(state.convertFilePresets) || state.convertFilePresets.length !== fs.length) {
-            state.convertFilePresets = fs.map(() => next);
-          }
-          if (!Array.isArray(state.convertFilePresetCustom) || state.convertFilePresetCustom.length !== fs.length) {
-            state.convertFilePresetCustom = fs.map(() => false);
-          }
-          for (let i = 0; i < fs.length; i += 1) {
-            if (!state.convertFilePresetCustom[i]) state.convertFilePresets[i] = next;
-          }
-          state.convertError = "";
-          if (onRender) onRender();
-        } catch {}
-      }
-    );
-    presetSelectTop.style.flex = "1 1 260px";
-
-    const topControls = document.createElement("div");
-    topControls.style.display = "flex";
-    topControls.style.gap = "10px";
-    topControls.style.flexWrap = "wrap";
-    topControls.appendChild(fmtSelect);
-    topControls.appendChild(presetSelectTop);
-    s2.appendChild(topControls);
+    s2.appendChild(fmtSelect);
     const note = document.createElement("div");
     note.style.color = "rgba(255,255,255,.55)";
     note.style.fontSize = "11px";
     note.style.fontWeight = "900";
     note.style.lineHeight = "1.6";
     note.textContent =
-      (hasCustom || hasCustomPreset)
+      (hasCustom)
         ? (isArabic() ? "بعض الملفات لها إعدادات مختلفة من القائمة بالأعلى." : "Some files use custom settings from the list above.")
         : (isArabic() ? "تنطبق على كل الملفات (ويمكن تخصيص كل ملف من القائمة بالأعلى)." : "Applies to all files (you can customize per file from the list above).");
     s2.appendChild(note);

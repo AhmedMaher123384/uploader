@@ -3326,7 +3326,7 @@ function createApiRouter(config) {
     token: Joi.string().trim().min(10),
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
-    format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
+    format: Joi.string().trim().valid("auto", "keep", "webp", "avif", "jpeg", "png").default("auto"),
     quality: Joi.number().integer().min(1).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
     preset: Joi.string()
@@ -3410,6 +3410,15 @@ function createApiRouter(config) {
       const srcPixels = srcW > 0 && srcH > 0 ? srcW * srcH : 0;
 
       let targetFormat = String(qValue.format || "auto").trim().toLowerCase();
+      if (targetFormat === "keep") {
+        const srcFmtRaw = String(meta && meta.format ? meta.format : "").trim().toLowerCase();
+        const srcFmt = srcFmtRaw === "jpg" ? "jpeg" : srcFmtRaw;
+        if (srcFmt === "jpeg" || srcFmt === "png" || srcFmt === "webp" || srcFmt === "avif") {
+          targetFormat = srcFmt;
+        } else {
+          targetFormat = "auto";
+        }
+      }
       if (targetFormat === "auto") {
         targetFormat = srcPixels && srcPixels >= 14_000_000 ? "webp" : "avif";
       }

@@ -879,7 +879,7 @@ const mount = () => {
           convertKind: "image",
           convertFile: null,
           convertFiles: [],
-          convertFormat: "webp",
+          convertFormat: "keep",
           convertSpeed: "fast",
           convertQuality: "",
           convertPreset: "",
@@ -1759,7 +1759,7 @@ const mount = () => {
           const chosen = keep.slice(0, maxFiles);
           state.convertFiles = chosen;
           state.convertFile = chosen[0] || null;
-          const defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
+          const defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "keep");
           state.convertFileFormats = chosen.map(() => defaultFmt);
           state.convertFileFormatCustom = chosen.map(() => false);
           if (kind === "video") {
@@ -1849,7 +1849,7 @@ const mount = () => {
           for (let i = 0; i < chosen.length; i += 1) {
             const f = chosen[i];
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
-            const fallbackFmt = String(state.convertFormat || (String(state.convertKind || "image") === "video" ? "mp4" : "webp"));
+            const fallbackFmt = String(state.convertFormat || (String(state.convertKind || "image") === "video" ? "mp4" : "keep"));
             const targetFormat = String(chosenFormats[i] || fallbackFmt || "").trim().toLowerCase();
             const fallbackPreset = String(state.convertPreset || "original") || "original";
             const targetPreset = String(chosenPresets[i] || fallbackPreset || "original").trim().toLowerCase();
@@ -1886,7 +1886,7 @@ const mount = () => {
             try {
               const isVideo = guessResourceType(f) === "video";
               const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
-              const targetFmt = isVideo ? (rawTarget || "mp4") : (rawTarget || "webp");
+              const targetFmt = isVideo ? (rawTarget || "mp4") : (rawTarget || "keep");
               const out = isVideo
                 ? await convertVideoOnClient(
                     f,
@@ -1979,8 +1979,17 @@ const mount = () => {
 
             const rf = String(it.outFormat || "").trim().toLowerCase();
             const fmt = String(it.targetFormat || state.convertFormat || "").trim().toLowerCase();
+            let extFromName = "";
+            try {
+              const n = String((it.file && it.file.name) || "");
+              const d = n.lastIndexOf(".");
+              if (d > 0) extFromName = String(n.slice(d + 1) || "").trim().toLowerCase();
+            } catch {}
             const ext =
               (rf ? rf : "") ||
+              (fmt === "keep"
+                ? (extFromName === "jpg" ? "jpeg" : extFromName)
+                : "") ||
               (fmt === "mp4"
                 ? "mp4"
                 : fmt === "mov"
@@ -2212,7 +2221,7 @@ const mount = () => {
             state.convertFormat = "mp4";
             state.convertPreset = "";
           } else {
-            state.convertFormat = "webp";
+            state.convertFormat = "keep";
             state.convertPreset = "original";
           }
           state.convertFile = null;
