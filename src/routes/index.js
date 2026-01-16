@@ -3329,7 +3329,18 @@ function createApiRouter(config) {
     format: Joi.string().trim().valid("auto", "webp", "avif", "jpeg", "png").default("auto"),
     quality: Joi.number().integer().min(1).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
-    preset: Joi.string().trim().valid("", "original", "square", "story", "banner", "thumb").default(""),
+    preset: Joi.string()
+      .trim()
+      .max(20)
+      .allow("")
+      .default("")
+      .custom((raw, helpers) => {
+        const v = String(raw || "").trim().toLowerCase();
+        if (!v) return "";
+        if (["original", "square", "story", "banner", "thumb"].includes(v)) return v;
+        if (/^\d{1,4}x\d{1,4}$/.test(v)) return v;
+        return helpers.error("any.invalid");
+      }),
     width: Joi.number().integer().min(1).max(6000),
     height: Joi.number().integer().min(1).max(6000),
     mode: Joi.string().trim().valid("fit", "cover").default("fit"),
@@ -3343,9 +3354,18 @@ function createApiRouter(config) {
     try {
       const { error: qErr, value: qValue } = proxyToolsConvertQuerySchema.validate(req.query, { abortEarly: false, stripUnknown: false });
       if (qErr) {
-        throw new ApiError(400, "Validation error", {
+        const details = qErr.details.map((d) => ({ message: d.message, path: d.path }));
+        const fields = new Set(details.map((d) => String((d && d.path && d.path[0]) || "")));
+        const msg = fields.has("preset")
+          ? "المقاس غير صحيح. استخدم preset=original أو preset=WIDTHxHEIGHT مثل 512x512، أو استخدم width و height."
+          : (fields.has("width") || fields.has("height"))
+            ? "العرض/الارتفاع غير صحيح. استخدم width و height كأرقام من 1 إلى 6000."
+            : fields.has("format")
+              ? "صيغة الإخراج غير مدعومة."
+              : "Validation error";
+        throw new ApiError(400, msg, {
           code: "VALIDATION_ERROR",
-          details: qErr.details.map((d) => ({ message: d.message, path: d.path }))
+          details
         });
       }
 
@@ -3421,14 +3441,22 @@ function createApiRouter(config) {
               : presetKey === "thumb"
                 ? { width: 512, height: 512 }
                 : null;
+      const presetDims = !preset && presetKey && /^\d{1,4}x\d{1,4}$/.test(presetKey)
+        ? (() => {
+            const parts = presetKey.split("x");
+            const w = Math.max(1, Math.min(6000, Math.round(Number(parts[0] || 0) || 0)));
+            const h = Math.max(1, Math.min(6000, Math.round(Number(parts[1] || 0) || 0)));
+            return w && h ? { width: w, height: h } : null;
+          })()
+        : null;
 
       const wReqRaw = qValue.width != null ? Number(qValue.width) : null;
       const hReqRaw = qValue.height != null ? Number(qValue.height) : null;
       const wReq = wReqRaw && Number.isFinite(wReqRaw) ? Math.max(1, Math.min(6000, Math.round(wReqRaw))) : null;
       const hReq = hReqRaw && Number.isFinite(hReqRaw) ? Math.max(1, Math.min(6000, Math.round(hReqRaw))) : null;
 
-      const targetW = preset ? preset.width : wReq;
-      const targetH = preset ? preset.height : hReq;
+      const targetW = preset ? preset.width : presetDims ? presetDims.width : wReq;
+      const targetH = preset ? preset.height : presetDims ? presetDims.height : hReq;
 
       const resizeMode = String(qValue.mode || "fit").trim().toLowerCase();
       const position = String(qValue.position || "center").trim().toLowerCase();

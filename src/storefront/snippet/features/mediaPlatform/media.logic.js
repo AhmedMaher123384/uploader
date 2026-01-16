@@ -1401,11 +1401,24 @@ const mount = () => {
           const speed = String((opts && opts.speed) || "fast").trim().toLowerCase();
           const quality = (opts && opts.quality != null) ? Number(opts.quality) : null;
           const name = String((opts && opts.name) || (f && f.name) || "").trim();
-          const preset = String((opts && opts.preset) || "").trim().toLowerCase();
-          const width = (opts && opts.width != null) ? String(opts.width || "").trim() : "";
-          const height = (opts && opts.height != null) ? String(opts.height || "").trim() : "";
+          let preset = String((opts && opts.preset) || "").trim().toLowerCase();
+          let width = (opts && opts.width != null) ? String(opts.width || "").trim() : "";
+          let height = (opts && opts.height != null) ? String(opts.height || "").trim() : "";
           const mode = String((opts && opts.mode) || "").trim().toLowerCase();
           const position = String((opts && opts.position) || "").trim().toLowerCase();
+
+          if (!isVideo && preset && preset !== "original") {
+            const m = preset.match(/^(\\d{1,4})x(\\d{1,4})$/i);
+            if (m) {
+              const w = Math.max(1, Math.min(6000, Math.round(Number(m[1] || 0) || 0)));
+              const h = Math.max(1, Math.min(6000, Math.round(Number(m[2] || 0) || 0)));
+              if (w && h) {
+                preset = "";
+                width = String(w);
+                height = String(h);
+              }
+            }
+          }
 
           const url = buildUrl(isVideo ? "/api/proxy/tools/convert-video" : "/api/proxy/tools/convert", {
             format,
@@ -1486,7 +1499,15 @@ const mount = () => {
                 } catch {
                   j = null;
                 }
-                reject(new Error(String((j && (j.message || j.error)) || t || ("HTTP " + String(status)))));
+                if (j && (j.message || j.error)) {
+                  const baseMsg = String(j.message || j.error || "");
+                  const det = Array.isArray(j.details) ? j.details : [];
+                  const firstDet = det.length ? (det[0] && det[0].message ? String(det[0].message) : String(det[0] || "")) : "";
+                  const msg = firstDet && firstDet !== baseMsg ? (baseMsg + " (" + firstDet + ")") : baseMsg;
+                  reject(new Error(msg || ("HTTP " + String(status))));
+                } else {
+                  reject(new Error(String(t || ("HTTP " + String(status)))));
+                }
               } catch {
                 reject(new Error("Convert failed"));
               }
@@ -1741,6 +1762,14 @@ const mount = () => {
           const defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "webp");
           state.convertFileFormats = chosen.map(() => defaultFmt);
           state.convertFileFormatCustom = chosen.map(() => false);
+          if (kind === "video") {
+            state.convertFilePresets = [];
+            state.convertFilePresetCustom = [];
+          } else {
+            const p0 = String(state.convertPreset || "original") || "original";
+            state.convertFilePresets = chosen.map(() => p0);
+            state.convertFilePresetCustom = chosen.map(() => false);
+          }
           state.convertItems = [];
           state.converting = false;
           state.convertProgress = 0;
@@ -1816,11 +1845,14 @@ const mount = () => {
 
           const items = [];
           const chosenFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
+          const chosenPresets = Array.isArray(state.convertFilePresets) ? state.convertFilePresets : [];
           for (let i = 0; i < chosen.length; i += 1) {
             const f = chosen[i];
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
             const fallbackFmt = String(state.convertFormat || (String(state.convertKind || "image") === "video" ? "mp4" : "webp"));
             const targetFormat = String(chosenFormats[i] || fallbackFmt || "").trim().toLowerCase();
+            const fallbackPreset = String(state.convertPreset || "original") || "original";
+            const targetPreset = String(chosenPresets[i] || fallbackPreset || "original").trim().toLowerCase();
             items.push({
               id,
               file: f,
@@ -1829,6 +1861,7 @@ const mount = () => {
               outBytes: 0,
               outFormat: "",
               targetFormat,
+              targetPreset,
               status: "queued",
               progress: 0,
               error: "",
@@ -1874,7 +1907,7 @@ const mount = () => {
                       speed: state.convertSpeed,
                       quality: q,
                       name: it.name,
-                      preset: String(state.convertPreset || "original"),
+                      preset: String((it && it.targetPreset) || state.convertPreset || "original"),
                       width: "",
                       height: "",
                       mode: "fit",
