@@ -455,7 +455,7 @@ const renderConversionPlatform = (opts) => {
       const right = document.createElement("div");
       right.style.display = "flex";
       right.style.alignItems = "center";
-      right.style.gap = "10px";
+      right.style.gap = "6px";
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
       right.style.direction = "ltr";
@@ -475,13 +475,17 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "2px 12px 2px 6px";
-      fmt.style.borderRadius = "9px";
+      fmt.style.padding = "1px 10px 1px 5px";
+      fmt.style.height = "16px";
+      fmt.style.minHeight = "16px";
+      fmt.style.borderRadius = "8px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "7px";
-      fmt.style.fontWeight = "950";
+      fmt.style.fontSize = "6px";
+      fmt.style.fontWeight = "900";
+      fmt.style.lineHeight = "1";
+      fmt.style.maxWidth = "110px";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
       fmt.style.appearance = "none";
@@ -537,13 +541,17 @@ const renderConversionPlatform = (opts) => {
       if (showPerFilePreset) {
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
-        preset.style.padding = "2px 12px 2px 6px";
-        preset.style.borderRadius = "9px";
+        preset.style.padding = "1px 10px 1px 5px";
+        preset.style.height = "16px";
+        preset.style.minHeight = "16px";
+        preset.style.borderRadius = "8px";
         preset.style.border = "1px solid rgba(255,255,255,.10)";
         preset.style.background = "#303030";
         preset.style.color = "rgba(255,255,255,.92)";
-        preset.style.fontSize = "7px";
-        preset.style.fontWeight = "950";
+        preset.style.fontSize = "6px";
+        preset.style.fontWeight = "900";
+        preset.style.lineHeight = "1";
+        preset.style.maxWidth = "150px";
         preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
         preset.style.opacity = preset.disabled ? "0.7" : "1";
         preset.style.appearance = "none";
@@ -589,12 +597,12 @@ const renderConversionPlatform = (opts) => {
         const arrow2 = document.createElement("div");
         arrow2.textContent = "▾";
         arrow2.style.position = "absolute";
-        arrow2.style.right = "5px";
+        arrow2.style.right = "4px";
         arrow2.style.top = "50%";
         arrow2.style.transform = "translateY(-50%)";
         arrow2.style.pointerEvents = "none";
         arrow2.style.color = "rgba(255,255,255,.70)";
-        arrow2.style.fontSize = "6px";
+        arrow2.style.fontSize = "5px";
         arrow2.style.fontWeight = "950";
         arrow2.style.lineHeight = "1";
 
@@ -611,12 +619,12 @@ const renderConversionPlatform = (opts) => {
         const arrow = document.createElement("div");
         arrow.textContent = "▾";
         arrow.style.position = "absolute";
-        arrow.style.right = "5px";
+        arrow.style.right = "4px";
         arrow.style.top = "50%";
         arrow.style.transform = "translateY(-50%)";
         arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "6px";
+        arrow.style.fontSize = "5px";
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
