@@ -174,18 +174,6 @@ const renderThumbActions = (opts) => {
       }
       if (!href) href = uDownload;
 
-      try {
-        if (window && window.showSaveFilePicker && window.isSecureContext) {
-          const handle = await window.showSaveFilePicker({ suggestedName: String(name || "file") });
-          const writable = await handle.createWritable();
-          const resp = await fetch(String(href || ""), { cache: "no-store" });
-          const blob = await resp.blob();
-          await writable.write(blob);
-          await writable.close();
-          return;
-        }
-      } catch {}
-
       const a = document.createElement("a");
       a.href = href;
       a.download = String(name || "file");
@@ -235,6 +223,9 @@ const renderThumbActions = (opts) => {
 };
 `,
   `
+const BLANK_IMG =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
 const fetchMediaObjectUrl = async (src) => {
   const u = String(src || "");
   if (!u) return "";
@@ -430,68 +421,27 @@ const renderGrid = (items, opts) => {
       box.appendChild(open);
       media.appendChild(box);
     } else {
-      media.style.position = "relative";
-
-      const ph = document.createElement("div");
-      ph.style.position = "absolute";
-      ph.style.inset = "0";
-      ph.style.display = "grid";
-      ph.style.placeItems = "center";
-      ph.style.pointerEvents = "none";
-      ph.style.zIndex = "1";
-
-      const spinner = document.createElement("salla-loading");
-      try {
-        spinner.setAttribute("size", "56");
-        spinner.setAttribute("width", "5");
-        spinner.setAttribute("color", "#18b5d5");
-        spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
-      } catch {}
-      ph.appendChild(spinner);
-      media.appendChild(ph);
-
       const img = document.createElement("img");
       img.alt = "";
       img.loading = "lazy";
       img.decoding = "async";
+      img.src = BLANK_IMG;
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = "contain";
       img.style.padding = "8px";
       img.style.boxSizing = "border-box";
-      img.style.opacity = "0";
-      img.style.transition = "opacity .14s ease";
-      img.style.position = "relative";
-      img.style.zIndex = "2";
-      img.onload = () => {
-        try {
-          img.style.opacity = "1";
-        } catch {}
-        try {
-          ph.remove();
-        } catch {}
-      };
-      img.onerror = () => {
-        try {
-          img.style.opacity = "1";
-        } catch {}
-        try {
-          ph.remove();
-        } catch {}
-      };
       media.appendChild(img);
       if (src) {
         fetchMediaObjectUrl(src)
           .then((obj) => {
             try {
-              const u = String(obj || src || "").trim();
-              if (u) img.src = u;
+              if (obj) img.src = obj;
             } catch {}
           })
           .catch(() => {
             try {
-              const u = String(src || "").trim();
-              if (u) img.src = u;
+              img.src = src;
             } catch {}
           });
       }
