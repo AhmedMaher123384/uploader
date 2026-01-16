@@ -880,6 +880,12 @@ const renderLoading = () => {
   wrap.style.padding = "18px";
 
   const spinner = document.createElement("salla-loading");
+  try {
+    spinner.setAttribute("size", "56");
+    spinner.setAttribute("width", "4");
+    spinner.setAttribute("color", "#18b5d5");
+    spinner.setAttribute("bg-color", "rgba(255,255,255,.08)");
+  } catch {}
   wrap.appendChild(spinner);
   return wrap;
 };
