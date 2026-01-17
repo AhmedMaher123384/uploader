@@ -535,6 +535,9 @@ const buildLegalFooter = () => {
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
+  wrap.style.flexWrap = "wrap";
+  wrap.style.rowGap = "8px";
+  wrap.style.columnGap = "10px";
   wrap.style.userSelect = "none";
   wrap.style.webkitUserSelect = "none";
 
@@ -551,6 +554,7 @@ const buildLegalFooter = () => {
     b.style.fontWeight = "950";
     b.style.color = "#fff";
     b.style.textDecoration = "none";
+    b.style.whiteSpace = "nowrap";
     b.onclick = () => openLegalSheet(kind);
     return b;
   };
@@ -661,6 +665,9 @@ const buildSheet = () => {
   uploads.style.flexDirection = "column";
   uploads.style.gap = "8px";
   uploads.style.marginBottom = "10px";
+  uploads.style.maxHeight = "min(360px, 42vh)";
+  uploads.style.overflow = "auto";
+  uploads.style.padding = "2px";
 
   const content = document.createElement("div");
   content.style.display = "flex";
@@ -961,7 +968,8 @@ const renderLinkBlock = (url) => {
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
-  wrap.style.alignItems = "stretch";
+  wrap.style.alignItems = "center";
+  wrap.style.flexDirection = isArabic() ? "row-reverse" : "row";
   wrap.style.gap = "10px";
   wrap.style.padding = "10px";
   wrap.style.borderRadius = "12px";
@@ -979,6 +987,7 @@ const renderLinkBlock = (url) => {
   a.style.textOverflow = "ellipsis";
   a.style.whiteSpace = "nowrap";
   a.style.direction = "ltr";
+  a.style.textAlign = isArabic() ? "right" : "left";
   a.style.fontSize = "14px";
   a.style.fontWeight = "950";
   a.style.color = "#18b5d5";

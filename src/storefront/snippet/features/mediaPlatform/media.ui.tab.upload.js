@@ -348,7 +348,10 @@ const renderSmartStats = (dash) => {
 };
 `,
   `
-const renderUploadRow = (rec) => {
+const renderUploadRow = (rec, opts) => {
+  const o = opts && typeof opts === "object" ? opts : {};
+  const busy = Boolean(o.busy);
+  const onRemove = typeof o.onRemove === "function" ? o.onRemove : null;
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
@@ -415,6 +418,54 @@ const renderUploadRow = (rec) => {
   right.style.alignItems = "center";
   right.style.gap = "10px";
   right.style.flex = "0 0 auto";
+
+  if (onRemove) {
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
+    rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
+    rm.disabled = busy || rec.status === "uploading";
+    rm.style.border = "0";
+    rm.style.background = "transparent";
+    rm.style.padding = "0";
+    rm.style.margin = "0";
+    rm.style.width = "20px";
+    rm.style.height = "20px";
+    rm.style.display = "inline-flex";
+    rm.style.alignItems = "center";
+    rm.style.justifyContent = "center";
+    rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
+    rm.style.opacity = rm.disabled ? "0.55" : "1";
+    rm.style.color = "rgba(255,255,255,.78)";
+    rm.style.fontSize = "18px";
+    rm.style.lineHeight = "1";
+    const rmIcon = document.createElement("i");
+    rmIcon.className = "sicon-cancel";
+    rmIcon.setAttribute("aria-hidden", "true");
+    rmIcon.style.display = "block";
+    rmIcon.style.fontSize = "18px";
+    rmIcon.style.lineHeight = "1";
+    rmIcon.style.pointerEvents = "none";
+    rm.appendChild(rmIcon);
+    rm.onmouseenter = () => {
+      try {
+        if (rm.disabled) return;
+        rm.style.color = "#ef4444";
+      } catch {}
+    };
+    rm.onmouseleave = () => {
+      try {
+        rm.style.color = "rgba(255,255,255,.78)";
+      } catch {}
+    };
+    rm.onclick = () => {
+      try {
+        if (rm.disabled) return;
+        onRemove(String((rec && rec.id) || ""));
+      } catch {}
+    };
+    right.appendChild(rm);
+  }
 
   const meta = document.createElement("div");
   meta.style.fontSize = "12px";

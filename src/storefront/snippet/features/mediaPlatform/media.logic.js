@@ -3262,8 +3262,17 @@ const mount = () => {
 
             if (state.view === "upload" && state.uploads.length) {
               sheet.uploads.style.display = "flex";
+              const removeUploadById = (rawId) => {
+                try {
+                  if (state.uploading) return;
+                  const id = String(rawId || "");
+                  if (!id) return;
+                  state.uploads = (Array.isArray(state.uploads) ? state.uploads : []).filter((x) => x && String(x.id || "") !== id);
+                  render();
+                } catch {}
+              };
               for (let i = 0; i < state.uploads.length; i += 1) {
-                sheet.uploads.appendChild(renderUploadRow(state.uploads[i]));
+                sheet.uploads.appendChild(renderUploadRow(state.uploads[i], { busy: state.uploading, onRemove: removeUploadById }));
               }
             } else {
               sheet.uploads.style.display = "none";
@@ -3795,7 +3804,9 @@ const mount = () => {
 
           for (let i = 0; i < toUpload.length; i += 1) {
             const f = toUpload[i];
+            const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
             state.uploads.push({
+              id,
               name: String((f && f.name) || ""),
               size: Number((f && f.size) || 0) || 0,
               status: "queued",
@@ -3816,8 +3827,10 @@ const mount = () => {
             const ext = normalizeFilenameExt(name);
             const reason = String(rejected[i] && rejected[i].reason) || "";
             const errMsg = buildSingleRejectToast(rejected[i]);
+            const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_rej_" + String(i);
 
             state.uploads.push({
+              id,
               name,
               size,
               status: "rejected",

@@ -381,8 +381,29 @@ const renderCompressionPlatform = (opts) => {
   const s2 = mkStep(
     2,
     isArabic() ? "إعدادات الضغط" : "Compression settings",
-    isArabic() ? "اختر الجودة فقط" : "Pick quality only"
+    isArabic() ? "اختر الصيغة والجودة" : "Pick format & quality"
   );
+
+  const fmtValue = String(state.compressFormat || "keep").trim().toLowerCase() || "keep";
+  const fmtSelect = mkSelect(
+    isArabic() ? "صيغة الإخراج" : "Output format",
+    fmtValue,
+    [
+      { value: "keep", label: isArabic() ? "كما هي (Keep)" : "Keep (same as input)" },
+      { value: "webp", label: "WebP" },
+      { value: "avif", label: "AVIF" },
+      { value: "jpeg", label: "JPEG" },
+      { value: "png", label: "PNG" }
+    ],
+    busy,
+    (v) => {
+      try {
+        state.compressFormat = String(v || "keep").trim().toLowerCase() || "keep";
+        if (onRender) onRender();
+      } catch {}
+    }
+  );
+  s2.appendChild(fmtSelect);
 
   const qWrap = document.createElement("div");
   qWrap.style.display = "flex";
@@ -407,6 +428,7 @@ const renderCompressionPlatform = (opts) => {
   qVal.style.fontWeight = "950";
   const first = selected && selected[0] ? selected[0] : null;
   const mime = String((first && first.type) || "").trim().toLowerCase();
+  const name0 = String((first && first.name) || "").trim().toLowerCase();
   const maxQuality = 80;
   const qDefault = Math.min(maxQuality, mime === "image/png" ? 90 : 82);
   const clampQ = (x) => Math.max(1, Math.min(maxQuality, Math.round(Number(x) || qDefault)));
@@ -443,6 +465,23 @@ const renderCompressionPlatform = (opts) => {
   qWrap.appendChild(qHead);
   qWrap.appendChild(range);
   s2.appendChild(qWrap);
+
+  const fmtHint = document.createElement("div");
+  fmtHint.style.color = "rgba(255,255,255,.55)";
+  fmtHint.style.fontSize = "11px";
+  fmtHint.style.fontWeight = "900";
+  fmtHint.style.lineHeight = "1.65";
+  const isPngInput = mime === "image/png" || (name0 && name0.endsWith(".png"));
+  const f2 = fmtValue;
+  fmtHint.textContent =
+    f2 === "png" || (f2 === "keep" && isPngInput)
+      ? (isArabic()
+          ? "PNG ضغطه محدود لأنه بدون فقدان جودة: تغيير الجودة هنا غالبًا يقلل الحجم بشكل بسيط. لو عايز فرق كبير اختار WebP أو AVIF أو JPEG."
+          : "PNG is lossless: this quality slider often changes size only slightly. For bigger savings, choose WebP/AVIF/JPEG.")
+      : (isArabic()
+          ? "كل ما تقلل الجودة، غالبًا الحجم هيقل أكثر (مع فقدان جودة بسيط حسب الصيغة)."
+          : "Lower quality usually means smaller files (with some quality loss depending on format).");
+  s2.appendChild(fmtHint);
 
   stepWrap.appendChild(s2);
 
