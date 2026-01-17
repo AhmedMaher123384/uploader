@@ -356,6 +356,7 @@ const renderConversionPlatform = (opts) => {
       clearRow.style.justifyContent = "flex-start";
       clearRow.style.alignItems = "center";
       clearRow.style.direction = "ltr";
+      clearRow.style.paddingLeft = "2px";
 
       const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
       clearBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
