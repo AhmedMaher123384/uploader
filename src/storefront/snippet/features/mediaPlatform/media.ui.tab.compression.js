@@ -170,21 +170,42 @@ const renderCompressionPlatform = (opts) => {
   titleWrap.appendChild(title);
   titleWrap.appendChild(hint);
 
-  const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
-  clearBtn.disabled = busy || !selected.length || !onReset;
-  clearBtn.style.padding = "6px 10px";
-  clearBtn.style.borderRadius = "10px";
-  clearBtn.style.fontSize = "11px";
-  clearBtn.style.fontWeight = "950";
-  clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
-  clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
-  clearBtn.onclick = () => {
+  const canShowClearAll = selected.length > 1;
+  if (canShowClearAll) {
+    const clearRow = document.createElement("div");
+    clearRow.style.display = "flex";
+    clearRow.style.width = "100%";
+    clearRow.style.justifyContent = "flex-start";
+    clearRow.style.alignItems = "center";
+    clearRow.style.direction = "ltr";
+
+    const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+    clearBtn.disabled = busy || !onReset;
+    clearBtn.style.padding = "2px 6px";
+    clearBtn.style.borderRadius = "8px";
+    clearBtn.style.fontSize = "9px";
+    clearBtn.style.fontWeight = "950";
+    clearBtn.style.lineHeight = "1";
+    clearBtn.style.color = "#ef4444";
+    clearBtn.style.marginLeft = "0";
+    clearBtn.style.marginRight = "auto";
     try {
-      if (clearBtn.disabled) return;
-      onReset();
+      clearBtn.style.borderColor = "rgba(239,68,68,.45)";
     } catch {}
-  };
-  titleWrap.appendChild(clearBtn);
+    try {
+      clearBtn.style.background = "rgba(239,68,68,.08)";
+    } catch {}
+    clearBtn.style.opacity = clearBtn.disabled ? "0.55" : "1";
+    clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+    clearBtn.onclick = () => {
+      try {
+        if (clearBtn.disabled) return;
+        onReset();
+      } catch {}
+    };
+    clearRow.appendChild(clearBtn);
+    titleWrap.appendChild(clearRow);
+  }
 
   const pickBtn = btnGhost(isArabic() ? "اختيار صور" : "Pick images");
   pickBtn.style.color = "#fff";

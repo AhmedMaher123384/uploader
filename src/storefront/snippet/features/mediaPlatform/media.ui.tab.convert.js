@@ -140,6 +140,7 @@ const renderConversionPlatform = (opts) => {
   if (canShowClearAll) {
     const clearRow = document.createElement("div");
     clearRow.style.display = "flex";
+    clearRow.style.width = "100%";
     clearRow.style.justifyContent = "flex-start";
     clearRow.style.alignItems = "center";
     clearRow.style.direction = "ltr";
@@ -152,6 +153,8 @@ const renderConversionPlatform = (opts) => {
     clearBtn.style.fontWeight = "950";
     clearBtn.style.lineHeight = "1";
     clearBtn.style.color = "#ef4444";
+    clearBtn.style.marginLeft = "0";
+    clearBtn.style.marginRight = "auto";
     try {
       clearBtn.style.borderColor = "rgba(239,68,68,.45)";
     } catch {}

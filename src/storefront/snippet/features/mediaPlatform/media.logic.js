@@ -3513,28 +3513,44 @@ const mount = () => {
               uploadCard.style.flex = "1 1 auto";
               uploadCard.style.minHeight = "0";
 
-              const headRow = document.createElement("div");
-              headRow.style.display = "flex";
-              headRow.style.alignItems = "center";
-              headRow.style.justifyContent = "flex-start";
-              const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
-              clearBtn.disabled = Boolean(state.uploading) || !(Array.isArray(state.uploads) && state.uploads.length);
-              clearBtn.style.padding = "6px 10px";
-              clearBtn.style.borderRadius = "10px";
-              clearBtn.style.fontSize = "11px";
-              clearBtn.style.fontWeight = "950";
-              clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
-              clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
-              clearBtn.onclick = () => {
+              const canShowClearAll = Array.isArray(state.uploads) && state.uploads.length > 1;
+              if (canShowClearAll) {
+                const headRow = document.createElement("div");
+                headRow.style.display = "flex";
+                headRow.style.width = "100%";
+                headRow.style.alignItems = "center";
+                headRow.style.justifyContent = "flex-start";
+                headRow.style.direction = "ltr";
+
+                const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+                clearBtn.disabled = Boolean(state.uploading);
+                clearBtn.style.padding = "2px 6px";
+                clearBtn.style.borderRadius = "8px";
+                clearBtn.style.fontSize = "9px";
+                clearBtn.style.fontWeight = "950";
+                clearBtn.style.lineHeight = "1";
+                clearBtn.style.color = "#ef4444";
+                clearBtn.style.marginLeft = "0";
+                clearBtn.style.marginRight = "auto";
                 try {
-                  if (clearBtn.disabled) return;
-                  state.uploads = [];
-                  state.uploadError = "";
-                  render();
+                  clearBtn.style.borderColor = "rgba(239,68,68,.45)";
                 } catch {}
-              };
-              headRow.appendChild(clearBtn);
-              uploadCard.appendChild(headRow);
+                try {
+                  clearBtn.style.background = "rgba(239,68,68,.08)";
+                } catch {}
+                clearBtn.style.opacity = clearBtn.disabled ? "0.55" : "1";
+                clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+                clearBtn.onclick = () => {
+                  try {
+                    if (clearBtn.disabled) return;
+                    state.uploads = [];
+                    state.uploadError = "";
+                    render();
+                  } catch {}
+                };
+                headRow.appendChild(clearBtn);
+                uploadCard.appendChild(headRow);
+              }
 
               uploadCard.appendChild(renderUploadHero(state.dash));
               uploadCard.appendChild(renderSmartStats(state.dash));
