@@ -30,6 +30,7 @@ const renderConversionPlatform = (opts) => {
   head.style.alignItems = "flex-start";
   head.style.justifyContent = "space-between";
   head.style.gap = "10px";
+  head.style.flexWrap = "wrap";
 
   const titleWrap = document.createElement("div");
   titleWrap.style.display = "flex";
@@ -141,6 +142,7 @@ const renderConversionPlatform = (opts) => {
     const clearRow = document.createElement("div");
     clearRow.style.display = "flex";
     clearRow.style.width = "100%";
+    clearRow.style.flex = "0 0 100%";
     clearRow.style.justifyContent = "flex-start";
     clearRow.style.alignItems = "center";
     clearRow.style.direction = "ltr";
@@ -171,7 +173,7 @@ const renderConversionPlatform = (opts) => {
     };
 
     clearRow.appendChild(clearBtn);
-    titleWrap.appendChild(clearRow);
+    head.appendChild(clearRow);
   }
 
   const pickBtn = btnGhost(isArabic() ? "اختيار ملفات" : "Pick files");

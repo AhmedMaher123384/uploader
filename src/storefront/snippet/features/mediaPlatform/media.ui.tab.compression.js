@@ -175,6 +175,7 @@ const renderCompressionPlatform = (opts) => {
     const clearRow = document.createElement("div");
     clearRow.style.display = "flex";
     clearRow.style.width = "100%";
+    clearRow.style.flex = "0 0 100%";
     clearRow.style.justifyContent = "flex-start";
     clearRow.style.alignItems = "center";
     clearRow.style.direction = "ltr";
@@ -204,7 +205,7 @@ const renderCompressionPlatform = (opts) => {
       } catch {}
     };
     clearRow.appendChild(clearBtn);
-    titleWrap.appendChild(clearRow);
+    head.appendChild(clearRow);
   }
 
   const pickBtn = btnGhost(isArabic() ? "اختيار صور" : "Pick images");
