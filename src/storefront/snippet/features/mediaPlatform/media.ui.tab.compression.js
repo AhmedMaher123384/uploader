@@ -376,7 +376,6 @@ const renderCompressionPlatform = (opts) => {
     s1.appendChild(dz);
   }
 
-  if (state.compressError) s1.appendChild(renderError(state.compressError));
   stepWrap.appendChild(s1);
 
   const s2 = mkStep(
@@ -687,7 +686,7 @@ const renderCompressionPlatform = (opts) => {
         sub.textContent = isArabic() ? "في الانتظار" : "Queued";
       } else if (st === "error") {
         sub.style.color = "#ef4444";
-        sub.textContent = String((it && it.error) || (isArabic() ? "فشل الضغط" : "Compression failed"));
+        sub.textContent = isArabic() ? "فشل الضغط" : "Compression failed";
       } else if (st === "done") {
         if (outB && fmt2) {
           const line = document.createElement("div");

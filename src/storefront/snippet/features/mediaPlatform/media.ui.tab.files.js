@@ -5,6 +5,8 @@ const renderThumbActions = (opts) => {
   if (!uOpen) return null;
   const uCopy = String((opts && (opts.copyUrl || uOpen)) || "");
   const uDownload = String((opts && (opts.downloadUrl || uOpen)) || "");
+  const onCopy = opts && typeof opts.onCopy === "function" ? opts.onCopy : null;
+  const onDownload = opts && typeof opts.onDownload === "function" ? opts.onDownload : null;
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
@@ -133,7 +135,11 @@ const renderThumbActions = (opts) => {
   wireHover(copy);
   copy.onclick = () => {
     try {
-      copyText(uCopy, () => {});
+      copyText(uCopy, (ok) => {
+        try {
+          if (onCopy) onCopy({ ok: Boolean(ok), url: uCopy });
+        } catch {}
+      });
     } catch {}
   };
 
@@ -165,6 +171,9 @@ const renderThumbActions = (opts) => {
       download.disabled = true;
       download.style.opacity = "0.65";
       const name = guessDownloadName();
+      try {
+        if (onDownload) onDownload({ stage: "start", name, url: uDownload });
+      } catch {}
       let href = "";
       try {
         const obj = await fetchMediaObjectUrl(uDownload);
@@ -184,9 +193,15 @@ const renderThumbActions = (opts) => {
       try {
         a.remove();
       } catch {}
-    } catch {
+      try {
+        if (onDownload) onDownload({ stage: "done", name, url: uDownload });
+      } catch {}
+    } catch (e) {
       try {
         window.open(uOpen, "_blank", "noopener");
+      } catch {}
+      try {
+        if (onDownload) onDownload({ stage: "fallback", name: guessDownloadName(), url: uDownload, error: String((e && e.message) || e || "") });
       } catch {}
     } finally {
       try {
@@ -559,7 +574,16 @@ const renderGrid = (items, opts) => {
 
       meta.appendChild(info);
 
-      const actions = renderThumbActions({ openUrl, copyUrl, downloadUrl: openUrl, onDelete, deleting: isDeleting, downloadName: fileName });
+      const actions = renderThumbActions({
+        openUrl,
+        copyUrl,
+        downloadUrl: openUrl,
+        onDelete,
+        deleting: isDeleting,
+        downloadName: fileName,
+        onCopy: opts && typeof opts.onCopy === "function" ? opts.onCopy : null,
+        onDownload: opts && typeof opts.onDownload === "function" ? opts.onDownload : null
+      });
       if (actions) meta.appendChild(actions);
     }
 

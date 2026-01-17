@@ -881,7 +881,9 @@ const renderEmpty = () => {
   wrap.style.color = "rgba(255,255,255,.72)";
   wrap.style.fontSize = "13px";
   wrap.style.fontWeight = "900";
-  wrap.textContent = isArabic() ? "مفيش ملفات مرفوعة لحد دلوقتي." : "No media uploaded yet.";
+  wrap.textContent = isArabic()
+    ? "مفيش ملفات مرفوعة لحد دلوقتي. ارفع من (مركز الرفع) أو اضغط/حوّل وبعدين ارفع النتيجة."
+    : "No files yet. Upload from Upload Center, or compress/convert then upload the result.";
   return wrap;
 };
 `,

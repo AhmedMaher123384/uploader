@@ -901,10 +901,6 @@ const renderConversionPlatform = (opts) => {
       s.appendChild(prog);
     }
 
-    if (state.convertError) {
-      s.appendChild(renderError(state.convertError));
-    }
-
     if (items.length) {
       const list = document.createElement("div");
       list.style.display = "flex";
@@ -1102,7 +1098,7 @@ const renderConversionPlatform = (opts) => {
               : status === "done"
                 ? (outFmt ? outFmt + " · " : "") + fmtBytes(outBytes)
                 : status === "error"
-                  ? String((it && it.error) || (isArabic() ? "فشل التحويل" : "Conversion failed"))
+                  ? (isArabic() ? "فشل التحويل" : "Conversion failed")
                   : "";
 
         sub.textContent = msg;
@@ -1204,7 +1200,6 @@ const renderConversionPlatform = (opts) => {
         wrap.appendChild(top);
 
         const upErr = String((it && it.uploadError) || "");
-        if (upErr) wrap.appendChild(renderError(upErr));
 
         return wrap;
       };

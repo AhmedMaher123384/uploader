@@ -400,7 +400,7 @@ const renderUploadRow = (rec) => {
           ? "تم الرفع"
           : "Uploaded"
         : rec.status === "error"
-          ? String(rec.error || "Error")
+          ? (isArabic() ? "فشل" : "Failed")
           : isArabic()
             ? "في الانتظار"
             : "Queued";
