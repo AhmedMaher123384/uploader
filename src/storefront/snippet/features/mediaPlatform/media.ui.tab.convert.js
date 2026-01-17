@@ -248,6 +248,7 @@ const renderConversionPlatform = (opts) => {
       const opt = document.createElement("option");
       opt.value = String(o.value == null ? "" : o.value);
       opt.textContent = String(o.label == null ? "" : o.label);
+      opt.disabled = Boolean(o.disabled);
       if (opt.value === desired) opt.selected = true;
       s.appendChild(opt);
     }
@@ -263,6 +264,23 @@ const renderConversionPlatform = (opts) => {
   };
 
   const convertIsVideo = String(state.convertKind || "image") === "video";
+  const parsePresetDims = (v) => {
+    const s = String(v || "").trim().toLowerCase();
+    const m = s.match(/^(\\d{1,4})x(\\d{1,4})$/);
+    if (!m) return null;
+    const w = Number(m[1] || 0) || 0;
+    const h = Number(m[2] || 0) || 0;
+    return w > 0 && h > 0 ? { width: w, height: h } : null;
+  };
+  const presetIsNoopForDims = (dims, presetValue) => {
+    const d = dims && typeof dims === "object" ? dims : null;
+    const w = Number(d && d.width) || 0;
+    const h = Number(d && d.height) || 0;
+    if (!(w > 0 && h > 0)) return false;
+    const p = parsePresetDims(presetValue);
+    if (!p) return false;
+    return w <= p.width && h <= p.height;
+  };
   const resizeOptions = [
     { value: "original", label: isArabic() ? "المقاس" : "Size" },
     { value: "1080x1080", label: isArabic() ? "إنستجرام مربع — 1080×1080" : "Instagram Square — 1080×1080" },
@@ -289,6 +307,7 @@ const renderConversionPlatform = (opts) => {
   fileMeta.style.minWidth = "0";
 
   const selectedFiles = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+  const fileDims = Array.isArray(state.convertFileDims) ? state.convertFileDims : [];
   const selectedCount = selectedFiles.length;
 
   const fileSize = document.createElement("div");
@@ -539,6 +558,7 @@ const renderConversionPlatform = (opts) => {
       };
 
       if (showPerFilePreset) {
+        const dims = fileDims[i] || null;
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
         preset.style.padding = "2px 18px 2px 7px";
@@ -563,6 +583,9 @@ const renderConversionPlatform = (opts) => {
           const opt = document.createElement("option");
           opt.value = String(o2.value || "");
           opt.textContent = String(o2.label || "");
+          if (opt.value !== presetValue && opt.value !== "original") {
+            opt.disabled = presetIsNoopForDims(dims, opt.value);
+          }
           if (opt.value === presetValue) opt.selected = true;
           preset.appendChild(opt);
         }
@@ -1325,10 +1348,21 @@ const renderConversionPlatform = (opts) => {
 
     const s3 = mkStep(3, isArabic() ? "المقاس" : "Resize", isArabic() ? "اختر مقاس جاهز" : "Pick a preset size");
     const presetSelectValue = String(state.convertPreset || "original") || "original";
+    const singleDims = selectedFiles.length === 1 ? (fileDims[0] || null) : null;
+    const resizeOptionsForSingle = selectedFiles.length === 1
+      ? resizeOptions.map((o) => {
+          const v = String((o && o.value) || "");
+          const lbl = String((o && o.label) || "");
+          if (v !== presetSelectValue && v !== "original") {
+            return { value: v, label: lbl, disabled: presetIsNoopForDims(singleDims, v) };
+          }
+          return { value: v, label: lbl };
+        })
+      : resizeOptions;
     const presetSelect = mkSelect(
       isArabic() ? "اختر المقاس" : "Choose size",
       presetSelectValue,
-      resizeOptions,
+      resizeOptionsForSingle,
       Boolean(state.converting) || planBlocked,
       (v) => {
         try {
@@ -1364,6 +1398,22 @@ const renderConversionPlatform = (opts) => {
       }
     } catch {}
     s3.appendChild(presetSelect);
+    try {
+      if (selectedFiles.length === 1) {
+        const disabledCount = resizeOptionsForSingle.filter((x) => x && x.disabled).length;
+        if (disabledCount > 0) {
+          const note = document.createElement("div");
+          note.style.color = "rgba(255,255,255,.55)";
+          note.style.fontSize = "11px";
+          note.style.fontWeight = "900";
+          note.style.lineHeight = "1.6";
+          note.textContent = isArabic()
+            ? "ملاحظة: المقاسات الأكبر من صورتك مُعطّلة لأننا لا نكبّر الصور."
+            : "Note: sizes larger than your image are disabled (no upscaling).";
+          s3.appendChild(note);
+        }
+      }
+    } catch {}
 
     stepWrap.appendChild(s2);
     stepWrap.appendChild(s3);

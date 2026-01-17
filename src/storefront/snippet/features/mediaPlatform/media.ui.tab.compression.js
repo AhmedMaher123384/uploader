@@ -381,29 +381,8 @@ const renderCompressionPlatform = (opts) => {
   const s2 = mkStep(
     2,
     isArabic() ? "إعدادات الضغط" : "Compression settings",
-    isArabic() ? "اختر الصيغة والجودة" : "Pick format & quality"
+    isArabic() ? "اختر الجودة" : "Pick quality"
   );
-
-  const fmtValue = String(state.compressFormat || "keep").trim().toLowerCase() || "keep";
-  const fmtSelect = mkSelect(
-    isArabic() ? "صيغة الإخراج" : "Output format",
-    fmtValue,
-    [
-      { value: "keep", label: isArabic() ? "كما هي (Keep)" : "Keep (same as input)" },
-      { value: "webp", label: "WebP" },
-      { value: "avif", label: "AVIF" },
-      { value: "jpeg", label: "JPEG" },
-      { value: "png", label: "PNG" }
-    ],
-    busy,
-    (v) => {
-      try {
-        state.compressFormat = String(v || "keep").trim().toLowerCase() || "keep";
-        if (onRender) onRender();
-      } catch {}
-    }
-  );
-  s2.appendChild(fmtSelect);
 
   const qWrap = document.createElement("div");
   qWrap.style.display = "flex";

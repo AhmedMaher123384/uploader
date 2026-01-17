@@ -2039,6 +2039,51 @@ const mount = () => {
           } catch {}
         };
 
+        const readImageDims = (file) => {
+          const f = file || null;
+          if (!f) return Promise.resolve(null);
+          return new Promise((resolve) => {
+            let url = "";
+            let img = null;
+            const done = (dims) => {
+              try {
+                if (url && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(url);
+              } catch {}
+              try {
+                if (img) {
+                  img.onload = null;
+                  img.onerror = null;
+                }
+              } catch {}
+              resolve(dims || null);
+            };
+            try {
+              if (!window.URL || !URL.createObjectURL) {
+                done(null);
+                return;
+              }
+              url = URL.createObjectURL(f);
+              img = new Image();
+              try {
+                img.decoding = "async";
+              } catch {}
+              img.onload = () => {
+                try {
+                  const w = Number(img.naturalWidth || img.width || 0) || 0;
+                  const h = Number(img.naturalHeight || img.height || 0) || 0;
+                  done(w > 0 && h > 0 ? { width: w, height: h } : null);
+                } catch {
+                  done(null);
+                }
+              };
+              img.onerror = () => done(null);
+              img.src = url;
+            } catch {
+              done(null);
+            }
+          });
+        };
+
         const setConvertFiles = (files) => {
           const fs = Array.isArray(files) ? files : [];
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
@@ -2098,6 +2143,29 @@ const mount = () => {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
           convertObjUrl = "";
+
+          state.convertFileDims = kind === "image" ? chosen.map(() => null) : [];
+          state.convertFileDimsLoading = Boolean(kind === "image" && chosen.length);
+          const dimsToken = String(Date.now()) + "_" + String(Math.random()).slice(2);
+          state.convertDimsToken = dimsToken;
+          if (kind === "image" && chosen.length) {
+            (async () => {
+              for (let i = 0; i < chosen.length; i += 1) {
+                if (state.convertDimsToken !== dimsToken) return;
+                const f = chosen[i] || null;
+                const dims = await readImageDims(f);
+                if (state.convertDimsToken !== dimsToken) return;
+                if (!Array.isArray(state.convertFileDims) || state.convertFileDims.length !== chosen.length) {
+                  state.convertFileDims = chosen.map(() => null);
+                }
+                state.convertFileDims[i] = dims;
+                render();
+              }
+              if (state.convertDimsToken !== dimsToken) return;
+              state.convertFileDimsLoading = false;
+              render();
+            })();
+          }
 
           const ignored = Math.max(0, fs.length - keep.length);
           const planName = planLabel(planKey || "basic");
@@ -2921,7 +2989,7 @@ const mount = () => {
 
           const qRaw = state.compressQuality ? Number(state.compressQuality) : null;
           const q = qRaw != null && Number.isFinite(qRaw) ? Math.max(1, Math.min(80, Math.round(qRaw))) : null;
-          const format = String(state.compressFormat || "keep").trim().toLowerCase();
+          const format = "keep";
 
           const guessExt = (f, b, hinted) => {
             const h = String(hinted || "").trim().toLowerCase();
