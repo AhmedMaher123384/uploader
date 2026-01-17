@@ -259,11 +259,14 @@ const friendlyApiErrorMessage = (err) => {
 
   if (code === "UNSUPPORTED_MEDIA") return isArabic() ? "الملف غير مدعوم" : "Unsupported media";
 
+  if (code === "MERCHANT_INACTIVE") return isArabic() ? "المتجر غير نشط" : "Merchant is not active";
+  if (code === "ROUTE_NOT_FOUND") return isArabic() ? "المسار غير موجود" : "Route not found";
+  if (code === "PROXY_SIGNATURE_MISSING") return isArabic() ? "بيانات التحقق ناقصة" : "Missing verification data";
+  if (code === "PROXY_SIGNATURE_INVALID") return isArabic() ? "بيانات التحقق غير صحيحة" : "Invalid verification data";
+  if (code === "PROXY_SECRET_MISSING") return isArabic() ? "إعدادات التحقق غير مكتملة" : "Verification is not configured";
+
   if (code === "FILE_TYPE_NOT_ALLOWED") {
-    const planKey = String((state && state.dash && state.dash.planKey) || "").trim().toLowerCase();
-    const planEn = planLabel(planKey || "basic");
-    const planAr = planKey === "business" ? "بزنس" : planKey === "pro" ? "برو" : "بيزك";
-    return isArabic() ? ("نوع الملف غير مسموح في باقة " + planAr) : ("File type is not allowed for your " + planEn + " plan");
+    return isArabic() ? "نوع الملف غير مسموح في باقتك" : "File type is not allowed for your plan";
   }
 
   if (code === "FILE_SIZE_LIMIT_EXCEEDED") {
@@ -960,23 +963,15 @@ const mount = () => {
               ".bundleapp-swal-target{position:relative}" +
               ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
               ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
-              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important;position:relative!important;overflow:hidden!important}" +
-              ".bundleapp-swal-toast--success{border-color:rgba(34,197,94,.45)!important;box-shadow:0 12px 40px rgba(34,197,94,.14)!important}" +
-              ".bundleapp-swal-toast--error{border-color:rgba(239,68,68,.55)!important;box-shadow:0 12px 40px rgba(239,68,68,.16)!important}" +
-              ".bundleapp-swal-toast--warning{border-color:rgba(245,158,11,.45)!important;box-shadow:0 12px 40px rgba(245,158,11,.14)!important}" +
-              ".bundleapp-swal-toast--info{border-color:rgba(24,181,213,.35)!important;box-shadow:0 12px 40px rgba(24,181,213,.14)!important}" +
-              ".bundleapp-swal-toast:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(24,181,213,.9);border-radius:14px 0 0 14px}" +
-              ".bundleapp-swal-toast--success:before{background:rgba(34,197,94,.95)!important}" +
-              ".bundleapp-swal-toast--error:before{background:rgba(239,68,68,.95)!important}" +
-              ".bundleapp-swal-toast--warning:before{background:rgba(245,158,11,.95)!important}" +
-              ".bundleapp-swal-toast[dir='rtl']:before{left:auto;right:0;border-radius:0 14px 14px 0}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important;position:relative!important}" +
+              ".bundleapp-swal-toast--success{border-color:rgba(34,197,94,.55)!important}" +
+              ".bundleapp-swal-toast--error{border-color:rgba(239,68,68,.65)!important}" +
+              ".bundleapp-swal-toast--warning{border-color:rgba(245,158,11,.60)!important}" +
+              ".bundleapp-swal-toast--info{border-color:rgba(24,181,213,.55)!important}" +
               ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
               ".bundleapp-swal-toast .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important;font-size:12px!important;line-height:1.4!important;margin:4px 0 0!important;padding:0!important}" +
               ".bundleapp-swal-toast .swal2-icon{margin:0 10px 0 0!important;transform:scale(.92)}" +
               ".bundleapp-swal-toast[dir='rtl'] .swal2-icon{margin:0 0 0 10px!important}" +
-              ".bundleapp-swal-toast .swal2-timer-progress-bar{background:rgba(24,181,213,.65)!important}" +
-              "@keyframes bundleappToastIn{from{transform:translateY(-6px);opacity:.0}to{transform:translateY(0);opacity:1}}" +
-              ".bundleapp-swal-toast{animation:bundleappToastIn .14s ease-out}" +
               ".bundleapp-swal-popup{background:#303030!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:16px!important}" +
               ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:950!important}" +
               ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
@@ -1093,20 +1088,16 @@ const mount = () => {
             allowOutsideClick: false,
             allowEnterKey: false,
             timer: !loading && duration ? duration : undefined,
-            timerProgressBar: !loading && Boolean(duration),
+            timerProgressBar: false,
             customClass: {
               container: "bundleapp-swal-container",
               popup: "bundleapp-swal-toast" + (loading ? " bundleapp-swal-toast--info" : " bundleapp-swal-toast--" + String(icon))
             },
+            showClass: { popup: "swal2-noanimation" },
+            hideClass: { popup: "swal2-noanimation" },
             didOpen: (el) => {
               try {
                 el.dir = isRtl() ? "rtl" : "ltr";
-              } catch {}
-              try {
-                if (!loading && duration) {
-                  el.addEventListener("mouseenter", Swal.stopTimer);
-                  el.addEventListener("mouseleave", Swal.resumeTimer);
-                }
               } catch {}
               try {
                 if (loading) Swal.showLoading();
@@ -1172,6 +1163,86 @@ const mount = () => {
             key: id
           });
           return id;
+        };
+
+        const withTimeout = (p, ms, msg) => {
+          const m = Math.max(250, Number(ms || 0) || 0);
+          return new Promise((resolve, reject) => {
+            let done = false;
+            const t = setTimeout(() => {
+              if (done) return;
+              done = true;
+              reject(new Error(String(msg || (isArabic() ? "انتهت المهلة" : "Timed out"))));
+            }, m);
+            Promise.resolve(p)
+              .then((v) => {
+                if (done) return;
+                done = true;
+                clearTimeout(t);
+                resolve(v);
+              })
+              .catch((e) => {
+                if (done) return;
+                done = true;
+                clearTimeout(t);
+                reject(e);
+              });
+          });
+        };
+
+        const getPlanKeySafe = () => {
+          const k = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+          return k || "basic";
+        };
+
+        const planName = (planKey) => {
+          const k = String(planKey || "").trim().toLowerCase() || "basic";
+          if (!isArabic()) return planLabel(k);
+          if (k === "business") return "بزنس";
+          if (k === "pro") return "برو";
+          return "بيزك";
+        };
+
+        const baseAllowedExt = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
+        const proAllowedExt = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm", "css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"]);
+        const bannedUploadExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "htm", "sh", "bat", "cmd", "ps1", "jar", "com", "scr", "msi"]);
+
+        const normalizeUploadExt = (ext) => {
+          const s = String(ext || "").trim().toLowerCase();
+          return s.replace(/^[.]/, "").replace(/[^a-z0-9]+/g, "");
+        };
+
+        const isExtAllowedForPlan = (planKey, ext) => {
+          const k = String(planKey || "").trim().toLowerCase() || "basic";
+          const e = normalizeUploadExt(ext);
+          if (!e) return true;
+          if (bannedUploadExt.has(e)) return false;
+          if (k !== "pro" && k !== "business" && e === "svg") return false;
+          if (k === "business") return true;
+          const allowed = k === "pro" ? proAllowedExt : baseAllowedExt;
+          return allowed.has(e);
+        };
+
+        const toastFileTypePlanBlockByExt = (ext, planKey) => {
+          const k = String(planKey || "").trim().toLowerCase() || "basic";
+          const e = normalizeUploadExt(ext);
+          const extText = e ? String(e).toUpperCase() : (isArabic() ? "غير معروف" : "Unknown");
+          if (bannedUploadExt.has(e)) {
+            toastError(
+              isArabic() ? ("نوع الملف " + extText + " غير مسموح لأسباب أمنية.") : ("File type " + extText + " is not allowed for security reasons."),
+              isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
+            );
+            return;
+          }
+          const baseList = "JPG/JPEG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
+          const proList = baseList + ", SVG, ZIP, JSON, CSS, TTF, WOFF, WOFF2, EOT, OTF, TIFF";
+          const list = k === "pro" || k === "business" ? proList : baseList;
+          toastError(
+            isArabic()
+              ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName(k) + ". الصيغ المتاحة: " + list + ".")
+              : ("File type " + extText + " is not allowed on " + planName(k) + ". Allowed formats: " + list + "."),
+            isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
+          );
         };
 
         const refreshDashboard = async (force) => {
@@ -2379,15 +2450,26 @@ const mount = () => {
             }
 
             const rt = guessResourceType(file);
-            const sign = await getSignature(rt, file);
-            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
+            const planKey = getPlanKeySafe();
+            if (!isExtAllowedForPlan(planKey, ext)) {
+              it.uploading = false;
+              it.uploadProgress = 0;
+              it.uploadError = isArabic() ? "نوع الملف غير مسموح" : "File type not allowed";
+              render();
+              toastClose(toastId);
+              toastFileTypePlanBlockByExt(ext, planKey);
+              return;
+            }
+
+            const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
+            const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct) => {
               try {
                 it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
                 render();
               } catch {}
-            });
+            }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
 
-            const saved = await recordAsset(uploaded);
+            const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
             try {
               clearMediaApiCache();
             } catch {}
@@ -3018,15 +3100,27 @@ const mount = () => {
             }
 
             const rt = guessResourceType(file);
-            const sign = await getSignature(rt, file);
-            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
+            const planKey = getPlanKeySafe();
+            if (!isExtAllowedForPlan(planKey, ext)) {
+              it.uploading = false;
+              it.uploadProgress = 0;
+              it.uploadError = isArabic() ? "نوع الملف غير مسموح" : "File type not allowed";
+              state.compressUploadingAny = items.some((x) => x && x.uploading);
+              render();
+              toastClose(toastId);
+              toastFileTypePlanBlockByExt(ext, planKey);
+              return;
+            }
+
+            const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
+            const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct) => {
               try {
                 it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
                 render();
               } catch {}
-            });
+            }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
 
-            const saved = await recordAsset(uploaded);
+            const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
             try {
               clearMediaApiCache();
             } catch {}
@@ -3454,55 +3548,135 @@ const mount = () => {
             );
           }
 
+          const withTimeout = (p, ms, msg) => {
+            const m = Math.max(250, Number(ms || 0) || 0);
+            return new Promise((resolve, reject) => {
+              let done = false;
+              const t = setTimeout(() => {
+                if (done) return;
+                done = true;
+                reject(new Error(String(msg || (isArabic() ? "انتهت المهلة" : "Timed out"))));
+              }, m);
+              Promise.resolve(p)
+                .then((v) => {
+                  if (done) return;
+                  done = true;
+                  clearTimeout(t);
+                  resolve(v);
+                })
+                .catch((e) => {
+                  if (done) return;
+                  done = true;
+                  clearTimeout(t);
+                  reject(e);
+                });
+            });
+          };
+
+          const baseAllowed = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
+          const proExtra = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
+          const bannedExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "htm", "sh", "bat", "cmd", "ps1", "jar", "com", "scr", "msi"]);
+          const allowedExt = (() => {
+            if (planKey === "business") return null;
+            const set = new Set(Array.from(baseAllowed));
+            if (planKey === "pro") for (let i = 0; i < proExtra.length; i += 1) set.add(proExtra[i]);
+            return set;
+          })();
+
+          const normalizeExt = (file) => {
+            const raw = getExt(file && file.name);
+            const s = String(raw || "").trim().toLowerCase();
+            return s.replace(/^[.]/, "").replace(/[^a-z0-9]+/g, "");
+          };
+
+          const isExtAllowed = (ext) => {
+            const e = String(ext || "").trim().toLowerCase();
+            if (!e) return true;
+            if (bannedExt.has(e)) return false;
+            if (planKey !== "pro" && planKey !== "business" && e === "svg") return false;
+            if (allowedExt && !allowedExt.has(e)) return false;
+            return true;
+          };
+
           const toastFileTypePlanBlock = (file) => {
             const f = file || null;
-            const ext = getExt(f && f.name);
+            const ext = normalizeExt(f);
             const extText = ext ? String(ext).toUpperCase() : (isArabic() ? "غير معروف" : "Unknown");
-            const baseList = "JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
+            const baseList = "JPG/JPEG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
+            const proList = baseList + ", SVG, ZIP, JSON, CSS, TTF, WOFF, WOFF2, EOT, OTF, TIFF";
+            const list = planKey === "pro" ? proList : baseList;
             toastError(
               isArabic()
-                ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName() + ". الصيغ المتاحة: " + baseList + ".")
-                : ("File type " + extText + " is not allowed on " + planName() + ". Allowed formats: " + baseList + "."),
+                ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName() + ". الصيغ المتاحة: " + list + ".")
+                : ("File type " + extText + " is not allowed on " + planName() + ". Allowed formats: " + list + "."),
               isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
             );
           };
 
-          state.uploading = true;
           state.uploads = [];
+          let validCount = 0;
 
           for (let i = 0; i < chosen.length; i += 1) {
             const f = chosen[i];
             if (!f) continue;
+            const ext = normalizeExt(f);
+            const okExt = isExtAllowed(ext);
             state.uploads.push({
               name: String(f.name || ""),
               size: Number(f.size || 0) || 0,
-              status: "queued",
-              error: "",
+              status: okExt ? "queued" : "error",
+              error: okExt ? "" : (isArabic() ? "نوع الملف غير مسموح" : "File type not allowed"),
+              errorCode: okExt ? "" : "FILE_TYPE_NOT_ALLOWED",
               url: "",
               progress: 0,
               loaded: 0,
               total: Number(f.size || 0) || 0
             });
+            if (okExt) validCount += 1;
           }
 
           render();
 
+          if (!validCount) {
+            for (let i = 0; i < chosen.length; i += 1) {
+              const file = chosen[i];
+              const rec = state.uploads[i];
+              if (!file || !rec || String(rec.status || "") !== "error") continue;
+              toastFileTypePlanBlock(file);
+              break;
+            }
+            try {
+              refreshDashboard();
+            } catch {}
+            return;
+          }
+
+          state.uploading = true;
           const toastId = toastLoading(
             isArabic()
-              ? ("جاري رفع " + String(chosen.length) + " ملف...")
-              : ("Uploading " + String(chosen.length) + " files...")
+              ? ("جاري رفع " + String(validCount) + " ملف...")
+              : ("Uploading " + String(validCount) + " files...")
           );
           let errToastBudget = 3;
+          let uploadedIndex = 0;
           for (let i = 0; i < chosen.length; i += 1) {
             const file = chosen[i];
             if (!file) continue;
             const rec = state.uploads[i];
+            if (!rec || String(rec.status || "") === "error") {
+              if (errToastBudget > 0) {
+                errToastBudget -= 1;
+                toastFileTypePlanBlock(file);
+              }
+              continue;
+            }
+            uploadedIndex += 1;
             try {
               toastUpdate(toastId, {
                 title: isArabic() ? "جاري الرفع" : "Uploading",
                 message: isArabic()
-                  ? ("ملف " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
-                  : ("File " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
+                  ? ("ملف " + String(uploadedIndex) + " / " + String(validCount) + (file && file.name ? " — " + String(file.name || "") : ""))
+                  : ("File " + String(uploadedIndex) + " / " + String(validCount) + (file && file.name ? " — " + String(file.name || "") : ""))
               });
               rec.status = "uploading";
               rec.error = "";
@@ -3513,16 +3687,16 @@ const mount = () => {
               rec.total = Number(file.size || rec.size || 0) || 0;
               render();
               const rt = guessResourceType(file);
-              const sign = await getSignature(rt, file);
-              const uploaded = await uploadToCloudinary(file, sign, (pct, loaded, total) => {
+              const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
+              const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct, loaded, total) => {
                 try {
                   rec.progress = Number.isFinite(pct) ? pct : rec.progress;
                   rec.loaded = Number.isFinite(loaded) ? loaded : rec.loaded;
                   rec.total = Number.isFinite(total) ? total : rec.total;
                   render();
                 } catch {}
-              });
-              const saved = await recordAsset(uploaded);
+              }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
+              const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
               try {
                 clearMediaApiCache();
               } catch {}
