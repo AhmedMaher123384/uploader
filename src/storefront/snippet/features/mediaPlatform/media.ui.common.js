@@ -771,7 +771,7 @@ const planLabel = (k) => {
 };
 `,
   `
-const renderDropzone = ({ disabled, onPick, onFiles }) => {
+const renderDropzone = ({ disabled, hint, onPick, onFiles }) => {
   const z = document.createElement("div");
   z.style.border = "1px dashed rgba(255,255,255,.12)";
   z.style.borderRadius = "12px";
@@ -803,7 +803,7 @@ const renderDropzone = ({ disabled, onPick, onFiles }) => {
   t2.style.fontSize = "11px";
   t2.style.fontWeight = "900";
   t2.style.textAlign = "center";
-  t2.textContent = isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type";
+  t2.textContent = String(hint || "").trim() || (isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type");
 
   const pick = () => {
     try {

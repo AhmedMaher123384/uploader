@@ -3291,6 +3291,22 @@ const mount = () => {
               uploadCard.appendChild(renderSmartStats(state.dash));
               uploadCard.appendChild(
                 renderDropzone({
+                  hint: (() => {
+                    try {
+                      const allowed = getAllowedExtForPlan(planKey || "basic");
+                      const planName = planLabel(planKey || "basic");
+                      if (!allowed) return isArabic() ? ("الصيغ المتاحة في باقة " + planName + ": كل الصيغ") : ("Allowed formats on " + planName + ": all formats");
+                      const arr = Array.from(allowed.values()).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean).sort();
+                      const max = 10;
+                      const head = arr.slice(0, max);
+                      const tail = arr.length > head.length ? " …" : "";
+                      const joiner = isArabic() ? "، " : ", ";
+                      const list = head.join(joiner) + tail;
+                      return isArabic() ? ("الصيغ المتاحة في باقتك (" + planName + "): " + list) : ("Allowed formats on your plan (" + planName + "): " + list);
+                    } catch {
+                      return "";
+                    }
+                  })(),
                   disabled: state.uploading,
                   onPick: () => {
                     try {
@@ -3618,11 +3634,10 @@ const mount = () => {
 
           const detailParts = [];
           if (rejectsByReason.not_allowed_ext) {
-            const exts = notAllowedExts.map((x) => String(x || "").toUpperCase()).filter(Boolean);
             detailParts.push(
               isArabic()
-                ? ("صيغ غير مسموحة: " + (exts.length ? exts.join("، ") : "—"))
-                : ("Disallowed formats: " + (exts.length ? exts.join(", ") : "—"))
+                ? "صيغ غير مسموحة"
+                : "Disallowed formats"
             );
           }
           if (rejectsByReason.banned_ext) {
@@ -3716,14 +3731,14 @@ const mount = () => {
               })();
               const upgradeHint =
                 planKey === "basic" && proAllowed
-                  ? (isArabic() ? ("لرفع " + extLabel + ": حدّث باقتك إلى Pro أو Business.") : ("To upload " + extLabel + ": upgrade to Pro or Business."))
+                  ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
                   : planKey === "basic" || planKey === "pro"
-                    ? (isArabic() ? ("لرفع " + extLabel + ": حدّث باقتك إلى Business.") : ("To upload " + extLabel + ": upgrade to Business."))
+                    ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
                     : "";
 
               return isArabic()
-                ? ("صيغة ." + extLabel + " غير متاحة في باقتك (" + planName + ").\\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\\n" + upgradeHint) : ""))
-                : ("." + extLabel + " is not allowed on your plan (" + planName + ").\\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\\n" + upgradeHint) : ""));
+                ? ("صيغة ." + extLabel + " غير مسموحة في باقتك (" + planName + ")." + (upgradeHint ? (" " + upgradeHint) : ""))
+                : ("." + extLabel + " is not allowed on your plan (" + planName + ")." + (upgradeHint ? (" " + upgradeHint) : ""));
             }
             if (reason === "file_too_big") {
               return isArabic()
