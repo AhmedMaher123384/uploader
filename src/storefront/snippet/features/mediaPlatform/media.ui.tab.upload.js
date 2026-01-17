@@ -382,7 +382,7 @@ const renderUploadRow = (rec) => {
   const sub = document.createElement("div");
   sub.style.fontSize = "12px";
   sub.style.fontWeight = "900";
-  sub.style.color = rec.status === "error" ? "#ef4444" : "rgba(24,181,213,.9)";
+  sub.style.color = rec.status === "error" || rec.status === "rejected" ? "#ef4444" : "rgba(24,181,213,.9)";
   const pct = (() => {
     try {
       const p = Number(rec && rec.progress);
@@ -399,6 +399,8 @@ const renderUploadRow = (rec) => {
         ? isArabic()
           ? "تم الرفع"
           : "Uploaded"
+        : rec.status === "rejected"
+          ? (isArabic() ? "مرفوض" : "Rejected")
         : rec.status === "error"
           ? (isArabic() ? "فشل" : "Failed")
           : isArabic()

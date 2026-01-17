@@ -3571,6 +3571,21 @@ const mount = () => {
           }
 
           const planName = planLabel(planKey || "basic");
+
+          const extListFrom = (reason) => {
+            const set = new Set();
+            for (let i = 0; i < rejected.length; i += 1) {
+              const r = rejected[i];
+              if (!r || String(r.reason || "") !== String(reason || "")) continue;
+              const f = r.file || null;
+              const name = String((f && f.name) || "");
+              const ext = normalizeFilenameExt(name) || String(r.ext || "");
+              if (ext) set.add(ext);
+            }
+            return Array.from(set.values()).sort();
+          };
+
+          const notAllowedExts = extListFrom("not_allowed_ext");
           const summaryParts = [];
           if (fs0.length) {
             summaryParts.push(
@@ -3603,7 +3618,12 @@ const mount = () => {
 
           const detailParts = [];
           if (rejectsByReason.not_allowed_ext) {
-            detailParts.push(isArabic() ? "صيغ غير مدعومة" : "Unsupported formats");
+            const exts = notAllowedExts.map((x) => "." + String(x || ""));
+            detailParts.push(
+              isArabic()
+                ? ("صيغ غير مسموحة: " + (exts.length ? exts.join("، ") : "—"))
+                : ("Disallowed formats: " + (exts.length ? exts.join(", ") : "—"))
+            );
           }
           if (rejectsByReason.banned_ext) {
             detailParts.push(isArabic() ? "صيغ محظورة" : "Blocked formats");
@@ -3624,7 +3644,80 @@ const mount = () => {
             (limitMsg ? (isArabic() ? " — " + limitMsg : " — " + limitMsg) : "") +
             (detailParts.length ? (isArabic() ? " — " + detailParts.join("، ") : " — " + detailParts.join(", ")) : "");
 
-          state.uploadError = rejected.length ? summaryMsg : "";
+          const buildSingleRejectToast = (r) => {
+            const f = r && r.file ? r.file : null;
+            const name = String((f && f.name) || "");
+            const size = Number((f && f.size) || 0) || 0;
+            const ext = normalizeFilenameExt(name) || String((r && r.ext) || "");
+            const reason = String((r && r.reason) || "");
+            if (reason === "banned_ext") {
+              return isArabic()
+                ? ("صيغة ." + String(ext || "?") + " محظورة لأسباب أمنية")
+                : ("File type ." + String(ext || "?") + " is blocked for security reasons");
+            }
+            if (reason === "not_allowed_ext") {
+              const proAllowed = (() => {
+                try {
+                  const s = getAllowedExtForPlan("pro");
+                  return Boolean(s && ext && s.has(ext));
+                } catch {
+                  return false;
+                }
+              })();
+              const upgradeHint =
+                planKey === "basic" && proAllowed
+                  ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
+                  : planKey === "basic" || planKey === "pro"
+                    ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
+                    : "";
+
+              return isArabic()
+                ? ("صيغة ." + String(ext || "?") + " غير مسموحة في باقتك (" + planName + "). " + upgradeHint)
+                : ("." + String(ext || "?") + " is not allowed on your plan (" + planName + "). " + upgradeHint);
+            }
+            if (reason === "file_too_big") {
+              return isArabic()
+                ? ("حجم الملف (" + fmtBytes(size) + ") أكبر من حد باقة " + planName + " (" + fmtBytes(limits.maxFileBytes) + ")")
+                : ("File size (" + fmtBytes(size) + ") exceeds " + planName + " limit (" + fmtBytes(limits.maxFileBytes) + ")");
+            }
+            if (reason === "storage_full") {
+              return isArabic()
+                ? ("لا توجد مساحة كافية في باقة " + planName + " — المتبقي: " + fmtBytes(remainBytes0))
+                : ("Not enough storage on " + planName + " — remaining: " + fmtBytes(remainBytes0));
+            }
+            if (reason === "too_many_for_plan") {
+              return isArabic()
+                ? ("تجاوزت حد الرفع في المرة الواحدة (" + String(maxFiles) + ") لباقة " + planName)
+                : ("Over per-batch upload limit (" + String(maxFiles) + ") for " + planName);
+            }
+            return isArabic() ? "لم يتم رفع هذا الملف" : "This file was not uploaded";
+          };
+
+          const upgradeHintAll = (() => {
+            if (!rejectsByReason.not_allowed_ext) return "";
+            if (planKey !== "basic") return "";
+            const proAllowedAny = (() => {
+              try {
+                const s = getAllowedExtForPlan("pro");
+                if (!s) return false;
+                for (let i = 0; i < notAllowedExts.length; i += 1) {
+                  const ext = notAllowedExts[i];
+                  if (ext && s.has(ext)) return true;
+                }
+                return false;
+              } catch {
+                return false;
+              }
+            })();
+            return proAllowedAny ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.") : "";
+          })();
+
+          const toastMsg =
+            !toUpload.length && rejected.length
+              ? (rejected.length === 1 ? buildSingleRejectToast(rejected[0]) : (summaryMsg + (upgradeHintAll ? (isArabic() ? " — " + upgradeHintAll : " — " + upgradeHintAll) : "")))
+              : summaryMsg;
+
+          state.uploadError = rejected.length ? toastMsg : "";
           if (state.uploadError) toastWarn(state.uploadError);
 
           state.uploading = true;
@@ -3652,35 +3745,12 @@ const mount = () => {
             const size = Number((f && f.size) || 0) || 0;
             const ext = normalizeFilenameExt(name);
             const reason = String(rejected[i] && rejected[i].reason) || "";
-            const errMsg =
-              reason === "banned_ext"
-                ? isArabic()
-                  ? ("امتداد الملف ." + String(ext || "?") + " غير مسموح لأسباب أمنية")
-                  : ("File extension ." + String(ext || "?") + " is blocked for security reasons")
-                : reason === "not_allowed_ext"
-                  ? isArabic()
-                    ? ("نوع الملف ." + String(ext || "?") + " غير مدعوم في باقة " + planName + (allowedText ? (" — المسموح: " + allowedText) : ""))
-                    : ("." + String(ext || "?") + " is not supported on " + planName + (allowedText ? (" — allowed: " + allowedText) : ""))
-                  : reason === "file_too_big"
-                    ? isArabic()
-                      ? ("حجم الملف (" + fmtBytes(size) + ") أكبر من حد باقة " + planName + " (" + fmtBytes(limits.maxFileBytes) + ")")
-                      : ("File size (" + fmtBytes(size) + ") exceeds " + planName + " limit (" + fmtBytes(limits.maxFileBytes) + ")")
-                    : reason === "storage_full"
-                      ? isArabic()
-                        ? ("لا توجد مساحة كافية في باقة " + planName + " — المتبقي: " + fmtBytes(remainBytes0))
-                        : ("Not enough storage on " + planName + " — remaining: " + fmtBytes(remainBytes0))
-                      : reason === "too_many_for_plan"
-                        ? isArabic()
-                          ? ("تجاوزت حد الرفع في المرة الواحدة (" + String(maxFiles) + ") لباقة " + planName)
-                          : ("Over per-batch upload limit (" + String(maxFiles) + ") for " + planName)
-                        : isArabic()
-                          ? "لم يتم رفع هذا الملف"
-                          : "This file was not uploaded";
+            const errMsg = buildSingleRejectToast(rejected[i]);
 
             state.uploads.push({
               name,
               size,
-              status: "error",
+              status: "rejected",
               error: errMsg,
               url: "",
               progress: 0,
@@ -3696,7 +3766,6 @@ const mount = () => {
           if (!uploadCount) {
             state.uploading = false;
             render();
-            toastWarn(isArabic() ? "لا يوجد ملفات صالحة للرفع" : "No valid files to upload");
             return;
           }
 
@@ -3763,7 +3832,7 @@ const mount = () => {
           toastClose(toastId);
           try {
             const ok = state.uploads.filter((x) => x && String(x.status || "") === "done").length;
-            const failed = state.uploads.filter((x) => x && String(x.status || "") === "error").length;
+            const failed = state.uploads.filter((x) => x && (String(x.status || "") === "error" || String(x.status || "") === "rejected")).length;
             if (!failed) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
             else toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)"));
           } catch {}
