@@ -400,7 +400,7 @@ const renderUploadRow = (rec) => {
           ? "تم الرفع"
           : "Uploaded"
         : rec.status === "error"
-          ? String(rec.error || "Error")
+          ? (isArabic() ? "فشل الرفع" : "Upload failed")
           : isArabic()
             ? "في الانتظار"
             : "Queued";
@@ -419,7 +419,12 @@ const renderUploadRow = (rec) => {
   meta.style.fontWeight = "900";
   meta.style.color = "rgba(24,181,213,.8)";
   meta.style.textAlign = "right";
-  meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
+  meta.textContent =
+    rec.status === "uploading"
+      ? String(pct) + "%"
+      : rec.status === "error"
+        ? ""
+        : (rec.size ? fmtBytes(rec.size) : "");
   right.appendChild(meta);
 
   row.appendChild(left);

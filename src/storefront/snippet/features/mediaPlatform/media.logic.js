@@ -259,7 +259,12 @@ const friendlyApiErrorMessage = (err) => {
 
   if (code === "UNSUPPORTED_MEDIA") return isArabic() ? "الملف غير مدعوم" : "Unsupported media";
 
-  if (code === "FILE_TYPE_NOT_ALLOWED") return isArabic() ? "نوع الملف غير مدعوم" : "Unsupported file type";
+  if (code === "FILE_TYPE_NOT_ALLOWED") {
+    const planKey = String((state && state.dash && state.dash.planKey) || "").trim().toLowerCase();
+    const planEn = planLabel(planKey || "basic");
+    const planAr = planKey === "business" ? "بزنس" : planKey === "pro" ? "برو" : "بيزك";
+    return isArabic() ? ("نوع الملف غير مسموح في باقة " + planAr) : ("File type is not allowed for your " + planEn + " plan");
+  }
 
   if (code === "FILE_SIZE_LIMIT_EXCEEDED") {
     const maxBytes = Number(details && details.maxBytes) || 0;
@@ -3432,14 +3437,36 @@ const mount = () => {
           const maxFiles = maxUploadFilesForPlan(planKey || "basic");
           const chosen = fs0.slice(0, maxFiles);
           state.uploadError = "";
+
+          const planName = () => {
+            if (!isArabic()) return planLabel(planKey || "basic");
+            if (planKey === "business") return "بزنس";
+            if (planKey === "pro") return "برو";
+            return "بيزك";
+          };
+
           if (fs0.length > chosen.length) {
             toastError(
               isArabic()
-                ? ("باقتك لا تسمح برفع هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(fs0.length) + " — سيتم رفع أول " + String(maxFiles) + " فقط.")
-                : ("Your plan doesn't allow this count. Max is " + String(maxFiles) + " files. You selected " + String(fs0.length) + " — only the first " + String(maxFiles) + " will be uploaded."),
+                ? ("باقتك (" + planName() + ") لا تسمح برفع هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(fs0.length) + " — سيتم رفع أول " + String(maxFiles) + " فقط.")
+                : (String(planName()) + " plan doesn't allow this count. Max is " + String(maxFiles) + " files. You selected " + String(fs0.length) + " — only the first " + String(maxFiles) + " will be uploaded."),
               isArabic() ? "حد الباقة" : "Plan limit"
             );
           }
+
+          const toastFileTypePlanBlock = (file) => {
+            const f = file || null;
+            const ext = getExt(f && f.name);
+            const extText = ext ? String(ext).toUpperCase() : (isArabic() ? "غير معروف" : "Unknown");
+            const baseList = "JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
+            toastError(
+              isArabic()
+                ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName() + ". الصيغ المتاحة: " + baseList + ".")
+                : ("File type " + extText + " is not allowed on " + planName() + ". Allowed formats: " + baseList + "."),
+              isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
+            );
+          };
+
           state.uploading = true;
           state.uploads = [];
 
@@ -3479,6 +3506,7 @@ const mount = () => {
               });
               rec.status = "uploading";
               rec.error = "";
+              rec.errorCode = "";
               rec.url = "";
               rec.progress = 0;
               rec.loaded = 0;
@@ -3506,10 +3534,20 @@ const mount = () => {
             } catch (e) {
               rec.status = "error";
               rec.error = friendlyApiErrorMessage(e);
+              try {
+                const payload = e && e.details && typeof e.details === "object" ? e.details : null;
+                rec.errorCode = String((payload && payload.code) || (e && e.code) || "").trim();
+              } catch {
+                rec.errorCode = "";
+              }
               render();
               if (errToastBudget > 0) {
                 errToastBudget -= 1;
-                toastError(rec.error, (isArabic() ? "فشل رفع الملف" : "Upload failed") + (file && file.name ? ": " + String(file.name || "") : ""));
+                if (String(rec.errorCode || "") === "FILE_TYPE_NOT_ALLOWED") {
+                  toastFileTypePlanBlock(file);
+                } else {
+                  toastError(rec.error, (isArabic() ? "فشل رفع الملف" : "Upload failed") + (file && file.name ? ": " + String(file.name || "") : ""));
+                }
               }
             }
           }
@@ -3520,8 +3558,33 @@ const mount = () => {
           try {
             const ok = state.uploads.filter((x) => x && String(x.status || "") === "done").length;
             const failed = state.uploads.filter((x) => x && String(x.status || "") === "error").length;
-            if (!failed) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
-            else toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)"));
+            if (!failed) {
+              toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
+            } else if (!ok && failed) {
+              const codes = [];
+              for (let i = 0; i < state.uploads.length; i += 1) {
+                const x = state.uploads[i];
+                if (!x || String(x.status || "") !== "error") continue;
+                const c = String(x.errorCode || "").trim();
+                if (c && codes.indexOf(c) === -1) codes.push(c);
+              }
+              if (codes.length === 1 && codes[0] === "FILE_TYPE_NOT_ALLOWED") {
+                toastError(
+                  isArabic()
+                    ? ("باقتك (" + planName() + ") لا تسمح بالصيغ التي اخترتها. الصيغ المتاحة: JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF.")
+                    : ("Your plan (" + planName() + ") doesn't allow the formats you selected. Allowed: JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF."),
+                  isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
+                );
+              } else {
+                toastError(isArabic() ? "فشل رفع الملفات" : "Upload failed", isArabic() ? "فشل" : "Failed");
+              }
+            } else {
+              toastWarn(
+                isArabic()
+                  ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)")
+                  : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)")
+              );
+            }
           } catch {}
           state.type = state.type || "";
           state.page = 1;
