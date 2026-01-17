@@ -955,10 +955,20 @@ const mount = () => {
               ".bundleapp-swal-target{position:relative}" +
               ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
               ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
-              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important;position:relative!important;overflow:hidden!important}" +
+              ".bundleapp-swal-toast--success{border-color:rgba(34,197,94,.45)!important;box-shadow:0 12px 40px rgba(34,197,94,.14)!important}" +
+              ".bundleapp-swal-toast--error{border-color:rgba(239,68,68,.55)!important;box-shadow:0 12px 40px rgba(239,68,68,.16)!important}" +
+              ".bundleapp-swal-toast--warning{border-color:rgba(245,158,11,.45)!important;box-shadow:0 12px 40px rgba(245,158,11,.14)!important}" +
+              ".bundleapp-swal-toast--info{border-color:rgba(24,181,213,.35)!important;box-shadow:0 12px 40px rgba(24,181,213,.14)!important}" +
+              ".bundleapp-swal-toast:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(24,181,213,.9);border-radius:14px 0 0 14px}" +
+              ".bundleapp-swal-toast--success:before{background:rgba(34,197,94,.95)!important}" +
+              ".bundleapp-swal-toast--error:before{background:rgba(239,68,68,.95)!important}" +
+              ".bundleapp-swal-toast--warning:before{background:rgba(245,158,11,.95)!important}" +
+              ".bundleapp-swal-toast[dir='rtl']:before{left:auto;right:0;border-radius:0 14px 14px 0}" +
               ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
               ".bundleapp-swal-toast .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important;font-size:12px!important;line-height:1.4!important;margin:4px 0 0!important;padding:0!important}" +
               ".bundleapp-swal-toast .swal2-icon{margin:0 10px 0 0!important;transform:scale(.92)}" +
+              ".bundleapp-swal-toast[dir='rtl'] .swal2-icon{margin:0 0 0 10px!important}" +
               ".bundleapp-swal-toast .swal2-timer-progress-bar{background:rgba(24,181,213,.65)!important}" +
               "@keyframes bundleappToastIn{from{transform:translateY(-6px);opacity:.0}to{transform:translateY(0);opacity:1}}" +
               ".bundleapp-swal-toast{animation:bundleappToastIn .14s ease-out}" +
@@ -1081,7 +1091,7 @@ const mount = () => {
             timerProgressBar: !loading && Boolean(duration),
             customClass: {
               container: "bundleapp-swal-container",
-              popup: "bundleapp-swal-toast"
+              popup: "bundleapp-swal-toast" + (loading ? " bundleapp-swal-toast--info" : " bundleapp-swal-toast--" + String(icon))
             },
             didOpen: (el) => {
               try {
@@ -2056,9 +2066,13 @@ const mount = () => {
                 ? "Please select videos only"
                 : "Please select images only";
           } else if (keep.length > maxFiles) {
-            state.convertError = isArabic()
-              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " ملف فقط"
-              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be used";
+            state.convertError = "";
+            toastError(
+              isArabic()
+                ? ("باقتك لا تسمح بتحويل هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(keep.length) + " — سيتم استخدام أول " + String(maxFiles) + " فقط.")
+                : ("Your plan doesn't allow converting this many. Max is " + String(maxFiles) + " files. You selected " + String(keep.length) + " — only the first " + String(maxFiles) + " will be used."),
+              isArabic() ? "حد الباقة" : "Plan limit"
+            );
           } else {
             state.convertError = "";
           }
@@ -2651,9 +2665,13 @@ const mount = () => {
           if (!chosen.length && fs.length) {
             state.compressError = isArabic() ? "اختر صور فقط" : "Please select images only";
           } else if (imgs.length > maxFiles) {
-            state.compressError = isArabic()
-              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " صورة فقط"
-              : "You selected more than allowed — only the first " + String(maxFiles) + " images will be used";
+            state.compressError = "";
+            toastError(
+              isArabic()
+                ? ("باقتك لا تسمح بضغط هذا العدد. الحد الأقصى " + String(maxFiles) + " صور فقط. تم اختيار " + String(imgs.length) + " — سيتم استخدام أول " + String(maxFiles) + " فقط.")
+                : ("Your plan doesn't allow compressing this many. Max is " + String(maxFiles) + " images. You selected " + String(imgs.length) + " — only the first " + String(maxFiles) + " will be used."),
+              isArabic() ? "حد الباقة" : "Plan limit"
+            );
           } else {
             state.compressError = "";
           }
@@ -3226,7 +3244,6 @@ const mount = () => {
                   onFiles: (fs) => runUploads(fs)
                 })
               );
-              if (state.uploadError) uploadCard.appendChild(renderError(state.uploadError));
               sheet.content.appendChild(uploadCard);
             }
             appendLegalFooter();
@@ -3414,14 +3431,15 @@ const mount = () => {
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
           const maxFiles = maxUploadFilesForPlan(planKey || "basic");
           const chosen = fs0.slice(0, maxFiles);
+          state.uploadError = "";
           if (fs0.length > chosen.length) {
-            state.uploadError = isArabic()
-              ? "تم اختيار أكثر من المسموح — سيتم رفع أول " + String(maxFiles) + " ملف فقط"
-              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be uploaded";
-          } else {
-            state.uploadError = "";
+            toastError(
+              isArabic()
+                ? ("باقتك لا تسمح برفع هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(fs0.length) + " — سيتم رفع أول " + String(maxFiles) + " فقط.")
+                : ("Your plan doesn't allow this count. Max is " + String(maxFiles) + " files. You selected " + String(fs0.length) + " — only the first " + String(maxFiles) + " will be uploaded."),
+              isArabic() ? "حد الباقة" : "Plan limit"
+            );
           }
-          if (state.uploadError) toastWarn(state.uploadError);
           state.uploading = true;
           state.uploads = [];
 
