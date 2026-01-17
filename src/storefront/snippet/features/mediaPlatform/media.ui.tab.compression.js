@@ -170,44 +170,6 @@ const renderCompressionPlatform = (opts) => {
   titleWrap.appendChild(title);
   titleWrap.appendChild(hint);
 
-  const canShowClearAll = selected.length > 1;
-  if (canShowClearAll) {
-    const clearRow = document.createElement("div");
-    clearRow.style.display = "flex";
-    clearRow.style.width = "100%";
-    clearRow.style.flex = "0 0 100%";
-    clearRow.style.justifyContent = "flex-start";
-    clearRow.style.alignItems = "center";
-    clearRow.style.direction = "ltr";
-
-    const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
-    clearBtn.disabled = busy || !onReset;
-    clearBtn.style.padding = "2px 6px";
-    clearBtn.style.borderRadius = "8px";
-    clearBtn.style.fontSize = "9px";
-    clearBtn.style.fontWeight = "950";
-    clearBtn.style.lineHeight = "1";
-    clearBtn.style.color = "#ef4444";
-    clearBtn.style.marginLeft = "0";
-    clearBtn.style.marginRight = "auto";
-    try {
-      clearBtn.style.borderColor = "rgba(239,68,68,.45)";
-    } catch {}
-    try {
-      clearBtn.style.background = "rgba(239,68,68,.08)";
-    } catch {}
-    clearBtn.style.opacity = clearBtn.disabled ? "0.55" : "1";
-    clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
-    clearBtn.onclick = () => {
-      try {
-        if (clearBtn.disabled) return;
-        onReset();
-      } catch {}
-    };
-    clearRow.appendChild(clearBtn);
-    head.appendChild(clearRow);
-  }
-
   const pickBtn = btnGhost(isArabic() ? "اختيار صور" : "Pick images");
   pickBtn.style.color = "#fff";
   pickBtn.disabled = busy || !compressInput;
@@ -242,6 +204,43 @@ const renderCompressionPlatform = (opts) => {
   selMeta.style.gap = "6px";
 
   if (selected.length) {
+    const canShowClearAll = selected.length > 1;
+    if (canShowClearAll) {
+      const clearRow = document.createElement("div");
+      clearRow.style.display = "flex";
+      clearRow.style.width = "100%";
+      clearRow.style.justifyContent = "flex-start";
+      clearRow.style.alignItems = "center";
+      clearRow.style.direction = "ltr";
+
+      const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+      clearBtn.disabled = busy || !onReset;
+      clearBtn.style.padding = "2px 6px";
+      clearBtn.style.borderRadius = "8px";
+      clearBtn.style.fontSize = "9px";
+      clearBtn.style.fontWeight = "950";
+      clearBtn.style.lineHeight = "1";
+      clearBtn.style.color = "#ef4444";
+      clearBtn.style.marginLeft = "0";
+      clearBtn.style.marginRight = "auto";
+      try {
+        clearBtn.style.borderColor = "rgba(239,68,68,.45)";
+      } catch {}
+      try {
+        clearBtn.style.background = "rgba(239,68,68,.08)";
+      } catch {}
+      clearBtn.style.opacity = clearBtn.disabled ? "0.55" : "1";
+      clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+      clearBtn.onclick = () => {
+        try {
+          if (clearBtn.disabled) return;
+          onReset();
+        } catch {}
+      };
+      clearRow.appendChild(clearBtn);
+      selMeta.appendChild(clearRow);
+    }
+
     const selLine = document.createElement("div");
     selLine.style.color = "rgba(255,255,255,.85)";
     selLine.style.fontSize = "12px";

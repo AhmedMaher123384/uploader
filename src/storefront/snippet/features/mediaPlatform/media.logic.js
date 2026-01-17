@@ -3479,6 +3479,7 @@ const mount = () => {
 
             if (state.view === "upload" && state.uploads.length) {
               sheet.uploads.style.display = "flex";
+              sheet.uploads.innerHTML = "";
               const removeUploadById = (rawId) => {
                 try {
                   if (state.uploading) return;
@@ -3488,39 +3489,13 @@ const mount = () => {
                   render();
                 } catch {}
               };
-              for (let i = 0; i < state.uploads.length; i += 1) {
-                sheet.uploads.appendChild(renderUploadRow(state.uploads[i], { busy: state.uploading, onRemove: removeUploadById }));
-              }
-            } else {
-              sheet.uploads.style.display = "none";
-            }
-
-            if (state.view === "upload") {
-              if (state.dashLoading) sheet.content.appendChild(renderLoading());
-            if (!state.dashLoading) {
-              const maxFiles = maxUploadFilesForPlan(planKey || "basic");
-              try {
-                input.multiple = maxFiles > 1;
-              } catch {}
-              const uploadCard = document.createElement("div");
-              uploadCard.style.border = "1px solid rgba(255,255,255,.08)";
-              uploadCard.style.borderRadius = "16px";
-              uploadCard.style.background = "#303030";
-              uploadCard.style.padding = "14px";
-              uploadCard.style.display = "flex";
-              uploadCard.style.flexDirection = "column";
-              uploadCard.style.gap = "12px";
-              uploadCard.style.flex = "1 1 auto";
-              uploadCard.style.minHeight = "0";
-
-              const canShowClearAll = Array.isArray(state.uploads) && state.uploads.length > 1;
-              if (canShowClearAll) {
-                const headRow = document.createElement("div");
-                headRow.style.display = "flex";
-                headRow.style.width = "100%";
-                headRow.style.alignItems = "center";
-                headRow.style.justifyContent = "flex-start";
-                headRow.style.direction = "ltr";
+              if (Array.isArray(state.uploads) && state.uploads.length > 1) {
+                const clearRow = document.createElement("div");
+                clearRow.style.display = "flex";
+                clearRow.style.width = "100%";
+                clearRow.style.justifyContent = "flex-start";
+                clearRow.style.alignItems = "center";
+                clearRow.style.direction = "ltr";
 
                 const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
                 clearBtn.disabled = Boolean(state.uploading);
@@ -3548,9 +3523,33 @@ const mount = () => {
                     render();
                   } catch {}
                 };
-                headRow.appendChild(clearBtn);
-                uploadCard.appendChild(headRow);
+                clearRow.appendChild(clearBtn);
+                sheet.uploads.appendChild(clearRow);
               }
+              for (let i = 0; i < state.uploads.length; i += 1) {
+                sheet.uploads.appendChild(renderUploadRow(state.uploads[i], { busy: state.uploading, onRemove: removeUploadById }));
+              }
+            } else {
+              sheet.uploads.style.display = "none";
+            }
+
+            if (state.view === "upload") {
+              if (state.dashLoading) sheet.content.appendChild(renderLoading());
+            if (!state.dashLoading) {
+              const maxFiles = maxUploadFilesForPlan(planKey || "basic");
+              try {
+                input.multiple = maxFiles > 1;
+              } catch {}
+              const uploadCard = document.createElement("div");
+              uploadCard.style.border = "1px solid rgba(255,255,255,.08)";
+              uploadCard.style.borderRadius = "16px";
+              uploadCard.style.background = "#303030";
+              uploadCard.style.padding = "14px";
+              uploadCard.style.display = "flex";
+              uploadCard.style.flexDirection = "column";
+              uploadCard.style.gap = "12px";
+              uploadCard.style.flex = "1 1 auto";
+              uploadCard.style.minHeight = "0";
 
               uploadCard.appendChild(renderUploadHero(state.dash));
               uploadCard.appendChild(renderSmartStats(state.dash));
