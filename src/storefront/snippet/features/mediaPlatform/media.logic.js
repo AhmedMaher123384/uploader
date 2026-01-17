@@ -255,19 +255,23 @@ const friendlyApiErrorMessage = (err) => {
   const code = String((payload && payload.code) || (err && err.code) || "").trim();
   const details = payload && payload.details && typeof payload.details === "object" ? payload.details : null;
 
-  if (code === "FILE_TYPE_NOT_ALLOWED") return isArabic() ? "نوع الملف غير مسموح" : "File type is not allowed";
+  if (code === "PLAN_REQUIRED") return isArabic() ? "هذه الميزة متاحة في Pro و Business فقط" : "This feature is available in Pro and Business only";
+
+  if (code === "UNSUPPORTED_MEDIA") return isArabic() ? "الملف غير مدعوم" : "Unsupported media";
+
+  if (code === "FILE_TYPE_NOT_ALLOWED") return isArabic() ? "نوع الملف غير مدعوم" : "Unsupported file type";
 
   if (code === "FILE_SIZE_LIMIT_EXCEEDED") {
     const maxBytes = Number(details && details.maxBytes) || 0;
     const maxText = maxBytes ? (isArabic() ? " (الحد " + fmtBytes(maxBytes) + ")" : " (max " + fmtBytes(maxBytes) + ")") : "";
-    return (isArabic() ? "حجم الملف أكبر من المسموح" : "File is too large") + maxText;
+    return (isArabic() ? "حجم الملف أكبر من المسموح في خطتك" : "File is too large for your plan") + maxText;
   }
 
   if (code === "STORAGE_LIMIT_EXCEEDED") {
     const maxBytes = Number(details && details.maxBytes) || 0;
     const usedBytes = Number(details && details.usedBytes) || 0;
     const maxText = maxBytes ? (isArabic() ? " (" + fmtBytes(usedBytes) + " / " + fmtBytes(maxBytes) + ")" : " (" + fmtBytes(usedBytes) + " / " + fmtBytes(maxBytes) + ")") : "";
-    return (isArabic() ? "تم تجاوز حد التخزين" : "Storage limit exceeded") + maxText;
+    return (isArabic() ? "تم تجاوز حد التخزين في خطتك" : "Storage limit exceeded for your plan") + maxText;
   }
 
   if (code === "SVG_INVALID") return isArabic() ? "SVG غير صالح أو غير آمن" : "Invalid or unsafe SVG";
@@ -827,6 +831,14 @@ const mount = () => {
 
         const close = () => {
           try {
+            const keys = Array.from(toastMap.keys());
+            for (let i = 0; i < keys.length; i += 1) toastClose(keys[i]);
+          } catch {}
+          try {
+            if (toastHost && toastHost.remove) toastHost.remove();
+          } catch {}
+          toastHost = null;
+          try {
             if (convertObjUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(convertObjUrl);
           } catch {}
           try {
@@ -912,6 +924,243 @@ const mount = () => {
           compressUploadingAny: false
         };
 
+        let toastSeq = 0;
+        const toastMap = new Map();
+        let toastHost = null;
+
+        const ensureToastHost = () => {
+          if (toastHost) return toastHost;
+          const host = document.createElement("div");
+          host.style.position = "fixed";
+          host.style.top = "calc(env(safe-area-inset-top, 0px) + 14px)";
+          host.style.left = "14px";
+          host.style.right = "14px";
+          host.style.zIndex = "100007";
+          host.style.display = "flex";
+          host.style.flexDirection = "column";
+          host.style.gap = "10px";
+          host.style.pointerEvents = "none";
+          host.style.alignItems = typeof isRtl === "function" && isRtl() ? "flex-start" : "flex-end";
+          toastHost = host;
+          try {
+            sheet.overlay.appendChild(host);
+          } catch {
+            try {
+              document.body.appendChild(host);
+            } catch {}
+          }
+          return host;
+        };
+
+        const toastClose = (id) => {
+          const key = String(id || "");
+          const rec = toastMap.get(key);
+          if (!rec) return;
+          toastMap.delete(key);
+          try {
+            if (rec.timer) clearTimeout(rec.timer);
+          } catch {}
+          try {
+            if (rec.el && rec.el.remove) rec.el.remove();
+          } catch {}
+        };
+
+        const toastUpdate = (id, next) => {
+          const key = String(id || "");
+          const rec = toastMap.get(key);
+          if (!rec) return;
+          const title = next && "title" in next ? String(next.title || "") : null;
+          const message = next && "message" in next ? String(next.message || "") : null;
+          const kind = next && "kind" in next ? String(next.kind || "") : null;
+
+          try {
+            if (kind) rec.el.setAttribute("data-kind", kind);
+          } catch {}
+          try {
+            if (rec.iconEl && kind) rec.iconEl.textContent = kind === "success" ? "✓" : kind === "error" ? "✕" : kind === "warning" ? "!" : kind === "loading" ? "…" : "i";
+          } catch {}
+          try {
+            if (rec.titleEl && title != null) rec.titleEl.textContent = title;
+          } catch {}
+          try {
+            if (rec.msgEl && message != null) rec.msgEl.textContent = message;
+          } catch {}
+
+          try {
+            const k = kind || (rec.el && rec.el.getAttribute ? String(rec.el.getAttribute("data-kind") || "") : "");
+            const border =
+              k === "success"
+                ? "1px solid rgba(16,185,129,.35)"
+                : k === "error"
+                  ? "1px solid rgba(239,68,68,.35)"
+                  : k === "warning"
+                    ? "1px solid rgba(245,158,11,.35)"
+                    : k === "loading"
+                      ? "1px solid rgba(255,255,255,.14)"
+                      : "1px solid rgba(24,181,213,.35)";
+            const bg =
+              k === "success"
+                ? "rgba(16,185,129,.12)"
+                : k === "error"
+                  ? "rgba(239,68,68,.12)"
+                  : k === "warning"
+                    ? "rgba(245,158,11,.12)"
+                    : k === "loading"
+                      ? "rgba(255,255,255,.06)"
+                      : "rgba(24,181,213,.12)";
+            const color =
+              k === "success"
+                ? "#6ee7b7"
+                : k === "error"
+                  ? "#fecaca"
+                  : k === "warning"
+                    ? "#fde68a"
+                    : k === "loading"
+                      ? "#fff"
+                      : "#18b5d5";
+            rec.el.style.border = border;
+            rec.el.style.background = bg;
+            rec.el.style.color = color;
+          } catch {}
+        };
+
+        const toast = (opts) => {
+          const o = opts && typeof opts === "object" ? opts : {};
+          const kind = String(o.kind || "info").trim().toLowerCase() || "info";
+          const title = String(o.title || "").trim();
+          const message = String(o.message || "").trim();
+          const durationRaw = Number(o.duration || 0) || 0;
+          const duration = durationRaw < 0 ? 0 : durationRaw;
+          const persistent = Boolean(o.persistent) || kind === "loading";
+
+          const id = "t" + String((toastSeq += 1));
+          const host = ensureToastHost();
+
+          const el = document.createElement("div");
+          el.setAttribute("data-kind", kind);
+          el.style.pointerEvents = "auto";
+          el.style.width = "min(460px, 100%)";
+          el.style.borderRadius = "14px";
+          el.style.padding = "10px 12px";
+          el.style.display = "flex";
+          el.style.alignItems = "flex-start";
+          el.style.gap = "10px";
+          el.style.boxShadow = "0 12px 40px rgba(0,0,0,.35)";
+          el.style.backdropFilter = "blur(8px)";
+          el.style.webkitBackdropFilter = "blur(8px)";
+          el.style.userSelect = "none";
+          el.style.webkitUserSelect = "none";
+
+          const iconWrap = document.createElement("div");
+          iconWrap.style.flex = "0 0 auto";
+          iconWrap.style.width = "22px";
+          iconWrap.style.height = "22px";
+          iconWrap.style.display = "grid";
+          iconWrap.style.placeItems = "center";
+          iconWrap.style.borderRadius = "999px";
+          iconWrap.style.border = "1px solid rgba(255,255,255,.14)";
+          iconWrap.style.background = "rgba(0,0,0,.18)";
+
+          const iconEl = document.createElement("div");
+          iconEl.style.fontSize = "13px";
+          iconEl.style.fontWeight = "1000";
+          iconEl.textContent = kind === "success" ? "✓" : kind === "error" ? "✕" : kind === "warning" ? "!" : kind === "loading" ? "…" : "i";
+          iconWrap.appendChild(iconEl);
+
+          const body = document.createElement("div");
+          body.style.flex = "1 1 auto";
+          body.style.minWidth = "0";
+          body.style.display = "flex";
+          body.style.flexDirection = "column";
+          body.style.gap = "2px";
+
+          const titleEl = document.createElement("div");
+          titleEl.style.fontSize = "12px";
+          titleEl.style.fontWeight = "1000";
+          titleEl.style.lineHeight = "1.2";
+          titleEl.style.whiteSpace = "nowrap";
+          titleEl.style.overflow = "hidden";
+          titleEl.style.textOverflow = "ellipsis";
+          titleEl.textContent = title;
+
+          const msgEl = document.createElement("div");
+          msgEl.style.fontSize = "12px";
+          msgEl.style.fontWeight = "850";
+          msgEl.style.lineHeight = "1.35";
+          msgEl.style.whiteSpace = "pre-wrap";
+          msgEl.style.wordBreak = "break-word";
+          msgEl.textContent = message;
+
+          if (title) body.appendChild(titleEl);
+          if (message) body.appendChild(msgEl);
+
+          const actions = document.createElement("div");
+          actions.style.flex = "0 0 auto";
+          actions.style.display = "flex";
+          actions.style.gap = "8px";
+          actions.style.alignItems = "center";
+
+          if (kind === "loading") {
+            try {
+              const spinner = document.createElement("salla-loading");
+              spinner.setAttribute("size", "18");
+              spinner.setAttribute("width", "3");
+              spinner.setAttribute("color", "#18b5d5");
+              actions.appendChild(spinner);
+            } catch {}
+          }
+
+          const closeBtn = document.createElement("button");
+          closeBtn.type = "button";
+          closeBtn.setAttribute("aria-label", "Close");
+          closeBtn.textContent = "×";
+          closeBtn.style.border = "1px solid rgba(255,255,255,.14)";
+          closeBtn.style.background = "rgba(255,255,255,.06)";
+          closeBtn.style.color = "#fff";
+          closeBtn.style.cursor = "pointer";
+          closeBtn.style.width = "28px";
+          closeBtn.style.height = "28px";
+          closeBtn.style.borderRadius = "10px";
+          closeBtn.style.fontSize = "18px";
+          closeBtn.style.lineHeight = "1";
+          closeBtn.onclick = (ev) => {
+            try {
+              if (ev && ev.stopPropagation) ev.stopPropagation();
+            } catch {}
+            toastClose(id);
+          };
+          actions.appendChild(closeBtn);
+
+          el.onclick = (ev) => {
+            try {
+              if (ev && ev.stopPropagation) ev.stopPropagation();
+            } catch {}
+          };
+
+          el.appendChild(iconWrap);
+          el.appendChild(body);
+          el.appendChild(actions);
+          host.appendChild(el);
+
+          const rec = { el, iconEl, titleEl, msgEl, timer: null };
+          toastMap.set(id, rec);
+          toastUpdate(id, { kind });
+
+          if (!persistent && duration) {
+            try {
+              rec.timer = setTimeout(() => toastClose(id), duration);
+            } catch {}
+          }
+
+          return id;
+        };
+
+        const toastSuccess = (message, title) => toast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 3500 });
+        const toastInfo = (message, title) => toast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 3500 });
+        const toastWarn = (message, title) => toast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4500 });
+        const toastError = (message, title) => toast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 6000 });
+        const toastLoading = (message, title) => toast({ kind: "loading", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), persistent: true });
+
         const refreshDashboard = async (force) => {
           if (state.dashLoading) return;
           try {
@@ -937,8 +1186,9 @@ const mount = () => {
             render();
           } catch (e) {
             state.dashLoading = false;
-            state.dashError = String((e && e.message) || e || "");
+            state.dashError = friendlyApiErrorMessage(e);
             render();
+            toastError(state.dashError);
           }
         };
 
@@ -1079,6 +1329,7 @@ const mount = () => {
           state.deletingId = id;
           state.error = "";
           render();
+          const toastId = toastLoading(isArabic() ? "جاري حذف الملف..." : "Deleting file...");
           try {
             await deleteAssetById(id);
             try {
@@ -1086,14 +1337,19 @@ const mount = () => {
             } catch {}
             state.deletingId = "";
             render();
+            toastClose(toastId);
+            toastSuccess(isArabic() ? "تم حذف الملف" : "File deleted");
             try {
               refreshDashboard(true);
             } catch {}
             fetchAndRender(true);
           } catch (e) {
             state.deletingId = "";
-            state.error = String((e && e.message) || e || "");
+            const msg = friendlyApiErrorMessage(e);
+            state.error = msg;
             render();
+            toastClose(toastId);
+            toastError(msg);
           }
         };
 
@@ -1742,6 +1998,7 @@ const mount = () => {
           const maxFiles = maxConvertFilesForPlan(planKey || "basic");
           if (!maxFiles) {
             state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
+            toastError(state.convertError);
             render();
             return;
           }
@@ -1808,6 +2065,12 @@ const mount = () => {
             state.convertError = "";
           }
 
+          if (state.convertError) {
+            toastWarn(state.convertError);
+          } else if (chosen.length) {
+            const kindText = String(state.convertKind || "image") === "video" ? (isArabic() ? "فيديو" : "videos") : (isArabic() ? "صور" : "images");
+            toastInfo(isArabic() ? ("تم اختيار " + String(chosen.length) + " " + kindText) : ("Selected " + String(chosen.length) + " " + kindText));
+          }
           render();
         };
 
@@ -1818,6 +2081,7 @@ const mount = () => {
           const maxFiles = maxConvertFilesForPlan(planKey || "basic");
           if (!maxFiles) {
             state.convertError = isArabic() ? "ميزة التحويل متاحة في Pro و Business فقط" : "Conversion is available in Pro and Business only";
+            toastError(state.convertError);
             render();
             return;
           }
@@ -1825,6 +2089,7 @@ const mount = () => {
           const fs = Array.isArray(state.convertFiles) ? state.convertFiles : [];
           if (!fs.length) {
             state.convertError = isArabic() ? "اختر ملفات أولاً" : "Pick files first";
+            toastWarn(state.convertError);
             render();
             return;
           }
@@ -1841,6 +2106,8 @@ const mount = () => {
           state.convertItems = [];
           render();
 
+          const toastId = toastLoading(isArabic() ? "جاري تحويل الملفات..." : "Converting files...");
+          let errToastBudget = 3;
           const chosen = fs.slice(0, maxFiles);
           if (fs.length !== chosen.length) state.convertFiles = chosen;
 
@@ -1878,82 +2145,97 @@ const mount = () => {
           render();
 
           const q = state.convertQuality ? Number(state.convertQuality) : null;
-          for (let i = 0; i < items.length; i += 1) {
-            const it = items[i];
-            const f = it.file;
-            if (!f) continue;
-            it.status = "running";
-            it.progress = 0;
-            render();
-            try {
-              const isVideo = guessResourceType(f) === "video";
-              const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
-              const safeTarget = rawTarget === "auto" ? "" : rawTarget;
-              const targetFmt = isVideo ? (safeTarget || "mp4") : (safeTarget || "keep");
-              const out = isVideo
-                ? await convertVideoOnClient(
-                    f,
-                    { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name },
-                    (p) => {
-                      try {
-                        const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
-                        it.progress = pct;
-                        state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
-                        render();
-                      } catch {}
-                    }
-                  )
-                : await convertOnBackend(
-                    f,
-                    {
-                      format: safeTarget || "keep",
-                      speed: state.convertSpeed,
-                      quality: q,
-                      name: it.name,
-                      preset: String((it && it.targetPreset) || state.convertPreset || "original"),
-                      width: "",
-                      height: "",
-                      mode: "fit",
-                      position: ""
-                    },
-                    (p) => {
-                      try {
-                        const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
-                        it.progress = pct;
-                        state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
-                        render();
-                      } catch {}
-                    }
-                  );
-              const b = out && out.blob ? out.blob : null;
-              if (!b || !b.size) throw new Error("Empty response");
-              const obj = URL.createObjectURL(b);
-              try {
-                if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
-              } catch {}
-              try {
-                if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
-              } catch {}
-
-              it.resultUrl = obj;
-              it.outBytes = Number(b.size || 0) || 0;
-              it.outFormat = String((out && out.format) || "").trim().toLowerCase();
-              it.progress = 100;
-              it.status = "done";
-              state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
-              render();
-            } catch (e) {
-              it.status = "error";
+          try {
+            for (let i = 0; i < items.length; i += 1) {
+              const it = items[i];
+              const f = it.file;
+              if (!f) continue;
+              it.status = "running";
               it.progress = 0;
-              it.error = String((e && e.message) || e || "");
-              state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
               render();
+              try {
+                const isVideo = guessResourceType(f) === "video";
+                const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
+                const safeTarget = rawTarget === "auto" ? "" : rawTarget;
+                const targetFmt = isVideo ? (safeTarget || "mp4") : (safeTarget || "keep");
+                const out = isVideo
+                  ? await convertVideoOnClient(
+                      f,
+                      { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name },
+                      (p) => {
+                        try {
+                          const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                          it.progress = pct;
+                          state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                          render();
+                        } catch {}
+                      }
+                    )
+                  : await convertOnBackend(
+                      f,
+                      {
+                        format: safeTarget || "keep",
+                        speed: state.convertSpeed,
+                        quality: q,
+                        name: it.name,
+                        preset: String((it && it.targetPreset) || state.convertPreset || "original"),
+                        width: "",
+                        height: "",
+                        mode: "fit",
+                        position: ""
+                      },
+                      (p) => {
+                        try {
+                          const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                          it.progress = pct;
+                          state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                          render();
+                        } catch {}
+                      }
+                    );
+                const b = out && out.blob ? out.blob : null;
+                if (!b || !b.size) throw new Error("Empty response");
+                const obj = URL.createObjectURL(b);
+                try {
+                  if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
+                } catch {}
+                try {
+                  if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
+                } catch {}
+
+                it.resultUrl = obj;
+                it.outBytes = Number(b.size || 0) || 0;
+                it.outFormat = String((out && out.format) || "").trim().toLowerCase();
+                it.progress = 100;
+                it.status = "done";
+                state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
+                render();
+              } catch (e) {
+                const msg = friendlyApiErrorMessage(e);
+                it.status = "error";
+                it.progress = 0;
+                it.error = msg;
+                state.convertOverallProgress = Math.round(((i + 1) / items.length) * 100);
+                render();
+                if (errToastBudget > 0) {
+                  errToastBudget -= 1;
+                  toastError(msg, (isArabic() ? "فشل التحويل" : "Conversion failed") + (it && it.name ? ": " + String(it.name || "") : ""));
+                }
+              }
             }
+          } finally {
+            toastClose(toastId);
           }
 
           state.converting = false;
           state.convertOverallProgress = 100;
           render();
+          try {
+            const failed = items.filter((x) => x && String(x.status || "") === "error");
+            const ok = items.filter((x) => x && String(x.status || "") === "done");
+            if (!failed.length) toastSuccess(isArabic() ? ("تم تحويل " + String(ok.length) + " ملف") : ("Converted " + String(ok.length) + " files"));
+            else toastWarn(isArabic() ? ("اكتمل التحويل مع أخطاء (" + String(ok.length) + " ناجح / " + String(failed.length) + " فشل)") : ("Conversion finished with errors (" + String(ok.length) + " ok / " + String(failed.length) + " failed)"));
+          } catch {}
         };
 
         const uploadConvertedById = async (id) => {
@@ -1965,6 +2247,7 @@ const mount = () => {
           if (isSandbox) {
             it.uploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
             render();
+            toastError(it.uploadError);
             return;
           }
 
@@ -1973,6 +2256,7 @@ const mount = () => {
           it.uploadProgress = 0;
           render();
 
+          const toastId = toastLoading(isArabic() ? "جاري رفع الملف المحوّل..." : "Uploading converted file...");
           try {
             const raw = String((it.file && it.file.name) || it.name || "converted");
             let baseName = raw;
@@ -2100,11 +2384,15 @@ const mount = () => {
             it.uploading = false;
             it.uploadProgress = 100;
             render();
+            toastClose(toastId);
+            toastSuccess(isArabic() ? "تم رفع الملف" : "File uploaded");
           } catch (e) {
             it.uploading = false;
             it.uploadProgress = 0;
             it.uploadError = friendlyApiErrorMessage(e);
             render();
+            toastClose(toastId);
+            toastError(it.uploadError);
           }
         };
 
@@ -2117,12 +2405,18 @@ const mount = () => {
           if (!list.length) return;
           state.convertUploadingAll = true;
           render();
+          toastInfo(isArabic() ? ("بدء رفع " + String(list.length) + " ملف") : ("Starting upload for " + String(list.length) + " files"));
           try {
             for (let i = 0; i < list.length; i += 1) {
               const it = list[i];
               if (!it) continue;
               await uploadConvertedById(String(it.id || ""));
             }
+            try {
+              const done2 = Array.isArray(state.convertItems) ? state.convertItems : [];
+              const ok = done2.filter((x) => x && x.uploadUrl).length;
+              toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
+            } catch {}
           } finally {
             state.convertUploadingAll = false;
             render();
@@ -2137,6 +2431,7 @@ const mount = () => {
           state.convertDownloadingAll = true;
           state.convertError = "";
           render();
+          const toastId = toastLoading(isArabic() ? "جاري تجهيز ملف ZIP..." : "Preparing ZIP...");
           try {
             const used = new Map();
             const files = [];
@@ -2191,8 +2486,12 @@ const mount = () => {
               }
             })();
             downloadBlob(zip, "converted_" + stamp + ".zip");
+            toastClose(toastId);
+            toastSuccess(isArabic() ? "تم بدء التحميل" : "Download started");
           } catch (e) {
             state.convertError = friendlyApiErrorMessage(e);
+            toastClose(toastId);
+            toastError(state.convertError);
           } finally {
             state.convertDownloadingAll = false;
             render();
@@ -2201,6 +2500,7 @@ const mount = () => {
 
         const openFilesFromConvert = async () => {
           try {
+            toastInfo(isArabic() ? "فتح ملفاتي..." : "Opening files...");
             state.view = "files";
             state.type = "";
             state.page = 1;
@@ -2359,6 +2659,8 @@ const mount = () => {
           } else {
             state.compressError = "";
           }
+          if (state.compressError) toastWarn(state.compressError);
+          else if (chosen.length) toastInfo(isArabic() ? ("تم اختيار " + String(chosen.length) + " صورة") : ("Selected " + String(chosen.length) + " images"));
           render();
         };
 
@@ -2464,7 +2766,10 @@ const mount = () => {
         const runCompress = async () => {
           if (state.compressRunning) return;
           const fs = Array.isArray(state.compressFiles) ? state.compressFiles : [];
-          if (!fs.length) return;
+          if (!fs.length) {
+            toastWarn(isArabic() ? "اختر صور أولاً" : "Pick images first");
+            return;
+          }
 
           state.compressError = "";
           state.compressItems = [];
@@ -2474,6 +2779,8 @@ const mount = () => {
           state.compressUploadingAny = false;
           render();
 
+          const toastId = toastLoading(isArabic() ? "جاري ضغط الصور..." : "Compressing images...");
+          let errToastBudget = 3;
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
           const maxFiles = maxCompressFilesForPlan(planKey || "basic");
           const chosen = fs.slice(0, maxFiles);
@@ -2523,57 +2830,72 @@ const mount = () => {
             return "";
           };
 
-          for (let i = 0; i < items.length; i += 1) {
-            const it = items[i];
-            const f = it && it.file ? it.file : null;
-            if (!f) continue;
-            try {
-              it.status = "compressing";
-              it.error = "";
-              it.progress = 0;
-              render();
+          try {
+            for (let i = 0; i < items.length; i += 1) {
+              const it = items[i];
+              const f = it && it.file ? it.file : null;
+              if (!f) continue;
+              try {
+                it.status = "compressing";
+                it.error = "";
+                it.progress = 0;
+                render();
 
-              const out = await compressOnBackend(
-                f,
-                { format, quality: q, name: it.name },
-                (p) => {
-                  try {
-                    it.progress = Number(p || 0) || 0;
-                    const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
-                    state.compressOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
-                    render();
-                  } catch {}
+                const out = await compressOnBackend(
+                  f,
+                  { format, quality: q, name: it.name },
+                  (p) => {
+                    try {
+                      it.progress = Number(p || 0) || 0;
+                      const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                      state.compressOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                      render();
+                    } catch {}
+                  }
+                );
+                const b = out && out.blob ? out.blob : null;
+                if (!b || !b.size) throw new Error("Empty response");
+                const obj = URL.createObjectURL(b);
+                try {
+                  if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
+                } catch {}
+                try {
+                  if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
+                } catch {}
+
+                it.resultUrl = obj;
+                it.outBytes = Number(b.size || 0) || 0;
+                it.outFormat = guessExt(f, b, out && out.format);
+                it.progress = 100;
+                it.status = "done";
+                state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
+                render();
+              } catch (e) {
+                const msg = friendlyApiErrorMessage(e);
+                it.status = "error";
+                it.progress = 0;
+                it.error = msg;
+                state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
+                render();
+                if (errToastBudget > 0) {
+                  errToastBudget -= 1;
+                  toastError(msg, (isArabic() ? "فشل الضغط" : "Compression failed") + (it && it.name ? ": " + String(it.name || "") : ""));
                 }
-              );
-              const b = out && out.blob ? out.blob : null;
-              if (!b || !b.size) throw new Error("Empty response");
-              const obj = URL.createObjectURL(b);
-              try {
-                if (!window.__bundleAppMediaBlobUrls) window.__bundleAppMediaBlobUrls = new Set();
-              } catch {}
-              try {
-                if (window.__bundleAppMediaBlobUrls && window.__bundleAppMediaBlobUrls.add) window.__bundleAppMediaBlobUrls.add(obj);
-              } catch {}
-
-              it.resultUrl = obj;
-              it.outBytes = Number(b.size || 0) || 0;
-              it.outFormat = guessExt(f, b, out && out.format);
-              it.progress = 100;
-              it.status = "done";
-              state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
-              render();
-            } catch (e) {
-              it.status = "error";
-              it.progress = 0;
-              it.error = String((e && e.message) || e || "");
-              state.compressOverallProgress = Math.round(((i + 1) / items.length) * 100);
-              render();
+              }
             }
+          } finally {
+            toastClose(toastId);
           }
 
           state.compressRunning = false;
           state.compressOverallProgress = 100;
           render();
+          try {
+            const failed = items.filter((x) => x && String(x.status || "") === "error");
+            const ok = items.filter((x) => x && String(x.status || "") === "done");
+            if (!failed.length) toastSuccess(isArabic() ? ("تم ضغط " + String(ok.length) + " صورة") : ("Compressed " + String(ok.length) + " images"));
+            else toastWarn(isArabic() ? ("اكتمل الضغط مع أخطاء (" + String(ok.length) + " ناجح / " + String(failed.length) + " فشل)") : ("Compression finished with errors (" + String(ok.length) + " ok / " + String(failed.length) + " failed)"));
+          } catch {}
         };
 
         const uploadCompressedById = async (id) => {
@@ -2585,6 +2907,7 @@ const mount = () => {
           if (isSandbox) {
             it.uploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
             render();
+            toastError(it.uploadError);
             return;
           }
 
@@ -2594,6 +2917,7 @@ const mount = () => {
           state.compressUploadingAny = true;
           render();
 
+          const toastId = toastLoading(isArabic() ? "جاري رفع الصورة المضغوطة..." : "Uploading compressed image...");
           try {
             const raw = String(it.name || "compressed");
             let baseName = raw;
@@ -2697,12 +3021,16 @@ const mount = () => {
             it.uploadError = "";
             state.compressUploadingAny = items.some((x) => x && x.uploading);
             render();
+            toastClose(toastId);
+            toastSuccess(isArabic() ? "تم رفع الصورة" : "Image uploaded");
           } catch (e) {
             it.uploading = false;
             it.uploadProgress = 0;
             it.uploadError = friendlyApiErrorMessage(e);
             state.compressUploadingAny = items.some((x) => x && x.uploading);
             render();
+            toastClose(toastId);
+            toastError(it.uploadError);
           }
         };
 
@@ -2714,6 +3042,7 @@ const mount = () => {
           state.compressDownloadingAll = true;
           state.compressError = "";
           render();
+          const toastId = toastLoading(isArabic() ? "جاري تجهيز ملف ZIP..." : "Preparing ZIP...");
           try {
             const used = new Map();
             const files = [];
@@ -2750,8 +3079,12 @@ const mount = () => {
               }
             })();
             downloadBlob(zip, "compressed_" + stamp + ".zip");
+            toastClose(toastId);
+            toastSuccess(isArabic() ? "تم بدء التحميل" : "Download started");
           } catch (e) {
             state.compressError = friendlyApiErrorMessage(e);
+            toastClose(toastId);
+            toastError(state.compressError);
           } finally {
             state.compressDownloadingAll = false;
             render();
@@ -2760,6 +3093,7 @@ const mount = () => {
 
         const openFilesFromCompress = async () => {
           try {
+            toastInfo(isArabic() ? "فتح ملفاتي..." : "Opening files...");
             state.view = "files";
             state.type = "";
             state.page = 1;
@@ -2837,16 +3171,19 @@ const mount = () => {
             refreshIcon.style.pointerEvents = "none";
             refreshBtn.appendChild(refreshIcon);
             refreshBtn.style.color = "#fff";
-            refreshBtn.onclick = () => {
+            refreshBtn.onclick = async () => {
+              const toastId = toastLoading(isArabic() ? "جاري التحديث..." : "Refreshing...");
               try {
                 clearMediaApiCache();
               } catch {}
               try {
-                refreshDashboard(true);
+                await refreshDashboard(true);
               } catch {}
               try {
-                if (state.view === "files") fetchAndRender(true);
+                if (state.view === "files") await fetchAndRender(true);
               } catch {}
+              toastClose(toastId);
+              toastSuccess(isArabic() ? "تم التحديث" : "Refreshed");
             };
             sheet.actions.appendChild(refreshBtn);
 
@@ -3067,8 +3404,9 @@ const mount = () => {
             render();
           } catch (err) {
             state.loading = false;
-            state.error = String((err && err.message) || err || "");
+            state.error = friendlyApiErrorMessage(err);
             render();
+            toastError(state.error);
           }
         };
 
@@ -3085,6 +3423,7 @@ const mount = () => {
           } else {
             state.uploadError = "";
           }
+          if (state.uploadError) toastWarn(state.uploadError);
           state.uploading = true;
           state.uploads = [];
 
@@ -3105,11 +3444,23 @@ const mount = () => {
 
           render();
 
+          const toastId = toastLoading(
+            isArabic()
+              ? ("جاري رفع " + String(chosen.length) + " ملف...")
+              : ("Uploading " + String(chosen.length) + " files...")
+          );
+          let errToastBudget = 3;
           for (let i = 0; i < chosen.length; i += 1) {
             const file = chosen[i];
             if (!file) continue;
             const rec = state.uploads[i];
             try {
+              toastUpdate(toastId, {
+                title: isArabic() ? "جاري الرفع" : "Uploading",
+                message: isArabic()
+                  ? ("ملف " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
+                  : ("File " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
+              });
               rec.status = "uploading";
               rec.error = "";
               rec.url = "";
@@ -3140,11 +3491,22 @@ const mount = () => {
               rec.status = "error";
               rec.error = friendlyApiErrorMessage(e);
               render();
+              if (errToastBudget > 0) {
+                errToastBudget -= 1;
+                toastError(rec.error, (isArabic() ? "فشل رفع الملف" : "Upload failed") + (file && file.name ? ": " + String(file.name || "") : ""));
+              }
             }
           }
 
           state.uploading = false;
           render();
+          toastClose(toastId);
+          try {
+            const ok = state.uploads.filter((x) => x && String(x.status || "") === "done").length;
+            const failed = state.uploads.filter((x) => x && String(x.status || "") === "error").length;
+            if (!failed) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
+            else toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)"));
+          } catch {}
           state.type = state.type || "";
           state.page = 1;
           state.items = [];

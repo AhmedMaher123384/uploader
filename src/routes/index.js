@@ -4054,11 +4054,14 @@ function createApiRouter(config) {
       const nextBytes = Number(c.bytes || 0) || 0;
       if (nextBytes > limits.maxFileBytes) {
         await destroyUploaded().catch(() => undefined);
-        throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED" });
+        throw new ApiError(403, "File size limit exceeded", { code: "FILE_SIZE_LIMIT_EXCEEDED", details: { maxBytes: limits.maxFileBytes } });
       }
       if (used - prevBytes + nextBytes > limits.maxStorageBytes) {
         await destroyUploaded().catch(() => undefined);
-        throw new ApiError(403, "Storage limit exceeded", { code: "STORAGE_LIMIT_EXCEEDED" });
+        throw new ApiError(403, "Storage limit exceeded", {
+          code: "STORAGE_LIMIT_EXCEEDED",
+          details: { maxBytes: limits.maxStorageBytes, usedBytes: Math.max(0, used - prevBytes) }
+        });
       }
 
       if (String(c.format || "").toLowerCase() === "svg") {
