@@ -3618,7 +3618,7 @@ const mount = () => {
 
           const detailParts = [];
           if (rejectsByReason.not_allowed_ext) {
-            const exts = notAllowedExts.map((x) => "." + String(x || ""));
+            const exts = notAllowedExts.map((x) => String(x || "").toUpperCase()).filter(Boolean);
             detailParts.push(
               isArabic()
                 ? ("صيغ غير مسموحة: " + (exts.length ? exts.join("، ") : "—"))
@@ -3644,16 +3644,66 @@ const mount = () => {
             (limitMsg ? (isArabic() ? " — " + limitMsg : " — " + limitMsg) : "") +
             (detailParts.length ? (isArabic() ? " — " + detailParts.join("، ") : " — " + detailParts.join(", ")) : "");
 
+          const fmtExtList = (exts, max) => {
+            const list0 = Array.isArray(exts) ? exts : [];
+            const safeMax = Math.max(0, Number(max || 0) || 0) || 10;
+            const head = list0.slice(0, safeMax).map((x) => String(x || "").trim()).filter(Boolean);
+            const tail = list0.length > head.length ? (isArabic() ? "…" : "…") : "";
+            return head.join(isArabic() ? "، " : ", ") + (tail ? (isArabic() ? " " + tail : " " + tail) : "");
+          };
+
+          const buildAllowedSummaryForPlan = () => {
+            if (!allowed) return isArabic() ? ("الصيغ المتاحة في باقة " + planName + ": كل الصيغ") : ("Allowed formats on " + planName + ": all formats");
+            const images = [];
+            const videos = [];
+            const docs = [];
+            const archives = [];
+            const fonts = [];
+            const other = [];
+
+            const imgSet = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "tif", "tiff", "bmp", "heic", "heif"]);
+            const vidSet = new Set(["mp4", "webm", "mov", "avi", "m4v", "mkv", "3gp", "3gpp", "3g2"]);
+            const docSet = new Set(["pdf"]);
+            const arcSet = new Set(["zip"]);
+            const fontSet = new Set(["woff", "woff2", "ttf", "otf", "eot"]);
+
+            const arr = Array.from(allowed.values()).map((x) => String(x || "").trim().toLowerCase()).filter(Boolean).sort();
+            for (let i = 0; i < arr.length; i += 1) {
+              const ext = arr[i];
+              if (imgSet.has(ext)) images.push(ext.toUpperCase());
+              else if (vidSet.has(ext)) videos.push(ext.toUpperCase());
+              else if (docSet.has(ext)) docs.push(ext.toUpperCase());
+              else if (arcSet.has(ext)) archives.push(ext.toUpperCase());
+              else if (fontSet.has(ext)) fonts.push(ext.toUpperCase());
+              else other.push(ext.toUpperCase());
+            }
+
+            const parts = [];
+            if (images.length) parts.push((isArabic() ? "صور: " : "Images: ") + fmtExtList(images, 6));
+            if (videos.length) parts.push((isArabic() ? "فيديو: " : "Videos: ") + fmtExtList(videos, 4));
+            if (docs.length) parts.push((isArabic() ? "مستندات: " : "Docs: ") + fmtExtList(docs, 3));
+            if (archives.length) parts.push((isArabic() ? "أرشيف: " : "Archives: ") + fmtExtList(archives, 3));
+            if (fonts.length) parts.push((isArabic() ? "خطوط: " : "Fonts: ") + fmtExtList(fonts, 5));
+            if (other.length) parts.push((isArabic() ? "أخرى: " : "Other: ") + fmtExtList(other, 6));
+
+            const head = isArabic()
+              ? ("الصيغ المتاحة في باقة " + planName + ":")
+              : ("Allowed formats on " + planName + ":");
+            const lines = parts.length ? parts.map((x) => "• " + x) : ["• —"];
+            return head + "\n" + lines.join("\n");
+          };
+
           const buildSingleRejectToast = (r) => {
             const f = r && r.file ? r.file : null;
             const name = String((f && f.name) || "");
             const size = Number((f && f.size) || 0) || 0;
             const ext = normalizeFilenameExt(name) || String((r && r.ext) || "");
+            const extLabel = ext ? String(ext).toUpperCase() : "?";
             const reason = String((r && r.reason) || "");
             if (reason === "banned_ext") {
               return isArabic()
-                ? ("صيغة ." + String(ext || "?") + " محظورة لأسباب أمنية")
-                : ("File type ." + String(ext || "?") + " is blocked for security reasons");
+                ? ("صيغة " + extLabel + " محظورة لأسباب أمنية")
+                : ("File type " + extLabel + " is blocked for security reasons");
             }
             if (reason === "not_allowed_ext") {
               const proAllowed = (() => {
@@ -3666,14 +3716,14 @@ const mount = () => {
               })();
               const upgradeHint =
                 planKey === "basic" && proAllowed
-                  ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
+                  ? (isArabic() ? ("لرفع " + extLabel + ": حدّث باقتك إلى Pro أو Business.") : ("To upload " + extLabel + ": upgrade to Pro or Business."))
                   : planKey === "basic" || planKey === "pro"
-                    ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
+                    ? (isArabic() ? ("لرفع " + extLabel + ": حدّث باقتك إلى Business.") : ("To upload " + extLabel + ": upgrade to Business."))
                     : "";
 
               return isArabic()
-                ? ("صيغة ." + String(ext || "?") + " غير مسموحة في باقتك (" + planName + "). " + upgradeHint)
-                : ("." + String(ext || "?") + " is not allowed on your plan (" + planName + "). " + upgradeHint);
+                ? ("صيغة ." + extLabel + " غير متاحة في باقتك (" + planName + ").\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\n" + upgradeHint) : ""))
+                : ("." + extLabel + " is not allowed on your plan (" + planName + ").\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\n" + upgradeHint) : ""));
             }
             if (reason === "file_too_big") {
               return isArabic()
@@ -3718,7 +3768,12 @@ const mount = () => {
               : summaryMsg;
 
           state.uploadError = rejected.length ? toastMsg : "";
-          if (state.uploadError) toastWarn(state.uploadError);
+          if (state.uploadError) {
+            const title = !toUpload.length && rejected.length
+              ? (isArabic() ? "تعذّر الرفع" : "Upload blocked")
+              : (isArabic() ? "تنبيه" : "Warning");
+            toastWarn(state.uploadError, title);
+          }
 
           state.uploading = true;
           state.uploads = [];
