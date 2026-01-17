@@ -926,6 +926,9 @@ const mount = () => {
 
         let toastSeq = 0;
         const toastMap = new Map();
+        let activeToastKey = "";
+        let lastToastSig = "";
+        let lastToastAt = 0;
         let swalLoadPromise = null;
         let swalStyleDone = false;
 
@@ -952,8 +955,13 @@ const mount = () => {
               ".bundleapp-swal-target{position:relative}" +
               ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
               ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
-              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important}" +
               ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
+              ".bundleapp-swal-toast .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important;font-size:12px!important;line-height:1.4!important;margin:4px 0 0!important;padding:0!important}" +
+              ".bundleapp-swal-toast .swal2-icon{margin:0 10px 0 0!important;transform:scale(.92)}" +
+              ".bundleapp-swal-toast .swal2-timer-progress-bar{background:rgba(24,181,213,.65)!important}" +
+              "@keyframes bundleappToastIn{from{transform:translateY(-6px);opacity:.0}to{transform:translateY(0);opacity:1}}" +
+              ".bundleapp-swal-toast{animation:bundleappToastIn .14s ease-out}" +
               ".bundleapp-swal-popup{background:#303030!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:16px!important}" +
               ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:950!important}" +
               ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
@@ -962,6 +970,37 @@ const mount = () => {
               ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}";
             document.head.appendChild(style);
           } catch {}
+        };
+
+        const escapeHtml = (s) => {
+          const str = String(s || "");
+          return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        };
+
+        const trimToastText = (s, max) => {
+          const str = String(s || "").trim();
+          const m = Math.max(0, Number(max || 0) || 0);
+          if (!m || str.length <= m) return str;
+          return str.slice(0, Math.max(0, m - 1)) + "…";
+        };
+
+        const toastIconColor = (kind) => {
+          const k = String(kind || "").trim().toLowerCase();
+          if (k === "success") return "#22c55e";
+          if (k === "error") return "#ef4444";
+          if (k === "warning") return "#f59e0b";
+          return "#18b5d5";
+        };
+
+        const toastHtml = (message) => {
+          const msg = String(message || "").trim();
+          if (!msg) return "";
+          return '<div class="bundleapp-swal-msg">' + escapeHtml(msg) + "</div>";
         };
 
         const ensureSwal = async () => {
@@ -1003,24 +1042,43 @@ const mount = () => {
           return (g.Swal && typeof g.Swal.fire === "function" ? g.Swal : null);
         };
 
-        const fireToast = async ({ kind, title, message, duration, loading }) => {
+        const fireToast = async ({ kind, title, message, duration, loading, key }) => {
           const Swal = await ensureSwal();
           if (!Swal) return;
           const target = getSwalTarget();
-          const t = String(title || "").trim();
-          const msg = String(message || "").trim();
+          const t = trimToastText(title, 90);
+          const msg = trimToastText(message, 220);
           const icon = kind === "success" || kind === "error" || kind === "warning" || kind === "info" ? kind : "info";
+          const sig = String(icon) + "|" + (loading ? "1" : "0") + "|" + String(t) + "|" + String(msg);
+          const now = Date.now();
+          if (!loading && sig === lastToastSig && now - lastToastAt < 450) return;
+          lastToastSig = sig;
+          lastToastAt = now;
+
+          if (key) {
+            activeToastKey = String(key || "");
+            toastMap.set(activeToastKey, { kind: "loading" });
+          }
+
+          try {
+            if (Swal.isVisible && Swal.isVisible()) Swal.close();
+          } catch {}
+
           await Swal.fire({
             target,
             toast: true,
             position: "top",
             icon: loading ? undefined : icon,
+            ...(loading ? {} : { iconColor: toastIconColor(icon) }),
             title: t || msg,
-            ...(t && msg ? { text: msg } : {}),
+            ...(t && msg ? { html: toastHtml(msg) } : {}),
             showConfirmButton: false,
             showCloseButton: true,
-            timer: duration || undefined,
-            timerProgressBar: Boolean(duration),
+            backdrop: false,
+            allowOutsideClick: false,
+            allowEnterKey: false,
+            timer: !loading && duration ? duration : undefined,
+            timerProgressBar: !loading && Boolean(duration),
             customClass: {
               container: "bundleapp-swal-container",
               popup: "bundleapp-swal-toast"
@@ -1030,11 +1088,21 @@ const mount = () => {
                 el.dir = isRtl() ? "rtl" : "ltr";
               } catch {}
               try {
-                el.addEventListener("mouseenter", Swal.stopTimer);
-                el.addEventListener("mouseleave", Swal.resumeTimer);
+                if (!loading && duration) {
+                  el.addEventListener("mouseenter", Swal.stopTimer);
+                  el.addEventListener("mouseleave", Swal.resumeTimer);
+                }
               } catch {}
               try {
                 if (loading) Swal.showLoading();
+              } catch {}
+            },
+            didClose: () => {
+              try {
+                if (key && String(key || "") === activeToastKey) {
+                  toastMap.delete(activeToastKey);
+                  activeToastKey = "";
+                }
               } catch {}
             }
           });
@@ -1042,8 +1110,11 @@ const mount = () => {
 
         const toastClose = (id) => {
           const key = String(id || "");
+          if (!key) return;
+          if (activeToastKey && key !== activeToastKey) return;
           if (!toastMap.has(key)) return;
           toastMap.delete(key);
+          activeToastKey = "";
           ensureSwal().then((Swal) => {
             try {
               if (Swal) Swal.close();
@@ -1053,28 +1124,38 @@ const mount = () => {
 
         const toastUpdate = (id, next) => {
           const key = String(id || "");
+          if (!key) return;
+          if (activeToastKey && key !== activeToastKey) return;
           if (!toastMap.has(key)) return;
-          const title = next && "title" in next ? String(next.title || "").trim() : "";
-          const message = next && "message" in next ? String(next.message || "").trim() : "";
+          const title = next && "title" in next ? trimToastText(next.title, 90) : "";
+          const message = next && "message" in next ? trimToastText(next.message, 220) : "";
           ensureSwal().then((Swal) => {
             try {
               if (!Swal) return;
+              try {
+                if (Swal.isVisible && !Swal.isVisible()) return;
+              } catch {}
               Swal.update({
                 title: title || message,
-                ...(title && message ? { text: message } : {})
+                ...(title && message ? { html: toastHtml(message) } : {})
               });
             } catch {}
           });
         };
 
-        const toastSuccess = (message, title) => fireToast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 2500 });
-        const toastInfo = (message, title) => fireToast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 2500 });
-        const toastWarn = (message, title) => fireToast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4000 });
-        const toastError = (message, title) => fireToast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 5000 });
+        const toastSuccess = (message, title) => fireToast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 2200 });
+        const toastInfo = (message, title) => fireToast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 2600 });
+        const toastWarn = (message, title) => fireToast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4200 });
+        const toastError = (message, title) => fireToast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 6000 });
         const toastLoading = (message, title) => {
           const id = "swal_" + String((toastSeq += 1));
-          toastMap.set(id, { kind: "loading" });
-          fireToast({ kind: "info", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), loading: true });
+          fireToast({
+            kind: "info",
+            title: title || (isArabic() ? "جاري التنفيذ" : "Working"),
+            message: String(message || ""),
+            loading: true,
+            key: id
+          });
           return id;
         };
 
