@@ -2169,6 +2169,7 @@ const mount = () => {
             state.convertFilePresets = [];
             state.convertFilePresetCustom = [];
           } else {
+            if (next.length > 1) state.convertPreset = "original";
             const p0 = String(state.convertPreset || "original") || "original";
             const oldPresets = Array.isArray(state.convertFilePresets) ? state.convertFilePresets : [];
             const oldPresetsCustom = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom : [];

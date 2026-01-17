@@ -1403,7 +1403,7 @@ const renderConversionPlatform = (opts) => {
       isArabic() ? "اختر المقاس" : "Choose size",
       presetSelectValue,
       resizeOptionsForSingle,
-      Boolean(state.converting) || planBlocked,
+      Boolean(state.converting) || planBlocked || selectedFiles.length > 1,
       (v) => {
         try {
           const next = String(v || "original") || "original";
