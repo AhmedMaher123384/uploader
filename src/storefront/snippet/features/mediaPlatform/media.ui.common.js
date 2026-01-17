@@ -637,7 +637,7 @@ const buildSheet = () => {
   body.style.flexDirection = "column";
   body.style.flex = "1 1 auto";
   body.style.minHeight = "0";
-  body.style.overflow = "auto";
+  body.style.overflow = "hidden";
 
   const topRow = document.createElement("div");
   topRow.style.display = "flex";
@@ -675,6 +675,7 @@ const buildSheet = () => {
   content.style.gap = "12px";
   content.style.flex = "1 1 auto";
   content.style.minHeight = "0";
+  content.style.overflow = "auto";
 
   body.appendChild(topRow);
   body.appendChild(uploads);
@@ -778,7 +779,14 @@ const planLabel = (k) => {
 };
 `,
   `
-const renderDropzone = ({ disabled, hint, onPick, onFiles }) => {
+const renderDropzone = (opts) => {
+  const o = opts && typeof opts === "object" ? opts : {};
+  const disabled = Boolean(o.disabled);
+  const hint = o.hint;
+  const hintPopover = o.hintPopover && typeof o.hintPopover === "object" ? o.hintPopover : null;
+  const onPick = o.onPick;
+  const onFiles = o.onFiles;
+
   const z = document.createElement("div");
   z.style.border = "1px dashed rgba(255,255,255,.12)";
   z.style.borderRadius = "12px";
@@ -806,11 +814,286 @@ const renderDropzone = ({ disabled, hint, onPick, onFiles }) => {
   t1.textContent = isArabic() ? "اسحب الملفات هنا أو اضغط للاختيار" : "Drag files here or click to select";
 
   const t2 = document.createElement("div");
-  t2.style.color = "rgba(255,255,255,.45)";
-  t2.style.fontSize = "11px";
-  t2.style.fontWeight = "900";
-  t2.style.textAlign = "center";
-  t2.textContent = String(hint || "").trim() || (isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type");
+  t2.style.display = "flex";
+  t2.style.alignItems = "center";
+  t2.style.justifyContent = "center";
+  t2.style.flexWrap = "wrap";
+  t2.style.gap = "6px";
+  t2.style.maxWidth = "100%";
+  t2.style.direction = isArabic() ? "rtl" : "ltr";
+
+  const hintText = document.createElement("div");
+  hintText.style.color = "rgba(255,255,255,.45)";
+  hintText.style.fontSize = "11px";
+  hintText.style.fontWeight = "900";
+  hintText.style.textAlign = "center";
+  hintText.style.lineHeight = "1.6";
+  hintText.textContent = String(hint || "").trim() || (isArabic() ? "الصيغ المدعومة حسب نوع الملف" : "Supported formats vary by file type");
+  t2.appendChild(hintText);
+
+  let pop = null;
+  let closeTimer = null;
+  const clearCloseTimer = () => {
+    try {
+      if (closeTimer) clearTimeout(closeTimer);
+    } catch {}
+    closeTimer = null;
+  };
+  const closePopover = () => {
+    try {
+      clearCloseTimer();
+      if (!pop) return;
+      try {
+        document.removeEventListener("mousedown", onDocDown, true);
+      } catch {}
+      try {
+        document.removeEventListener("keydown", onKeyDown, true);
+      } catch {}
+      try {
+        window.removeEventListener("scroll", closePopover, true);
+      } catch {}
+      try {
+        window.removeEventListener("resize", positionPopover, true);
+      } catch {}
+      try {
+        pop.remove();
+      } catch {}
+      pop = null;
+    } catch {}
+  };
+  const positionPopover = () => {
+    try {
+      if (!pop || !infoBtn) return;
+      const r = infoBtn.getBoundingClientRect();
+      const vw = Math.max(0, Number(window && window.innerWidth) || 0);
+      const vh = Math.max(0, Number(window && window.innerHeight) || 0);
+      const pad = 10;
+      const maxW = Math.max(220, Math.min(360, vw - pad * 2));
+      pop.style.maxWidth = String(maxW) + "px";
+      pop.style.width = "max-content";
+      const pw = Math.min(maxW, Math.max(220, Number(pop.offsetWidth || 0) || 0));
+      const ph = Math.max(0, Number(pop.offsetHeight || 0) || 0);
+
+      const preferRight = isArabic();
+      let left = preferRight ? (r.right - pw) : r.left;
+      left = Math.max(pad, Math.min(left, vw - pw - pad));
+
+      const belowTop = r.bottom + 8;
+      const aboveTop = r.top - ph - 8;
+      let top = belowTop;
+      if (belowTop + ph + pad > vh && aboveTop >= pad) top = aboveTop;
+      top = Math.max(pad, Math.min(top, vh - ph - pad));
+
+      pop.style.left = String(Math.round(left)) + "px";
+      pop.style.top = String(Math.round(top)) + "px";
+    } catch {}
+  };
+  const buildPopover = () => {
+    const p = document.createElement("div");
+    p.style.position = "fixed";
+    p.style.zIndex = "100010";
+    p.style.padding = "12px";
+    p.style.borderRadius = "14px";
+    p.style.border = "1px solid rgba(255,255,255,.10)";
+    p.style.background = "#1f1f1f";
+    p.style.boxShadow = "0 24px 60px rgba(0,0,0,.45)";
+    p.style.color = "rgba(255,255,255,.92)";
+    p.style.fontWeight = "900";
+    p.style.fontSize = "12px";
+    p.style.lineHeight = "1.6";
+    p.style.opacity = "0";
+    p.style.transform = "translateY(-2px)";
+    p.style.transition = "opacity .12s ease, transform .12s ease";
+    p.style.pointerEvents = "auto";
+    p.style.direction = isArabic() ? "rtl" : "ltr";
+
+    const title = document.createElement("div");
+    title.style.fontSize = "12px";
+    title.style.fontWeight = "950";
+    title.style.color = "rgba(255,255,255,.96)";
+    title.style.marginBottom = "8px";
+    title.textContent = String((hintPopover && hintPopover.title) || "").trim() || (isArabic() ? "الصيغ المتاحة" : "Allowed formats");
+    p.appendChild(title);
+
+    const sections = Array.isArray(hintPopover && hintPopover.sections) ? hintPopover.sections : [];
+    for (let i = 0; i < sections.length; i += 1) {
+      const sec = sections[i] && typeof sections[i] === "object" ? sections[i] : {};
+      const label = String(sec.label || "").trim();
+      const items = Array.isArray(sec.items) ? sec.items : [];
+      if (!label && !items.length) continue;
+
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.flexDirection = "column";
+      row.style.gap = "6px";
+      row.style.paddingTop = i === 0 ? "0" : "8px";
+      row.style.marginTop = i === 0 ? "0" : "8px";
+      if (i !== 0) row.style.borderTop = "1px solid rgba(255,255,255,.08)";
+
+      if (label) {
+        const h = document.createElement("div");
+        h.style.color = "rgba(255,255,255,.75)";
+        h.style.fontSize = "11px";
+        h.style.fontWeight = "950";
+        h.textContent = label;
+        row.appendChild(h);
+      }
+
+      if (items.length) {
+        const chips = document.createElement("div");
+        chips.style.display = "flex";
+        chips.style.flexWrap = "wrap";
+        chips.style.gap = "6px";
+        for (let j = 0; j < items.length; j += 1) {
+          const it = String(items[j] || "").trim();
+          if (!it) continue;
+          const chip = document.createElement("div");
+          chip.style.padding = "4px 8px";
+          chip.style.borderRadius = "999px";
+          chip.style.border = "1px solid rgba(24,181,213,.25)";
+          chip.style.background = "rgba(24,181,213,.08)";
+          chip.style.color = "rgba(255,255,255,.90)";
+          chip.style.fontSize = "11px";
+          chip.style.fontWeight = "950";
+          chip.style.lineHeight = "1";
+          chip.style.direction = "ltr";
+          chip.textContent = "." + it.toUpperCase();
+          chips.appendChild(chip);
+        }
+        row.appendChild(chips);
+      }
+
+      p.appendChild(row);
+    }
+
+    const note = String((hintPopover && hintPopover.note) || "").trim();
+    if (note) {
+      const n = document.createElement("div");
+      n.style.marginTop = sections.length ? "10px" : "0";
+      n.style.color = "rgba(255,255,255,.55)";
+      n.style.fontSize = "11px";
+      n.style.fontWeight = "900";
+      n.textContent = note;
+      p.appendChild(n);
+    }
+
+    p.addEventListener("mouseenter", () => {
+      try {
+        clearCloseTimer();
+      } catch {}
+    });
+    p.addEventListener("mouseleave", () => {
+      try {
+        clearCloseTimer();
+        closeTimer = setTimeout(() => closePopover(), 140);
+      } catch {}
+    });
+
+    p.addEventListener("mousedown", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch {}
+    });
+
+    return p;
+  };
+  const onDocDown = (e) => {
+    try {
+      if (!pop) return;
+      const t = e && e.target ? e.target : null;
+      if (t && (t === pop || (pop && pop.contains(t)) || (infoBtn && (t === infoBtn || infoBtn.contains(t))))) return;
+      closePopover();
+    } catch {}
+  };
+  const onKeyDown = (e) => {
+    try {
+      const k = String((e && e.key) || "");
+      if (k === "Escape") closePopover();
+    } catch {}
+  };
+  const openPopover = () => {
+    try {
+      if (!hintPopover || disabled) return;
+      if (pop) return;
+      pop = buildPopover();
+      document.body.appendChild(pop);
+      positionPopover();
+      try {
+        requestAnimationFrame(() => {
+          try {
+            if (!pop) return;
+            pop.style.opacity = "1";
+            pop.style.transform = "translateY(0)";
+          } catch {}
+        });
+      } catch {}
+      try {
+        document.addEventListener("mousedown", onDocDown, true);
+      } catch {}
+      try {
+        document.addEventListener("keydown", onKeyDown, true);
+      } catch {}
+      try {
+        window.addEventListener("scroll", closePopover, true);
+      } catch {}
+      try {
+        window.addEventListener("resize", positionPopover, true);
+      } catch {}
+    } catch {}
+  };
+
+  let infoBtn = null;
+  if (hintPopover) {
+    infoBtn = document.createElement("button");
+    infoBtn.type = "button";
+    infoBtn.setAttribute("aria-label", isArabic() ? "تفاصيل الصيغ المتاحة" : "Allowed formats details");
+    infoBtn.style.border = "1px solid rgba(255,255,255,.14)";
+    infoBtn.style.background = "rgba(255,255,255,.06)";
+    infoBtn.style.color = "rgba(255,255,255,.80)";
+    infoBtn.style.width = "18px";
+    infoBtn.style.height = "18px";
+    infoBtn.style.borderRadius = "999px";
+    infoBtn.style.display = "grid";
+    infoBtn.style.placeItems = "center";
+    infoBtn.style.fontSize = "12px";
+    infoBtn.style.fontWeight = "950";
+    infoBtn.style.lineHeight = "1";
+    infoBtn.style.cursor = disabled ? "not-allowed" : "help";
+    infoBtn.style.opacity = disabled ? "0.55" : "1";
+    infoBtn.textContent = "i";
+
+    infoBtn.addEventListener("mousedown", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch {}
+    });
+    infoBtn.addEventListener("click", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pop) closePopover();
+        else openPopover();
+      } catch {}
+    });
+    infoBtn.addEventListener("mouseenter", (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        clearCloseTimer();
+        openPopover();
+      } catch {}
+    });
+    infoBtn.addEventListener("mouseleave", () => {
+      try {
+        clearCloseTimer();
+        closeTimer = setTimeout(() => closePopover(), 140);
+      } catch {}
+    });
+
+    t2.appendChild(infoBtn);
+  }
 
   const pick = () => {
     try {

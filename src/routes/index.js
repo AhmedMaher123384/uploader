@@ -668,9 +668,9 @@ function createApiRouter(config) {
   }
 
   function svgLooksSafe(text) {
-    const s = String(text || "");
+    const s = String(text || "").replace(/^\uFEFF/, "");
     if (!s) return false;
-    if (/<\?xml\b/i.test(s)) return false;
+    if (/<\?xml-stylesheet\b/i.test(s)) return false;
     if (/<!doctype\b/i.test(s)) return false;
     if (/<!entity\b/i.test(s)) return false;
     if (/<script\b/i.test(s)) return false;

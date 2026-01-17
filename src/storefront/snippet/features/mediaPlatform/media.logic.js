@@ -489,6 +489,69 @@ const acceptForUploadPlan = (planKey) => {
   if (k === "pro") return "image/*,video/*,application/pdf,.zip,.json,.svg,.css,.woff,.woff2,.ttf,.otf,.eot";
   return "image/*,video/mp4,video/webm,application/pdf";
 };
+
+const buildAllowedFormatsPopover = (planKey) => {
+  try {
+    const k = String(planKey || "").trim().toLowerCase() || "basic";
+    const planName = planLabel(k);
+    const allowed = getAllowedExtForPlan(k);
+
+    const title = isArabic()
+      ? ("الصيغ المتاحة في باقة " + planName)
+      : ("Allowed formats on " + planName);
+
+    if (!allowed) {
+      const blocked = (() => {
+        try {
+          const arr = Array.from(bannedExt.values()).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean).sort();
+          const head = arr.slice(0, 10);
+          const tail = arr.length > head.length ? " …" : "";
+          return head.join(", ") + tail;
+        } catch {
+          return "";
+        }
+      })();
+
+      return {
+        title,
+        sections: [{ label: isArabic() ? "كل الصيغ" : "All formats", items: [] }],
+        note: blocked ? (isArabic() ? ("مع حظر أمني لبعض الصيغ مثل: " + blocked) : ("Security blocks some formats e.g.: " + blocked)) : ""
+      };
+    }
+
+    const groups = { images: [], videos: [], docs: [], web: [], fonts: [], other: [] };
+    const toList = (a) => Array.from(new Set(a)).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean).sort();
+
+    for (const ext0 of allowed.values()) {
+      const ext = String(ext0 || "").trim().toLowerCase();
+      if (!ext) continue;
+
+      if (["jpg", "jpeg", "png", "gif", "webp", "avif", "tif", "tiff", "svg"].indexOf(ext) >= 0) groups.images.push(ext);
+      else if (["mp4", "webm"].indexOf(ext) >= 0) groups.videos.push(ext);
+      else if (["pdf", "json"].indexOf(ext) >= 0) groups.docs.push(ext);
+      else if (["woff", "woff2", "ttf", "otf", "eot"].indexOf(ext) >= 0) groups.fonts.push(ext);
+      else if (["css"].indexOf(ext) >= 0) groups.web.push(ext);
+      else groups.other.push(ext);
+    }
+
+    const sections = [];
+    const pushSec = (ar, en, items) => {
+      const list = toList(items);
+      if (!list.length) return;
+      sections.push({ label: isArabic() ? ar : en, items: list });
+    };
+    pushSec("صور", "Images", groups.images);
+    pushSec("فيديو", "Video", groups.videos);
+    pushSec("مستندات", "Documents", groups.docs);
+    pushSec("خطوط", "Fonts", groups.fonts);
+    pushSec("ملفات ويب", "Web files", groups.web);
+    pushSec("أخرى", "Other", groups.other);
+
+    return { title, sections, note: "" };
+  } catch {
+    return null;
+  }
+};
 `,
   `
 const guessResourceType = (file) => {
@@ -3316,6 +3379,13 @@ const mount = () => {
                       return "";
                     }
                   })(),
+                  hintPopover: (() => {
+                    try {
+                      return buildAllowedFormatsPopover(planKey || "basic");
+                    } catch {
+                      return null;
+                    }
+                  })(),
                   disabled: state.uploading,
                   onPick: () => {
                     try {
@@ -3640,6 +3710,14 @@ const mount = () => {
                 ? ("حد الرفع في المرة الواحدة لباقة " + planName + " هو " + String(maxFiles) + " ملف")
                 : ("Upload limit per batch for " + planName + " is " + String(maxFiles) + " files")
               : "";
+          const limitUpgradeHint =
+            rejectsByReason.too_many_for_plan
+              ? (planKey === "pro"
+                  ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
+                  : planKey === "basic"
+                    ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
+                    : "")
+              : "";
 
           const detailParts = [];
           if (rejectsByReason.not_allowed_ext) {
@@ -3666,6 +3744,7 @@ const mount = () => {
           const summaryMsg =
             summaryParts.join(isArabic() ? " — " : " — ") +
             (limitMsg ? (isArabic() ? " — " + limitMsg : " — " + limitMsg) : "") +
+            (limitUpgradeHint ? (isArabic() ? " — " + limitUpgradeHint : " — " + limitUpgradeHint) : "") +
             (detailParts.length ? (isArabic() ? " — " + detailParts.join("، ") : " — " + detailParts.join(", ")) : "");
 
           const fmtExtList = (exts, max) => {
@@ -3760,9 +3839,15 @@ const mount = () => {
                 : ("Not enough storage on " + planName + " — remaining: " + fmtBytes(remainBytes0));
             }
             if (reason === "too_many_for_plan") {
+              const upgradeHint =
+                planKey === "pro"
+                  ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
+                  : planKey === "basic"
+                    ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
+                    : "";
               return isArabic()
-                ? ("تجاوزت حد الرفع في المرة الواحدة (" + String(maxFiles) + ") لباقة " + planName)
-                : ("Over per-batch upload limit (" + String(maxFiles) + ") for " + planName);
+                ? ("تجاوزت حد الرفع في المرة الواحدة (" + String(maxFiles) + ") لباقة " + planName + (upgradeHint ? (" " + upgradeHint) : ""))
+                : ("Over per-batch upload limit (" + String(maxFiles) + ") for " + planName + (upgradeHint ? (" " + upgradeHint) : ""));
             }
             return isArabic() ? "لم يتم رفع هذا الملف" : "This file was not uploaded";
           };
@@ -3828,6 +3913,8 @@ const mount = () => {
             const reason = String(rejected[i] && rejected[i].reason) || "";
             const errMsg = buildSingleRejectToast(rejected[i]);
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_rej_" + String(i);
+
+            if (reason === "too_many_for_plan") continue;
 
             state.uploads.push({
               id,
