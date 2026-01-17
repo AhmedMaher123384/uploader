@@ -926,240 +926,157 @@ const mount = () => {
 
         let toastSeq = 0;
         const toastMap = new Map();
-        let toastHost = null;
+        let swalLoadPromise = null;
+        let swalStyleDone = false;
 
-        const ensureToastHost = () => {
-          if (toastHost) return toastHost;
-          const host = document.createElement("div");
-          host.style.position = "fixed";
-          host.style.top = "calc(env(safe-area-inset-top, 0px) + 14px)";
-          host.style.left = "14px";
-          host.style.right = "14px";
-          host.style.zIndex = "100007";
-          host.style.display = "flex";
-          host.style.flexDirection = "column";
-          host.style.gap = "10px";
-          host.style.pointerEvents = "none";
-          host.style.alignItems = typeof isRtl === "function" && isRtl() ? "flex-start" : "flex-end";
-          toastHost = host;
+        const getSwalTarget = () => {
           try {
-            sheet.overlay.appendChild(host);
-          } catch {
+            const panel = sheet && sheet.overlay && sheet.overlay.querySelector ? sheet.overlay.querySelector(".bundle-app-bottomsheet__panel") : null;
+            const t = panel || (sheet && sheet.overlay) || document.body;
             try {
-              document.body.appendChild(host);
+              if (t && t.classList) t.classList.add("bundleapp-swal-target");
             } catch {}
+            return t;
+          } catch {
+            return document.body;
           }
-          return host;
+        };
+
+        const ensureSwalStyles = () => {
+          if (swalStyleDone) return;
+          swalStyleDone = true;
+          try {
+            const style = document.createElement("style");
+            style.type = "text/css";
+            style.textContent =
+              ".bundleapp-swal-target{position:relative}" +
+              ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
+              ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important}" +
+              ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
+              ".bundleapp-swal-popup{background:#303030!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:16px!important}" +
+              ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:950!important}" +
+              ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
+              ".bundleapp-swal-confirm{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
+              ".bundleapp-swal-cancel{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
+              ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}";
+            document.head.appendChild(style);
+          } catch {}
+        };
+
+        const ensureSwal = async () => {
+          try {
+            if (g.Swal && typeof g.Swal.fire === "function") {
+              ensureSwalStyles();
+              return g.Swal;
+            }
+          } catch {}
+
+          if (swalLoadPromise) return await swalLoadPromise;
+          swalLoadPromise = await new Promise((resolve) => {
+            try {
+              const existing = document.querySelector('script[data-bundleapp-swal="1"]');
+              if (existing) {
+                existing.addEventListener("load", () => resolve(g.Swal || null), { once: true });
+                existing.addEventListener("error", () => resolve(null), { once: true });
+                return;
+              }
+            } catch {}
+
+            try {
+              const s = document.createElement("script");
+              s.async = true;
+              s.defer = true;
+              s.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js";
+              s.setAttribute("data-bundleapp-swal", "1");
+              s.onload = () => resolve(g.Swal || null);
+              s.onerror = () => resolve(null);
+              document.head.appendChild(s);
+            } catch {
+              resolve(null);
+            }
+          });
+
+          try {
+            if (g.Swal && typeof g.Swal.fire === "function") ensureSwalStyles();
+          } catch {}
+          return (g.Swal && typeof g.Swal.fire === "function" ? g.Swal : null);
+        };
+
+        const fireToast = async ({ kind, title, message, duration, loading }) => {
+          const Swal = await ensureSwal();
+          if (!Swal) return;
+          const target = getSwalTarget();
+          const t = String(title || "").trim();
+          const msg = String(message || "").trim();
+          const icon = kind === "success" || kind === "error" || kind === "warning" || kind === "info" ? kind : "info";
+          await Swal.fire({
+            target,
+            toast: true,
+            position: "top",
+            icon: loading ? undefined : icon,
+            title: t || msg,
+            ...(t && msg ? { text: msg } : {}),
+            showConfirmButton: false,
+            showCloseButton: true,
+            timer: duration || undefined,
+            timerProgressBar: Boolean(duration),
+            customClass: {
+              container: "bundleapp-swal-container",
+              popup: "bundleapp-swal-toast"
+            },
+            didOpen: (el) => {
+              try {
+                el.dir = isRtl() ? "rtl" : "ltr";
+              } catch {}
+              try {
+                el.addEventListener("mouseenter", Swal.stopTimer);
+                el.addEventListener("mouseleave", Swal.resumeTimer);
+              } catch {}
+              try {
+                if (loading) Swal.showLoading();
+              } catch {}
+            }
+          });
         };
 
         const toastClose = (id) => {
           const key = String(id || "");
-          const rec = toastMap.get(key);
-          if (!rec) return;
+          if (!toastMap.has(key)) return;
           toastMap.delete(key);
-          try {
-            if (rec.timer) clearTimeout(rec.timer);
-          } catch {}
-          try {
-            if (rec.el && rec.el.remove) rec.el.remove();
-          } catch {}
+          ensureSwal().then((Swal) => {
+            try {
+              if (Swal) Swal.close();
+            } catch {}
+          });
         };
 
         const toastUpdate = (id, next) => {
           const key = String(id || "");
-          const rec = toastMap.get(key);
-          if (!rec) return;
-          const title = next && "title" in next ? String(next.title || "") : null;
-          const message = next && "message" in next ? String(next.message || "") : null;
-          const kind = next && "kind" in next ? String(next.kind || "") : null;
-
-          try {
-            if (kind) rec.el.setAttribute("data-kind", kind);
-          } catch {}
-          try {
-            if (rec.iconEl && kind) rec.iconEl.textContent = kind === "success" ? "✓" : kind === "error" ? "✕" : kind === "warning" ? "!" : kind === "loading" ? "…" : "i";
-          } catch {}
-          try {
-            if (rec.titleEl && title != null) rec.titleEl.textContent = title;
-          } catch {}
-          try {
-            if (rec.msgEl && message != null) rec.msgEl.textContent = message;
-          } catch {}
-
-          try {
-            const k = kind || (rec.el && rec.el.getAttribute ? String(rec.el.getAttribute("data-kind") || "") : "");
-            const border =
-              k === "success"
-                ? "1px solid rgba(16,185,129,.35)"
-                : k === "error"
-                  ? "1px solid rgba(239,68,68,.35)"
-                  : k === "warning"
-                    ? "1px solid rgba(245,158,11,.35)"
-                    : k === "loading"
-                      ? "1px solid rgba(255,255,255,.14)"
-                      : "1px solid rgba(24,181,213,.35)";
-            const bg =
-              k === "success"
-                ? "rgba(16,185,129,.12)"
-                : k === "error"
-                  ? "rgba(239,68,68,.12)"
-                  : k === "warning"
-                    ? "rgba(245,158,11,.12)"
-                    : k === "loading"
-                      ? "rgba(255,255,255,.06)"
-                      : "rgba(24,181,213,.12)";
-            const color =
-              k === "success"
-                ? "#6ee7b7"
-                : k === "error"
-                  ? "#fecaca"
-                  : k === "warning"
-                    ? "#fde68a"
-                    : k === "loading"
-                      ? "#fff"
-                      : "#18b5d5";
-            rec.el.style.border = border;
-            rec.el.style.background = bg;
-            rec.el.style.color = color;
-          } catch {}
+          if (!toastMap.has(key)) return;
+          const title = next && "title" in next ? String(next.title || "").trim() : "";
+          const message = next && "message" in next ? String(next.message || "").trim() : "";
+          ensureSwal().then((Swal) => {
+            try {
+              if (!Swal) return;
+              Swal.update({
+                title: title || message,
+                ...(title && message ? { text: message } : {})
+              });
+            } catch {}
+          });
         };
 
-        const toast = (opts) => {
-          const o = opts && typeof opts === "object" ? opts : {};
-          const kind = String(o.kind || "info").trim().toLowerCase() || "info";
-          const title = String(o.title || "").trim();
-          const message = String(o.message || "").trim();
-          const durationRaw = Number(o.duration || 0) || 0;
-          const duration = durationRaw < 0 ? 0 : durationRaw;
-          const persistent = Boolean(o.persistent) || kind === "loading";
-
-          const id = "t" + String((toastSeq += 1));
-          const host = ensureToastHost();
-
-          const el = document.createElement("div");
-          el.setAttribute("data-kind", kind);
-          el.style.pointerEvents = "auto";
-          el.style.width = "min(460px, 100%)";
-          el.style.borderRadius = "14px";
-          el.style.padding = "10px 12px";
-          el.style.display = "flex";
-          el.style.alignItems = "flex-start";
-          el.style.gap = "10px";
-          el.style.boxShadow = "0 12px 40px rgba(0,0,0,.35)";
-          el.style.backdropFilter = "blur(8px)";
-          el.style.webkitBackdropFilter = "blur(8px)";
-          el.style.userSelect = "none";
-          el.style.webkitUserSelect = "none";
-
-          const iconWrap = document.createElement("div");
-          iconWrap.style.flex = "0 0 auto";
-          iconWrap.style.width = "22px";
-          iconWrap.style.height = "22px";
-          iconWrap.style.display = "grid";
-          iconWrap.style.placeItems = "center";
-          iconWrap.style.borderRadius = "999px";
-          iconWrap.style.border = "1px solid rgba(255,255,255,.14)";
-          iconWrap.style.background = "rgba(0,0,0,.18)";
-
-          const iconEl = document.createElement("div");
-          iconEl.style.fontSize = "13px";
-          iconEl.style.fontWeight = "1000";
-          iconEl.textContent = kind === "success" ? "✓" : kind === "error" ? "✕" : kind === "warning" ? "!" : kind === "loading" ? "…" : "i";
-          iconWrap.appendChild(iconEl);
-
-          const body = document.createElement("div");
-          body.style.flex = "1 1 auto";
-          body.style.minWidth = "0";
-          body.style.display = "flex";
-          body.style.flexDirection = "column";
-          body.style.gap = "2px";
-
-          const titleEl = document.createElement("div");
-          titleEl.style.fontSize = "12px";
-          titleEl.style.fontWeight = "1000";
-          titleEl.style.lineHeight = "1.2";
-          titleEl.style.whiteSpace = "nowrap";
-          titleEl.style.overflow = "hidden";
-          titleEl.style.textOverflow = "ellipsis";
-          titleEl.textContent = title;
-
-          const msgEl = document.createElement("div");
-          msgEl.style.fontSize = "12px";
-          msgEl.style.fontWeight = "850";
-          msgEl.style.lineHeight = "1.35";
-          msgEl.style.whiteSpace = "pre-wrap";
-          msgEl.style.wordBreak = "break-word";
-          msgEl.textContent = message;
-
-          if (title) body.appendChild(titleEl);
-          if (message) body.appendChild(msgEl);
-
-          const actions = document.createElement("div");
-          actions.style.flex = "0 0 auto";
-          actions.style.display = "flex";
-          actions.style.gap = "8px";
-          actions.style.alignItems = "center";
-
-          if (kind === "loading") {
-            try {
-              const spinner = document.createElement("salla-loading");
-              spinner.setAttribute("size", "18");
-              spinner.setAttribute("width", "3");
-              spinner.setAttribute("color", "#18b5d5");
-              actions.appendChild(spinner);
-            } catch {}
-          }
-
-          const closeBtn = document.createElement("button");
-          closeBtn.type = "button";
-          closeBtn.setAttribute("aria-label", "Close");
-          closeBtn.textContent = "×";
-          closeBtn.style.border = "1px solid rgba(255,255,255,.14)";
-          closeBtn.style.background = "rgba(255,255,255,.06)";
-          closeBtn.style.color = "#fff";
-          closeBtn.style.cursor = "pointer";
-          closeBtn.style.width = "28px";
-          closeBtn.style.height = "28px";
-          closeBtn.style.borderRadius = "10px";
-          closeBtn.style.fontSize = "18px";
-          closeBtn.style.lineHeight = "1";
-          closeBtn.onclick = (ev) => {
-            try {
-              if (ev && ev.stopPropagation) ev.stopPropagation();
-            } catch {}
-            toastClose(id);
-          };
-          actions.appendChild(closeBtn);
-
-          el.onclick = (ev) => {
-            try {
-              if (ev && ev.stopPropagation) ev.stopPropagation();
-            } catch {}
-          };
-
-          el.appendChild(iconWrap);
-          el.appendChild(body);
-          el.appendChild(actions);
-          host.appendChild(el);
-
-          const rec = { el, iconEl, titleEl, msgEl, timer: null };
-          toastMap.set(id, rec);
-          toastUpdate(id, { kind });
-
-          if (!persistent && duration) {
-            try {
-              rec.timer = setTimeout(() => toastClose(id), duration);
-            } catch {}
-          }
-
+        const toastSuccess = (message, title) => fireToast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 2500 });
+        const toastInfo = (message, title) => fireToast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 2500 });
+        const toastWarn = (message, title) => fireToast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4000 });
+        const toastError = (message, title) => fireToast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 5000 });
+        const toastLoading = (message, title) => {
+          const id = "swal_" + String((toastSeq += 1));
+          toastMap.set(id, { kind: "loading" });
+          fireToast({ kind: "info", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), loading: true });
           return id;
         };
-
-        const toastSuccess = (message, title) => toast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 3500 });
-        const toastInfo = (message, title) => toast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 3500 });
-        const toastWarn = (message, title) => toast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4500 });
-        const toastError = (message, title) => toast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 6000 });
-        const toastLoading = (message, title) => toast({ kind: "loading", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), persistent: true });
 
         const refreshDashboard = async (force) => {
           if (state.dashLoading) return;
