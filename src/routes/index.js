@@ -573,10 +573,13 @@ function createApiRouter(config) {
   function getAllowedExtForPlan(planKey) {
     const k = String(planKey || "").trim().toLowerCase();
     const base = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
-    if (k === "pro" || k === "business") {
+    if (k === "pro") {
       const proOnly = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
       for (const x of proOnly) base.add(x);
       return base;
+    }
+    if (k === "business") {
+      return null;
     }
     return base;
   }
