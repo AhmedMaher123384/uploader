@@ -259,15 +259,7 @@ const friendlyApiErrorMessage = (err) => {
 
   if (code === "UNSUPPORTED_MEDIA") return isArabic() ? "الملف غير مدعوم" : "Unsupported media";
 
-  if (code === "MERCHANT_INACTIVE") return isArabic() ? "المتجر غير نشط" : "Merchant is not active";
-  if (code === "ROUTE_NOT_FOUND") return isArabic() ? "المسار غير موجود" : "Route not found";
-  if (code === "PROXY_SIGNATURE_MISSING") return isArabic() ? "بيانات التحقق ناقصة" : "Missing verification data";
-  if (code === "PROXY_SIGNATURE_INVALID") return isArabic() ? "بيانات التحقق غير صحيحة" : "Invalid verification data";
-  if (code === "PROXY_SECRET_MISSING") return isArabic() ? "إعدادات التحقق غير مكتملة" : "Verification is not configured";
-
-  if (code === "FILE_TYPE_NOT_ALLOWED") {
-    return isArabic() ? "نوع الملف غير مسموح في باقتك" : "File type is not allowed for your plan";
-  }
+  if (code === "FILE_TYPE_NOT_ALLOWED") return isArabic() ? "نوع الملف غير مدعوم" : "Unsupported file type";
 
   if (code === "FILE_SIZE_LIMIT_EXCEEDED") {
     const maxBytes = Number(details && details.maxBytes) || 0;
@@ -934,9 +926,6 @@ const mount = () => {
 
         let toastSeq = 0;
         const toastMap = new Map();
-        let activeToastKey = "";
-        let lastToastSig = "";
-        let lastToastAt = 0;
         let swalLoadPromise = null;
         let swalStyleDone = false;
 
@@ -963,15 +952,8 @@ const mount = () => {
               ".bundleapp-swal-target{position:relative}" +
               ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
               ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
-              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;font-weight:900!important;max-width:min(520px,calc(100vw - 34px))!important;padding:10px 12px!important;position:relative!important}" +
-              ".bundleapp-swal-toast--success{border-color:rgba(34,197,94,.55)!important}" +
-              ".bundleapp-swal-toast--error{border-color:rgba(239,68,68,.65)!important}" +
-              ".bundleapp-swal-toast--warning{border-color:rgba(245,158,11,.60)!important}" +
-              ".bundleapp-swal-toast--info{border-color:rgba(24,181,213,.55)!important}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important}" +
               ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
-              ".bundleapp-swal-toast .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important;font-size:12px!important;line-height:1.4!important;margin:4px 0 0!important;padding:0!important}" +
-              ".bundleapp-swal-toast .swal2-icon{margin:0 10px 0 0!important;transform:scale(.92)}" +
-              ".bundleapp-swal-toast[dir='rtl'] .swal2-icon{margin:0 0 0 10px!important}" +
               ".bundleapp-swal-popup{background:#303030!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:16px!important}" +
               ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:950!important}" +
               ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
@@ -980,37 +962,6 @@ const mount = () => {
               ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}";
             document.head.appendChild(style);
           } catch {}
-        };
-
-        const escapeHtml = (s) => {
-          const str = String(s || "");
-          return str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-        };
-
-        const trimToastText = (s, max) => {
-          const str = String(s || "").trim();
-          const m = Math.max(0, Number(max || 0) || 0);
-          if (!m || str.length <= m) return str;
-          return str.slice(0, Math.max(0, m - 1)) + "…";
-        };
-
-        const toastIconColor = (kind) => {
-          const k = String(kind || "").trim().toLowerCase();
-          if (k === "success") return "#22c55e";
-          if (k === "error") return "#ef4444";
-          if (k === "warning") return "#f59e0b";
-          return "#18b5d5";
-        };
-
-        const toastHtml = (message) => {
-          const msg = String(message || "").trim();
-          if (!msg) return "";
-          return '<div class="bundleapp-swal-msg">' + escapeHtml(msg) + "</div>";
         };
 
         const ensureSwal = async () => {
@@ -1052,63 +1003,38 @@ const mount = () => {
           return (g.Swal && typeof g.Swal.fire === "function" ? g.Swal : null);
         };
 
-        const fireToast = async ({ kind, title, message, duration, loading, key }) => {
+        const fireToast = async ({ kind, title, message, duration, loading }) => {
           const Swal = await ensureSwal();
           if (!Swal) return;
           const target = getSwalTarget();
-          const t = trimToastText(title, 90);
-          const msg = trimToastText(message, 220);
+          const t = String(title || "").trim();
+          const msg = String(message || "").trim();
           const icon = kind === "success" || kind === "error" || kind === "warning" || kind === "info" ? kind : "info";
-          const sig = String(icon) + "|" + (loading ? "1" : "0") + "|" + String(t) + "|" + String(msg);
-          const now = Date.now();
-          if (!loading && sig === lastToastSig && now - lastToastAt < 450) return;
-          lastToastSig = sig;
-          lastToastAt = now;
-
-          if (key) {
-            activeToastKey = String(key || "");
-            toastMap.set(activeToastKey, { kind: "loading" });
-          }
-
-          try {
-            if (Swal.isVisible && Swal.isVisible()) Swal.close();
-          } catch {}
-
           await Swal.fire({
             target,
             toast: true,
             position: "top",
             icon: loading ? undefined : icon,
-            ...(loading ? {} : { iconColor: toastIconColor(icon) }),
             title: t || msg,
-            ...(t && msg ? { html: toastHtml(msg) } : {}),
+            ...(t && msg ? { text: msg } : {}),
             showConfirmButton: false,
             showCloseButton: true,
-            backdrop: false,
-            allowOutsideClick: false,
-            allowEnterKey: false,
-            timer: !loading && duration ? duration : undefined,
-            timerProgressBar: false,
+            timer: duration || undefined,
+            timerProgressBar: Boolean(duration),
             customClass: {
               container: "bundleapp-swal-container",
-              popup: "bundleapp-swal-toast" + (loading ? " bundleapp-swal-toast--info" : " bundleapp-swal-toast--" + String(icon))
+              popup: "bundleapp-swal-toast"
             },
-            showClass: { popup: "swal2-noanimation" },
-            hideClass: { popup: "swal2-noanimation" },
             didOpen: (el) => {
               try {
                 el.dir = isRtl() ? "rtl" : "ltr";
               } catch {}
               try {
-                if (loading) Swal.showLoading();
+                el.addEventListener("mouseenter", Swal.stopTimer);
+                el.addEventListener("mouseleave", Swal.resumeTimer);
               } catch {}
-            },
-            didClose: () => {
               try {
-                if (key && String(key || "") === activeToastKey) {
-                  toastMap.delete(activeToastKey);
-                  activeToastKey = "";
-                }
+                if (loading) Swal.showLoading();
               } catch {}
             }
           });
@@ -1116,11 +1042,8 @@ const mount = () => {
 
         const toastClose = (id) => {
           const key = String(id || "");
-          if (!key) return;
-          if (activeToastKey && key !== activeToastKey) return;
           if (!toastMap.has(key)) return;
           toastMap.delete(key);
-          activeToastKey = "";
           ensureSwal().then((Swal) => {
             try {
               if (Swal) Swal.close();
@@ -1130,119 +1053,29 @@ const mount = () => {
 
         const toastUpdate = (id, next) => {
           const key = String(id || "");
-          if (!key) return;
-          if (activeToastKey && key !== activeToastKey) return;
           if (!toastMap.has(key)) return;
-          const title = next && "title" in next ? trimToastText(next.title, 90) : "";
-          const message = next && "message" in next ? trimToastText(next.message, 220) : "";
+          const title = next && "title" in next ? String(next.title || "").trim() : "";
+          const message = next && "message" in next ? String(next.message || "").trim() : "";
           ensureSwal().then((Swal) => {
             try {
               if (!Swal) return;
-              try {
-                if (Swal.isVisible && !Swal.isVisible()) return;
-              } catch {}
               Swal.update({
                 title: title || message,
-                ...(title && message ? { html: toastHtml(message) } : {})
+                ...(title && message ? { text: message } : {})
               });
             } catch {}
           });
         };
 
-        const toastSuccess = (message, title) => fireToast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 2200 });
-        const toastInfo = (message, title) => fireToast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 2600 });
-        const toastWarn = (message, title) => fireToast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4200 });
-        const toastError = (message, title) => fireToast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 6000 });
+        const toastSuccess = (message, title) => fireToast({ kind: "success", title: title || (isArabic() ? "تم" : "Done"), message: String(message || ""), duration: 2500 });
+        const toastInfo = (message, title) => fireToast({ kind: "info", title: title || (isArabic() ? "تنبيه" : "Info"), message: String(message || ""), duration: 2500 });
+        const toastWarn = (message, title) => fireToast({ kind: "warning", title: title || (isArabic() ? "تنبيه" : "Warning"), message: String(message || ""), duration: 4000 });
+        const toastError = (message, title) => fireToast({ kind: "error", title: title || (isArabic() ? "خطأ" : "Error"), message: String(message || ""), duration: 5000 });
         const toastLoading = (message, title) => {
           const id = "swal_" + String((toastSeq += 1));
-          fireToast({
-            kind: "info",
-            title: title || (isArabic() ? "جاري التنفيذ" : "Working"),
-            message: String(message || ""),
-            loading: true,
-            key: id
-          });
+          toastMap.set(id, { kind: "loading" });
+          fireToast({ kind: "info", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), loading: true });
           return id;
-        };
-
-        const withTimeout = (p, ms, msg) => {
-          const m = Math.max(250, Number(ms || 0) || 0);
-          return new Promise((resolve, reject) => {
-            let done = false;
-            const t = setTimeout(() => {
-              if (done) return;
-              done = true;
-              reject(new Error(String(msg || (isArabic() ? "انتهت المهلة" : "Timed out"))));
-            }, m);
-            Promise.resolve(p)
-              .then((v) => {
-                if (done) return;
-                done = true;
-                clearTimeout(t);
-                resolve(v);
-              })
-              .catch((e) => {
-                if (done) return;
-                done = true;
-                clearTimeout(t);
-                reject(e);
-              });
-          });
-        };
-
-        const getPlanKeySafe = () => {
-          const k = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
-          return k || "basic";
-        };
-
-        const planName = (planKey) => {
-          const k = String(planKey || "").trim().toLowerCase() || "basic";
-          if (!isArabic()) return planLabel(k);
-          if (k === "business") return "بزنس";
-          if (k === "pro") return "برو";
-          return "بيزك";
-        };
-
-        const baseAllowedExt = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
-        const proAllowedExt = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm", "css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"]);
-        const bannedUploadExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "htm", "sh", "bat", "cmd", "ps1", "jar", "com", "scr", "msi"]);
-
-        const normalizeUploadExt = (ext) => {
-          const s = String(ext || "").trim().toLowerCase();
-          return s.replace(/^[.]/, "").replace(/[^a-z0-9]+/g, "");
-        };
-
-        const isExtAllowedForPlan = (planKey, ext) => {
-          const k = String(planKey || "").trim().toLowerCase() || "basic";
-          const e = normalizeUploadExt(ext);
-          if (!e) return true;
-          if (bannedUploadExt.has(e)) return false;
-          if (k !== "pro" && k !== "business" && e === "svg") return false;
-          if (k === "business") return true;
-          const allowed = k === "pro" ? proAllowedExt : baseAllowedExt;
-          return allowed.has(e);
-        };
-
-        const toastFileTypePlanBlockByExt = (ext, planKey) => {
-          const k = String(planKey || "").trim().toLowerCase() || "basic";
-          const e = normalizeUploadExt(ext);
-          const extText = e ? String(e).toUpperCase() : (isArabic() ? "غير معروف" : "Unknown");
-          if (bannedUploadExt.has(e)) {
-            toastError(
-              isArabic() ? ("نوع الملف " + extText + " غير مسموح لأسباب أمنية.") : ("File type " + extText + " is not allowed for security reasons."),
-              isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
-            );
-            return;
-          }
-          const baseList = "JPG/JPEG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
-          const proList = baseList + ", SVG, ZIP, JSON, CSS, TTF, WOFF, WOFF2, EOT, OTF, TIFF";
-          const list = k === "pro" || k === "business" ? proList : baseList;
-          toastError(
-            isArabic()
-              ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName(k) + ". الصيغ المتاحة: " + list + ".")
-              : ("File type " + extText + " is not allowed on " + planName(k) + ". Allowed formats: " + list + "."),
-            isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
-          );
         };
 
         const refreshDashboard = async (force) => {
@@ -2142,13 +1975,9 @@ const mount = () => {
                 ? "Please select videos only"
                 : "Please select images only";
           } else if (keep.length > maxFiles) {
-            state.convertError = "";
-            toastError(
-              isArabic()
-                ? ("باقتك لا تسمح بتحويل هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(keep.length) + " — سيتم استخدام أول " + String(maxFiles) + " فقط.")
-                : ("Your plan doesn't allow converting this many. Max is " + String(maxFiles) + " files. You selected " + String(keep.length) + " — only the first " + String(maxFiles) + " will be used."),
-              isArabic() ? "حد الباقة" : "Plan limit"
-            );
+            state.convertError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " ملف فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be used";
           } else {
             state.convertError = "";
           }
@@ -2450,26 +2279,15 @@ const mount = () => {
             }
 
             const rt = guessResourceType(file);
-            const planKey = getPlanKeySafe();
-            if (!isExtAllowedForPlan(planKey, ext)) {
-              it.uploading = false;
-              it.uploadProgress = 0;
-              it.uploadError = isArabic() ? "نوع الملف غير مسموح" : "File type not allowed";
-              render();
-              toastClose(toastId);
-              toastFileTypePlanBlockByExt(ext, planKey);
-              return;
-            }
-
-            const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
-            const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct) => {
+            const sign = await getSignature(rt, file);
+            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
               try {
                 it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
                 render();
               } catch {}
-            }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
+            });
 
-            const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
+            const saved = await recordAsset(uploaded);
             try {
               clearMediaApiCache();
             } catch {}
@@ -2752,13 +2570,9 @@ const mount = () => {
           if (!chosen.length && fs.length) {
             state.compressError = isArabic() ? "اختر صور فقط" : "Please select images only";
           } else if (imgs.length > maxFiles) {
-            state.compressError = "";
-            toastError(
-              isArabic()
-                ? ("باقتك لا تسمح بضغط هذا العدد. الحد الأقصى " + String(maxFiles) + " صور فقط. تم اختيار " + String(imgs.length) + " — سيتم استخدام أول " + String(maxFiles) + " فقط.")
-                : ("Your plan doesn't allow compressing this many. Max is " + String(maxFiles) + " images. You selected " + String(imgs.length) + " — only the first " + String(maxFiles) + " will be used."),
-              isArabic() ? "حد الباقة" : "Plan limit"
-            );
+            state.compressError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم أخذ أول " + String(maxFiles) + " صورة فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " images will be used";
           } else {
             state.compressError = "";
           }
@@ -3100,27 +2914,15 @@ const mount = () => {
             }
 
             const rt = guessResourceType(file);
-            const planKey = getPlanKeySafe();
-            if (!isExtAllowedForPlan(planKey, ext)) {
-              it.uploading = false;
-              it.uploadProgress = 0;
-              it.uploadError = isArabic() ? "نوع الملف غير مسموح" : "File type not allowed";
-              state.compressUploadingAny = items.some((x) => x && x.uploading);
-              render();
-              toastClose(toastId);
-              toastFileTypePlanBlockByExt(ext, planKey);
-              return;
-            }
-
-            const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
-            const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct) => {
+            const sign = await getSignature(rt, file);
+            const uploaded = await uploadToCloudinary(file, sign, (pct) => {
               try {
                 it.uploadProgress = Number.isFinite(pct) ? pct : it.uploadProgress;
                 render();
               } catch {}
-            }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
+            });
 
-            const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
+            const saved = await recordAsset(uploaded);
             try {
               clearMediaApiCache();
             } catch {}
@@ -3343,6 +3145,7 @@ const mount = () => {
                   onFiles: (fs) => runUploads(fs)
                 })
               );
+              if (state.uploadError) uploadCard.appendChild(renderError(state.uploadError));
               sheet.content.appendChild(uploadCard);
             }
             appendLegalFooter();
@@ -3530,173 +3333,69 @@ const mount = () => {
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
           const maxFiles = maxUploadFilesForPlan(planKey || "basic");
           const chosen = fs0.slice(0, maxFiles);
-          state.uploadError = "";
-
-          const planName = () => {
-            if (!isArabic()) return planLabel(planKey || "basic");
-            if (planKey === "business") return "بزنس";
-            if (planKey === "pro") return "برو";
-            return "بيزك";
-          };
-
           if (fs0.length > chosen.length) {
-            toastError(
-              isArabic()
-                ? ("باقتك (" + planName() + ") لا تسمح برفع هذا العدد. الحد الأقصى " + String(maxFiles) + " ملفات فقط. تم اختيار " + String(fs0.length) + " — سيتم رفع أول " + String(maxFiles) + " فقط.")
-                : (String(planName()) + " plan doesn't allow this count. Max is " + String(maxFiles) + " files. You selected " + String(fs0.length) + " — only the first " + String(maxFiles) + " will be uploaded."),
-              isArabic() ? "حد الباقة" : "Plan limit"
-            );
+            state.uploadError = isArabic()
+              ? "تم اختيار أكثر من المسموح — سيتم رفع أول " + String(maxFiles) + " ملف فقط"
+              : "You selected more than allowed — only the first " + String(maxFiles) + " files will be uploaded";
+          } else {
+            state.uploadError = "";
           }
-
-          const withTimeout = (p, ms, msg) => {
-            const m = Math.max(250, Number(ms || 0) || 0);
-            return new Promise((resolve, reject) => {
-              let done = false;
-              const t = setTimeout(() => {
-                if (done) return;
-                done = true;
-                reject(new Error(String(msg || (isArabic() ? "انتهت المهلة" : "Timed out"))));
-              }, m);
-              Promise.resolve(p)
-                .then((v) => {
-                  if (done) return;
-                  done = true;
-                  clearTimeout(t);
-                  resolve(v);
-                })
-                .catch((e) => {
-                  if (done) return;
-                  done = true;
-                  clearTimeout(t);
-                  reject(e);
-                });
-            });
-          };
-
-          const baseAllowed = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
-          const proExtra = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
-          const bannedExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "htm", "sh", "bat", "cmd", "ps1", "jar", "com", "scr", "msi"]);
-          const allowedExt = (() => {
-            if (planKey === "business") return null;
-            const set = new Set(Array.from(baseAllowed));
-            if (planKey === "pro") for (let i = 0; i < proExtra.length; i += 1) set.add(proExtra[i]);
-            return set;
-          })();
-
-          const normalizeExt = (file) => {
-            const raw = getExt(file && file.name);
-            const s = String(raw || "").trim().toLowerCase();
-            return s.replace(/^[.]/, "").replace(/[^a-z0-9]+/g, "");
-          };
-
-          const isExtAllowed = (ext) => {
-            const e = String(ext || "").trim().toLowerCase();
-            if (!e) return true;
-            if (bannedExt.has(e)) return false;
-            if (planKey !== "pro" && planKey !== "business" && e === "svg") return false;
-            if (allowedExt && !allowedExt.has(e)) return false;
-            return true;
-          };
-
-          const toastFileTypePlanBlock = (file) => {
-            const f = file || null;
-            const ext = normalizeExt(f);
-            const extText = ext ? String(ext).toUpperCase() : (isArabic() ? "غير معروف" : "Unknown");
-            const baseList = "JPG/JPEG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF";
-            const proList = baseList + ", SVG, ZIP, JSON, CSS, TTF, WOFF, WOFF2, EOT, OTF, TIFF";
-            const list = planKey === "pro" ? proList : baseList;
-            toastError(
-              isArabic()
-                ? ("نوع الملف " + extText + " غير مسموح في باقة " + planName() + ". الصيغ المتاحة: " + list + ".")
-                : ("File type " + extText + " is not allowed on " + planName() + ". Allowed formats: " + list + "."),
-              isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
-            );
-          };
-
+          if (state.uploadError) toastWarn(state.uploadError);
+          state.uploading = true;
           state.uploads = [];
-          let validCount = 0;
 
           for (let i = 0; i < chosen.length; i += 1) {
             const f = chosen[i];
             if (!f) continue;
-            const ext = normalizeExt(f);
-            const okExt = isExtAllowed(ext);
             state.uploads.push({
               name: String(f.name || ""),
               size: Number(f.size || 0) || 0,
-              status: okExt ? "queued" : "error",
-              error: okExt ? "" : (isArabic() ? "نوع الملف غير مسموح" : "File type not allowed"),
-              errorCode: okExt ? "" : "FILE_TYPE_NOT_ALLOWED",
+              status: "queued",
+              error: "",
               url: "",
               progress: 0,
               loaded: 0,
               total: Number(f.size || 0) || 0
             });
-            if (okExt) validCount += 1;
           }
 
           render();
 
-          if (!validCount) {
-            for (let i = 0; i < chosen.length; i += 1) {
-              const file = chosen[i];
-              const rec = state.uploads[i];
-              if (!file || !rec || String(rec.status || "") !== "error") continue;
-              toastFileTypePlanBlock(file);
-              break;
-            }
-            try {
-              refreshDashboard();
-            } catch {}
-            return;
-          }
-
-          state.uploading = true;
           const toastId = toastLoading(
             isArabic()
-              ? ("جاري رفع " + String(validCount) + " ملف...")
-              : ("Uploading " + String(validCount) + " files...")
+              ? ("جاري رفع " + String(chosen.length) + " ملف...")
+              : ("Uploading " + String(chosen.length) + " files...")
           );
           let errToastBudget = 3;
-          let uploadedIndex = 0;
           for (let i = 0; i < chosen.length; i += 1) {
             const file = chosen[i];
             if (!file) continue;
             const rec = state.uploads[i];
-            if (!rec || String(rec.status || "") === "error") {
-              if (errToastBudget > 0) {
-                errToastBudget -= 1;
-                toastFileTypePlanBlock(file);
-              }
-              continue;
-            }
-            uploadedIndex += 1;
             try {
               toastUpdate(toastId, {
                 title: isArabic() ? "جاري الرفع" : "Uploading",
                 message: isArabic()
-                  ? ("ملف " + String(uploadedIndex) + " / " + String(validCount) + (file && file.name ? " — " + String(file.name || "") : ""))
-                  : ("File " + String(uploadedIndex) + " / " + String(validCount) + (file && file.name ? " — " + String(file.name || "") : ""))
+                  ? ("ملف " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
+                  : ("File " + String(i + 1) + " / " + String(chosen.length) + (file && file.name ? " — " + String(file.name || "") : ""))
               });
               rec.status = "uploading";
               rec.error = "";
-              rec.errorCode = "";
               rec.url = "";
               rec.progress = 0;
               rec.loaded = 0;
               rec.total = Number(file.size || rec.size || 0) || 0;
               render();
               const rt = guessResourceType(file);
-              const sign = await withTimeout(getSignature(rt, file), 15000, isArabic() ? "فشل طلب الرفع (انتهت المهلة)" : "Signature request timed out");
-              const uploaded = await withTimeout(uploadToCloudinary(file, sign, (pct, loaded, total) => {
+              const sign = await getSignature(rt, file);
+              const uploaded = await uploadToCloudinary(file, sign, (pct, loaded, total) => {
                 try {
                   rec.progress = Number.isFinite(pct) ? pct : rec.progress;
                   rec.loaded = Number.isFinite(loaded) ? loaded : rec.loaded;
                   rec.total = Number.isFinite(total) ? total : rec.total;
                   render();
                 } catch {}
-              }), 120000, isArabic() ? "الرفع استغرق وقت طويل" : "Upload took too long");
-              const saved = await withTimeout(recordAsset(uploaded), 15000, isArabic() ? "فشل تسجيل الملف (انتهت المهلة)" : "Save request timed out");
+              });
+              const saved = await recordAsset(uploaded);
               try {
                 clearMediaApiCache();
               } catch {}
@@ -3708,20 +3407,10 @@ const mount = () => {
             } catch (e) {
               rec.status = "error";
               rec.error = friendlyApiErrorMessage(e);
-              try {
-                const payload = e && e.details && typeof e.details === "object" ? e.details : null;
-                rec.errorCode = String((payload && payload.code) || (e && e.code) || "").trim();
-              } catch {
-                rec.errorCode = "";
-              }
               render();
               if (errToastBudget > 0) {
                 errToastBudget -= 1;
-                if (String(rec.errorCode || "") === "FILE_TYPE_NOT_ALLOWED") {
-                  toastFileTypePlanBlock(file);
-                } else {
-                  toastError(rec.error, (isArabic() ? "فشل رفع الملف" : "Upload failed") + (file && file.name ? ": " + String(file.name || "") : ""));
-                }
+                toastError(rec.error, (isArabic() ? "فشل رفع الملف" : "Upload failed") + (file && file.name ? ": " + String(file.name || "") : ""));
               }
             }
           }
@@ -3732,33 +3421,8 @@ const mount = () => {
           try {
             const ok = state.uploads.filter((x) => x && String(x.status || "") === "done").length;
             const failed = state.uploads.filter((x) => x && String(x.status || "") === "error").length;
-            if (!failed) {
-              toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
-            } else if (!ok && failed) {
-              const codes = [];
-              for (let i = 0; i < state.uploads.length; i += 1) {
-                const x = state.uploads[i];
-                if (!x || String(x.status || "") !== "error") continue;
-                const c = String(x.errorCode || "").trim();
-                if (c && codes.indexOf(c) === -1) codes.push(c);
-              }
-              if (codes.length === 1 && codes[0] === "FILE_TYPE_NOT_ALLOWED") {
-                toastError(
-                  isArabic()
-                    ? ("باقتك (" + planName() + ") لا تسمح بالصيغ التي اخترتها. الصيغ المتاحة: JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF.")
-                    : ("Your plan (" + planName() + ") doesn't allow the formats you selected. Allowed: JPG, PNG, WEBP, AVIF, GIF, MP4, WEBM, PDF."),
-                  isArabic() ? "نوع ملف غير مسموح" : "File type not allowed"
-                );
-              } else {
-                toastError(isArabic() ? "فشل رفع الملفات" : "Upload failed", isArabic() ? "فشل" : "Failed");
-              }
-            } else {
-              toastWarn(
-                isArabic()
-                  ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)")
-                  : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)")
-              );
-            }
+            if (!failed) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
+            else toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)"));
           } catch {}
           state.type = state.type || "";
           state.page = 1;
