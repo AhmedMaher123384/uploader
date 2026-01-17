@@ -3690,7 +3690,7 @@ const mount = () => {
               ? ("الصيغ المتاحة في باقة " + planName + ":")
               : ("Allowed formats on " + planName + ":");
             const lines = parts.length ? parts.map((x) => "• " + x) : ["• —"];
-            return head + "\n" + lines.join("\n");
+            return head + "\\n" + lines.join("\\n");
           };
 
           const buildSingleRejectToast = (r) => {
@@ -3722,8 +3722,8 @@ const mount = () => {
                     : "";
 
               return isArabic()
-                ? ("صيغة ." + extLabel + " غير متاحة في باقتك (" + planName + ").\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\n" + upgradeHint) : ""))
-                : ("." + extLabel + " is not allowed on your plan (" + planName + ").\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\n" + upgradeHint) : ""));
+                ? ("صيغة ." + extLabel + " غير متاحة في باقتك (" + planName + ").\\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\\n" + upgradeHint) : ""))
+                : ("." + extLabel + " is not allowed on your plan (" + planName + ").\\n" + buildAllowedSummaryForPlan() + (upgradeHint ? ("\\n" + upgradeHint) : ""));
             }
             if (reason === "file_too_big") {
               return isArabic()
