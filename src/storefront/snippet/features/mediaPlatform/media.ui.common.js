@@ -677,14 +677,18 @@ const buildSheet = () => {
   content.style.minHeight = "0";
   content.style.overflow = "auto";
 
+  const footer = document.createElement("div");
+  footer.style.flex = "0 0 auto";
+
   body.appendChild(topRow);
   body.appendChild(uploads);
   body.appendChild(content);
+  body.appendChild(footer);
   panel.appendChild(head);
   panel.appendChild(body);
   overlay.appendChild(panel);
 
-  return { overlay, closeBtn: close, tabs, actions, uploads, content };
+  return { overlay, closeBtn: close, tabs, actions, uploads, content, footer };
 };
 `,
   `

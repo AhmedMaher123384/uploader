@@ -461,12 +461,11 @@ const bannedExt = new Set(["exe", "js", "mjs", "cjs", "php", "phtml", "html", "h
 const getAllowedExtForPlan = (planKey) => {
   const k = String(planKey || "").trim().toLowerCase();
   const base = new Set(["gif", "pdf", "jpg", "jpeg", "png", "webp", "avif", "mp4", "webm"]);
-  if (k === "pro") {
+  if (k === "pro" || k === "business") {
     const proOnly = ["css", "zip", "json", "otf", "tiff", "tif", "svg", "ttf", "woff", "woff2", "eot"];
     for (let i = 0; i < proOnly.length; i += 1) base.add(proOnly[i]);
     return base;
   }
-  if (k === "business") return null;
   return base;
 };
 
@@ -485,8 +484,7 @@ const fmtExtSet = (set, maxItems) => {
 
 const acceptForUploadPlan = (planKey) => {
   const k = String(planKey || "").trim().toLowerCase();
-  if (k === "business") return "*/*";
-  if (k === "pro") return "image/*,video/*,application/pdf,.zip,.json,.svg,.css,.woff,.woff2,.ttf,.otf,.eot";
+  if (k === "pro" || k === "business") return "image/*,video/*,application/pdf,.zip,.json,.svg,.css,.woff,.woff2,.ttf,.otf,.eot";
   return "image/*,video/mp4,video/webm,application/pdf";
 };
 
@@ -3247,10 +3245,11 @@ const mount = () => {
             sheet.actions.innerHTML = "";
             sheet.uploads.innerHTML = "";
             sheet.content.innerHTML = "";
+            sheet.footer.innerHTML = "";
 
             const appendLegalFooter = () => {
               try {
-                sheet.content.appendChild(buildLegalFooter());
+                sheet.footer.appendChild(buildLegalFooter());
               } catch {}
             };
 
