@@ -11,11 +11,8 @@ function loadConfig() {
     port: Number(process.env.PORT || 3000),
     mongodbUri: process.env.MONGODB_URI,
     mongodbDbName: process.env.MONGODB_DB_NAME || "bundles_app",
-    cloudinary: {
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      apiKey: process.env.CLOUDINARY_API_KEY,
-      apiSecret: process.env.CLOUDINARY_API_SECRET,
-      folderPrefix: process.env.CLOUDINARY_FOLDER_PREFIX || "bundle_app"
+    media: {
+      folderPrefix: process.env.MEDIA_FOLDER_PREFIX || "malak_uploader"
     },
     r2: {
       endpoint: process.env.R2_ENDPOINT,

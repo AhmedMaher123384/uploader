@@ -65,7 +65,7 @@ function makeConfig() {
     port: 0,
     mongodbUri: undefined,
     mongodbDbName: "test",
-    cloudinary: { cloudName: "x", apiKey: "y", apiSecret: "z", folderPrefix: "bundle_app" },
+    media: { folderPrefix: "malak_uploader" },
     salla: {
       apiBaseUrl: "https://example.invalid",
       oauthAuthorizeUrl: "https://example.invalid",
@@ -109,10 +109,10 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -180,10 +180,10 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -231,10 +231,10 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -276,10 +276,10 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -327,10 +327,10 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -379,18 +379,18 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "abcdef";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
     const placeholder = {
       _id: "ph1",
       storeId: "123",
-      publicId: `bundle_app/123/phimg`,
+      publicId: `malak_uploader/123/phimg`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/phimg.png"
+      secureUrl: "https://example.invalid/media/123/phimg.png"
     };
 
     MediaAsset.findOne.mockImplementation((q) => ({
@@ -431,18 +431,18 @@ describe("GET /api/m/:storeId/:leaf", () => {
     const leaf = "vvv111";
     const asset = {
       storeId: "123",
-      publicId: `bundle_app/123/${leaf}`,
+      publicId: `malak_uploader/123/${leaf}`,
       deletedAt: null,
       resourceType: "video",
-      secureUrl: "https://res.cloudinary.com/x/video/upload/v1/bundle_app/123/vvv111.mp4"
+      secureUrl: "https://example.invalid/media/123/vvv111.mp4"
     };
     const placeholder = {
       _id: "vph1",
       storeId: "123",
-      publicId: `bundle_app/123/vph`,
+      publicId: `malak_uploader/123/vph`,
       deletedAt: null,
       resourceType: "video",
-      secureUrl: "https://res.cloudinary.com/x/video/upload/v1/bundle_app/123/vph.mp4"
+      secureUrl: "https://example.invalid/media/123/vph.mp4"
     };
 
     MediaAsset.findOne.mockImplementation((q) => ({
@@ -494,10 +494,10 @@ describe("GET /cdn/:code", () => {
     const asset = {
       storeId: "123",
       shortCode: code,
-      publicId: `bundle_app/123/abcdef`,
+      publicId: `malak_uploader/123/abcdef`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -537,10 +537,10 @@ describe("GET /cdn/:code", () => {
     const asset = {
       storeId: "123",
       shortCode: code,
-      publicId: `bundle_app/123/abcdef`,
+      publicId: `malak_uploader/123/abcdef`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -571,10 +571,10 @@ describe("GET /cdn/:code", () => {
     const asset = {
       storeId: "123",
       shortCode: code,
-      publicId: `bundle_app/123/abcdef`,
+      publicId: `malak_uploader/123/abcdef`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({
@@ -635,10 +635,10 @@ describe("GET /cdn/:code", () => {
     const asset = {
       storeId: "123",
       shortCode: code,
-      publicId: `bundle_app/123/abcdef`,
+      publicId: `malak_uploader/123/abcdef`,
       deletedAt: null,
       resourceType: "image",
-      secureUrl: "https://res.cloudinary.com/x/image/upload/v1/bundle_app/123/abcdef.png"
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
     };
 
     MediaAsset.findOne.mockImplementation(() => ({

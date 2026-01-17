@@ -301,26 +301,8 @@ function createApiRouter(config) {
 
   router.use("/oauth/salla", createOAuthRouter(config));
 
-  function requireCloudinaryConfig() {
-    const cloudName = String(config?.cloudinary?.cloudName || "").trim();
-    const apiKey = String(config?.cloudinary?.apiKey || "").trim();
-    const apiSecret = String(config?.cloudinary?.apiSecret || "").trim();
-    const folderPrefix = String(config?.cloudinary?.folderPrefix || "bundle_app").trim() || "bundle_app";
-    if (!cloudName || !apiKey || !apiSecret) {
-      throw new ApiError(500, "Cloudinary is not configured", { code: "CLOUDINARY_NOT_CONFIGURED" });
-    }
-    return { cloudName, apiKey, apiSecret, folderPrefix };
-  }
-
   function getMediaFolderPrefix() {
-    return String(config?.cloudinary?.folderPrefix || "bundle_app").trim() || "bundle_app";
-  }
-
-  function isCloudinaryConfigured() {
-    const cloudName = String(config?.cloudinary?.cloudName || "").trim();
-    const apiKey = String(config?.cloudinary?.apiKey || "").trim();
-    const apiSecret = String(config?.cloudinary?.apiSecret || "").trim();
-    return Boolean(cloudName && apiKey && apiSecret);
+    return String(config?.media?.folderPrefix || "malak_uploader").trim() || "malak_uploader";
   }
 
   function requireR2Config() {
@@ -344,8 +326,7 @@ function createApiRouter(config) {
 
   function getMediaProviderOrThrow() {
     if (isR2Configured()) return "r2";
-    if (isCloudinaryConfigured()) return "cloudinary";
-    throw new ApiError(500, "Media storage is not configured", { code: "MEDIA_STORAGE_NOT_CONFIGURED" });
+    throw new ApiError(500, "R2 is not configured", { code: "R2_NOT_CONFIGURED" });
   }
 
   function getR2Client() {
@@ -461,15 +442,6 @@ function createApiRouter(config) {
     const body = resp && resp.Body ? await streamToBuffer(resp.Body, 512 * 1024) : Buffer.from("");
     const text = body.toString("utf8");
     if (!svgLooksSafe(text)) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
-  }
-
-  function cloudinarySign(params, apiSecret) {
-    const entries = Object.entries(params || {})
-      .filter(([, v]) => v != null && String(v) !== "")
-      .map(([k, v]) => [String(k), Array.isArray(v) ? v.map((x) => String(x)).join(",") : String(v)])
-      .sort(([a], [b]) => a.localeCompare(b));
-    const base = entries.map(([k, v]) => `${k}=${v}`).join("&");
-    return crypto.createHash("sha1").update(`${base}${apiSecret}`, "utf8").digest("hex");
   }
 
   function mediaFolderForMerchant(folderPrefix, merchantId) {
@@ -685,37 +657,6 @@ function createApiRouter(config) {
     return true;
   }
 
-  async function ensureSvgSafeOrThrow(url) {
-    const u = String(url || "").trim();
-    if (!u) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
-    let resp = null;
-    try {
-      resp = await axios.get(u, {
-        timeout: 12000,
-        responseType: "text",
-        maxContentLength: 512 * 1024,
-        maxBodyLength: 512 * 1024,
-        headers: { "Accept": "image/svg+xml,text/plain,*/*" }
-      });
-    } catch (e) {
-      throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID", details: { message: String(e?.message || e) } });
-    }
-    const body = typeof resp?.data === "string" ? resp.data : "";
-    if (!svgLooksSafe(body)) throw new ApiError(403, "Invalid SVG", { code: "SVG_INVALID" });
-  }
-
-  function cloudinaryUrlWithTransform(url, transform) {
-    const u = String(url || "").trim();
-    const t = String(transform || "").trim();
-    if (!u || !t) return u;
-    const idx = u.indexOf("/upload/");
-    if (idx < 0) return u;
-    const before = u.slice(0, idx + "/upload/".length);
-    const after = u.slice(idx + "/upload/".length);
-    if (after.startsWith(t + "/")) return u;
-    return `${before}${t}/${after}`;
-  }
-
   function bundleAppMarkSvgContent(id, opacity) {
     const gid = String(id || "g").trim() || "g";
     const o = opacity != null && Number.isFinite(Number(opacity)) ? Math.max(0, Math.min(1, Number(opacity))) : 1;
@@ -826,15 +767,6 @@ function createApiRouter(config) {
     const host = xfHost || String(req?.headers?.host || "").trim();
     if (!host) return "";
     return `${proto}://${host}`;
-  }
-
-  function cloudinaryWatermarkLogoTransform(req) {
-    const origin = externalOriginFromReq(req);
-    if (!origin) return "";
-    const storeId = String(req?.params?.storeId || "").trim();
-    const logoUrl = storeId ? `${origin}/api/media/watermark/${encodeURIComponent(storeId)}.png?w=360` : `${origin}/api/media/logo.svg`;
-    const enc = base64UrlEncodeUtf8(logoUrl);
-    return `l_fetch:${enc},g_south_east,x_18,y_18,w_0.18,fl_relative,o_70/fl_layer_apply`;
   }
 
   router.get("/media/logo.svg", (req, res) => {
@@ -1563,11 +1495,7 @@ function createApiRouter(config) {
       const baseUrl = String(asset.secureUrl || asset.url || "").trim();
       if (!baseUrl) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
-      let nextUrl = baseUrl;
-      if (stage === "watermark" && (String(asset.resourceType) === "image" || String(asset.resourceType) === "video")) {
-        const wm = cloudinaryWatermarkLogoTransform(req);
-        if (wm) nextUrl = cloudinaryUrlWithTransform(baseUrl, wm);
-      }
+      const nextUrl = baseUrl;
 
       const range = String(req.headers.range || "").trim();
       const upstreamHeaders = {};
@@ -1606,24 +1534,6 @@ function createApiRouter(config) {
       return next(err);
     }
   });
-
-  async function cloudinaryDestroyByPublicId({ resourceType, publicId }) {
-    const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = cloudinarySign({ public_id: String(publicId), timestamp }, apiSecret);
-
-    const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(resourceType)}/destroy`;
-    const body = new URLSearchParams();
-    body.set("public_id", String(publicId));
-    body.set("api_key", apiKey);
-    body.set("timestamp", String(timestamp));
-    body.set("signature", signature);
-
-    await axios.post(url, body.toString(), {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      timeout: 15000
-    });
-  }
 
   function normalizeSallaStoreInfo(raw) {
     if (!raw || typeof raw !== "object") return null;
@@ -1779,34 +1689,7 @@ function createApiRouter(config) {
           }
         });
       }
-
-      const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-      const timestamp = Math.floor(Date.now() / 1000);
-      const paramsToSign = {
-        folder,
-        timestamp,
-        public_id: publicId,
-        ...(contextStr ? { context: contextStr } : {}),
-        ...(tagsStr ? { tags: tagsStr } : {})
-      };
-      const signature = cloudinarySign(paramsToSign, apiSecret);
-
-      return res.json({
-        ok: true,
-        cloudinary: {
-          provider: "cloudinary",
-          cloudName,
-          apiKey,
-          resourceType: policy.resourceType,
-          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${policy.resourceType}/upload`,
-          folder,
-          publicId,
-          timestamp,
-          signature,
-          ...(contextStr ? { context: contextStr } : {}),
-          ...(tagsStr ? { tags: tagsStr } : {})
-        }
-      });
+      throw new ApiError(500, "Media provider is not supported", { code: "MEDIA_PROVIDER_NOT_SUPPORTED" });
     } catch (err) {
       return next(err);
     }
@@ -1899,12 +1782,8 @@ function createApiRouter(config) {
       if (used - prevBytes + nextBytes > limits.maxStorageBytes) throw new ApiError(403, "Storage limit exceeded", { code: "STORAGE_LIMIT_EXCEEDED" });
 
       if (String(c.format || "").toLowerCase() === "svg") {
-        if (isR2) {
-          await ensureSvgSafeR2OrThrow(r2Key);
-        } else {
-          const urlToCheck = String(c.secure_url || c.url || "").trim();
-          await ensureSvgSafeOrThrow(urlToCheck);
-        }
+        if (!isR2) throw new ApiError(500, "R2 is the only supported media provider", { code: "MEDIA_PROVIDER_NOT_SUPPORTED" });
+        await ensureSvgSafeR2OrThrow(r2Key);
       }
 
       const createdAt = c.created_at ? new Date(String(c.created_at)) : null;
@@ -2153,185 +2032,110 @@ function createApiRouter(config) {
       const storeId = merchantId;
       const folderPrefix = getMediaFolderPrefix();
       const folder = mediaFolderForMerchant(folderPrefix, merchantId);
-      const provider = getMediaProviderOrThrow();
+      getMediaProviderOrThrow();
 
       const maxResults = Number(value.maxResults);
 
       const upserted = [];
       const errors = [];
 
-      if (provider === "cloudinary") {
-        const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-        const types = value.resourceType === "all" ? ["image", "video"] : [String(value.resourceType)];
+      const wanted = new Set(value.resourceType === "all" ? ["image", "video", "raw"] : [String(value.resourceType || "raw")]);
+      const cleanFolder = String(folder || "").replace(/\/+$/g, "");
+      const prefix = cleanFolder ? `${cleanFolder}/` : "";
+      let remaining = maxResults;
+      let token = null;
 
-        for (const resourceType of types) {
-          let remaining = maxResults - upserted.length;
+      const inferResourceType = (key) => {
+        const k = String(key || "");
+        const leaf = k.includes("/") ? k.split("/").pop() : k;
+        const dot = leaf.lastIndexOf(".");
+        const ext = dot > 0 ? leaf.slice(dot + 1).toLowerCase() : "";
+        const img = new Set(["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "bmp", "tif", "tiff", "heic"]);
+        const vid = new Set(["mp4", "webm", "mov", "m4v", "mkv"]);
+        if (img.has(ext)) return { resourceType: "image", ext };
+        if (vid.has(ext)) return { resourceType: "video", ext };
+        return { resourceType: "raw", ext: ext || "" };
+      };
+
+      while (remaining > 0) {
+        let resp = null;
+        try {
+          resp = await r2ListObjectsV2({ prefix, continuationToken: token, maxKeys: Math.min(1000, Math.max(50, remaining * 4)) });
+        } catch (e) {
+          errors.push({ resourceType: "all", message: String(e?.message || e) });
+          break;
+        }
+
+        const items = Array.isArray(resp?.items) ? resp.items : [];
+        token = resp?.nextToken || null;
+
+        for (const it of items) {
+          const key = String(it?.key || "").trim();
+          if (!key || key.endsWith("/")) continue;
+          const { resourceType, ext } = inferResourceType(key);
+          if (!wanted.has(resourceType)) continue;
+
+          const baseDir = key.includes("/") ? key.split("/").slice(0, -1).join("/") : "";
+          const leaf = key.includes("/") ? key.split("/").pop() : key;
+          const lastMod = it?.lastModified && !Number.isNaN(it.lastModified.getTime()) ? it.lastModified : null;
+          const createdAtIso = lastMod ? lastMod.toISOString() : null;
+          const cloudinaryCreatedAt = lastMod ? lastMod : null;
+
+          const r = {
+            __provider: "r2",
+            provider: "r2",
+            r2_key: key,
+            key,
+            public_id: key,
+            asset_id: null,
+            resource_type: resourceType,
+            secure_url: null,
+            url: null,
+            bytes: it?.size != null ? Number(it.size) : null,
+            format: ext || null,
+            width: null,
+            height: null,
+            duration: null,
+            original_filename: leaf || null,
+            folder: baseDir || null,
+            tags: [],
+            context: null,
+            created_at: createdAtIso
+          };
+
+          const doc = await MediaAsset.findOneAndUpdate(
+            { storeId, publicId: String(r.public_id), deletedAt: null },
+            {
+              $set: {
+                merchantId,
+                storeId,
+                resourceType: String(r.resource_type),
+                publicId: String(r.public_id),
+                assetId: null,
+                folder: r.folder ? String(r.folder) : null,
+                originalFilename: r.original_filename ? String(r.original_filename) : null,
+                format: r.format ? String(r.format) : null,
+                bytes: r.bytes != null ? Number(r.bytes) : null,
+                width: null,
+                height: null,
+                duration: null,
+                url: null,
+                secureUrl: null,
+                thumbnailUrl: null,
+                tags: [],
+                context: null,
+                cloudinaryCreatedAt,
+                cloudinary: r
+              }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+          upserted.push(doc);
+          remaining -= 1;
           if (remaining <= 0) break;
-
-          let nextCursor = null;
-          while (remaining > 0) {
-            const payload = {
-              expression: `folder:${folder} AND resource_type:${resourceType}`,
-              max_results: Math.min(100, remaining)
-            };
-            if (nextCursor) payload.next_cursor = nextCursor;
-
-            let resp = null;
-            try {
-              resp = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/resources/search`, payload, {
-                auth: { username: apiKey, password: apiSecret },
-                timeout: 15000
-              });
-            } catch (e) {
-              errors.push({ resourceType, message: String(e?.response?.data?.error?.message || e?.message || e) });
-              break;
-            }
-
-            const resources = Array.isArray(resp?.data?.resources) ? resp.data.resources : [];
-            for (const r of resources) {
-              const createdAt = r.created_at ? new Date(String(r.created_at)) : null;
-              const cloudinaryCreatedAt = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : null;
-
-              const contextObj = r.context && typeof r.context === "object" ? r.context : null;
-              const ctx = contextObj && typeof contextObj.custom === "object" ? contextObj.custom : contextObj;
-
-              const doc = await MediaAsset.findOneAndUpdate(
-                { storeId, publicId: String(r.public_id), deletedAt: null },
-                {
-                  $set: {
-                    merchantId,
-                    storeId,
-                    resourceType: String(r.resource_type),
-                    publicId: String(r.public_id),
-                    assetId: r.asset_id ? String(r.asset_id) : null,
-                    folder: r.folder ? String(r.folder) : null,
-                    originalFilename: r.original_filename ? String(r.original_filename) : null,
-                    format: r.format ? String(r.format) : null,
-                    bytes: r.bytes != null ? Number(r.bytes) : null,
-                    width: r.width != null ? Number(r.width) : null,
-                    height: r.height != null ? Number(r.height) : null,
-                    duration: r.duration != null ? Number(r.duration) : null,
-                    url: r.url ? String(r.url) : null,
-                    secureUrl: r.secure_url ? String(r.secure_url) : null,
-                    thumbnailUrl: r.secure_url ? String(r.secure_url) : null,
-                    tags: Array.isArray(r.tags) ? r.tags.map((t) => String(t)).filter(Boolean) : [],
-                    context: ctx || null,
-                    cloudinaryCreatedAt,
-                    cloudinary: r
-                  }
-                },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-              );
-              upserted.push(doc);
-              remaining -= 1;
-              if (remaining <= 0) break;
-            }
-
-            nextCursor = String(resp?.data?.next_cursor || "").trim() || null;
-            if (!nextCursor || !resources.length || remaining <= 0) break;
-          }
         }
-      } else {
-        const wanted = new Set(
-          value.resourceType === "all" ? ["image", "video", "raw"] : [String(value.resourceType || "raw")]
-        );
-        const cleanFolder = String(folder || "").replace(/\/+$/g, "");
-        const prefix = cleanFolder ? `${cleanFolder}/` : "";
-        let remaining = maxResults;
-        let token = null;
 
-        const inferResourceType = (key) => {
-          const k = String(key || "");
-          const leaf = k.includes("/") ? k.split("/").pop() : k;
-          const dot = leaf.lastIndexOf(".");
-          const ext = dot > 0 ? leaf.slice(dot + 1).toLowerCase() : "";
-          const img = new Set(["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "bmp", "tif", "tiff", "heic"]);
-          const vid = new Set(["mp4", "webm", "mov", "m4v", "mkv"]);
-          if (img.has(ext)) return { resourceType: "image", ext };
-          if (vid.has(ext)) return { resourceType: "video", ext };
-          return { resourceType: "raw", ext: ext || "" };
-        };
-
-        while (remaining > 0) {
-          let resp = null;
-          try {
-            resp = await r2ListObjectsV2({ prefix, continuationToken: token, maxKeys: Math.min(1000, Math.max(50, remaining * 4)) });
-          } catch (e) {
-            errors.push({ resourceType: "all", message: String(e?.message || e) });
-            break;
-          }
-
-          const items = Array.isArray(resp?.items) ? resp.items : [];
-          token = resp?.nextToken || null;
-
-          for (const it of items) {
-            const key = String(it?.key || "").trim();
-            if (!key || key.endsWith("/")) continue;
-            const { resourceType, ext } = inferResourceType(key);
-            if (!wanted.has(resourceType)) continue;
-
-            const baseDir = key.includes("/") ? key.split("/").slice(0, -1).join("/") : "";
-            const leaf = key.includes("/") ? key.split("/").pop() : key;
-            const lastMod = it?.lastModified && !Number.isNaN(it.lastModified.getTime()) ? it.lastModified : null;
-            const createdAtIso = lastMod ? lastMod.toISOString() : null;
-            const cloudinaryCreatedAt = lastMod ? lastMod : null;
-
-            const r = {
-              __provider: "r2",
-              provider: "r2",
-              r2_key: key,
-              key,
-              public_id: key,
-              asset_id: null,
-              resource_type: resourceType,
-              secure_url: null,
-              url: null,
-              bytes: it?.size != null ? Number(it.size) : null,
-              format: ext || null,
-              width: null,
-              height: null,
-              duration: null,
-              original_filename: leaf || null,
-              folder: baseDir || null,
-              tags: [],
-              context: null,
-              created_at: createdAtIso
-            };
-
-            const doc = await MediaAsset.findOneAndUpdate(
-              { storeId, publicId: String(r.public_id), deletedAt: null },
-              {
-                $set: {
-                  merchantId,
-                  storeId,
-                  resourceType: String(r.resource_type),
-                  publicId: String(r.public_id),
-                  assetId: null,
-                  folder: r.folder ? String(r.folder) : null,
-                  originalFilename: r.original_filename ? String(r.original_filename) : null,
-                  format: r.format ? String(r.format) : null,
-                  bytes: r.bytes != null ? Number(r.bytes) : null,
-                  width: null,
-                  height: null,
-                  duration: null,
-                  url: null,
-                  secureUrl: null,
-                  thumbnailUrl: null,
-                  tags: [],
-                  context: null,
-                  cloudinaryCreatedAt,
-                  cloudinary: r
-                }
-              },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-            upserted.push(doc);
-            remaining -= 1;
-            if (remaining <= 0) break;
-          }
-
-          if (!token || !items.length) break;
-        }
+        if (!token || !items.length) break;
       }
 
       return res.json({
@@ -2361,29 +2165,12 @@ function createApiRouter(config) {
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
       const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
-      if (provider === "r2") {
-        const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
-        if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
-          throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-        }
-        await r2DeleteObject(String(asset.publicId));
-      } else {
-        const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-        const timestamp = Math.floor(Date.now() / 1000);
-        const signature = cloudinarySign({ public_id: String(asset.publicId), timestamp }, apiSecret);
-
-        const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(asset.resourceType)}/destroy`;
-        const body = new URLSearchParams();
-        body.set("public_id", String(asset.publicId));
-        body.set("api_key", apiKey);
-        body.set("timestamp", String(timestamp));
-        body.set("signature", signature);
-
-        await axios.post(url, body.toString(), {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          timeout: 15000
-        });
+      if (provider !== "r2") throw new ApiError(400, "Unsupported media provider", { code: "UNSUPPORTED_MEDIA_PROVIDER" });
+      const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
+      if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
+        throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       }
+      await r2DeleteObject(String(asset.publicId));
 
       asset.deletedAt = new Date();
       await asset.save();
@@ -2523,30 +2310,13 @@ function createApiRouter(config) {
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
       const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
-      if (provider === "r2") {
-        const storeId = String(asset.storeId || "").trim();
-        const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
-        if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
-          throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-        }
-        await r2DeleteObject(String(asset.publicId));
-      } else {
-        const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-        const timestamp = Math.floor(Date.now() / 1000);
-        const signature = cloudinarySign({ public_id: String(asset.publicId), timestamp }, apiSecret);
-
-        const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(asset.resourceType)}/destroy`;
-        const body = new URLSearchParams();
-        body.set("public_id", String(asset.publicId));
-        body.set("api_key", apiKey);
-        body.set("timestamp", String(timestamp));
-        body.set("signature", signature);
-
-        await axios.post(url, body.toString(), {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          timeout: 15000
-        });
+      if (provider !== "r2") throw new ApiError(400, "Unsupported media provider", { code: "UNSUPPORTED_MEDIA_PROVIDER" });
+      const storeId = String(asset.storeId || "").trim();
+      const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
+      if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
+        throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       }
+      await r2DeleteObject(String(asset.publicId));
 
       asset.deletedAt = new Date();
       await asset.save();
@@ -2583,47 +2353,20 @@ function createApiRouter(config) {
       const toPublicId = baseDir ? `${baseDir}/${newLeaf}` : newLeaf;
 
       const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
-      if (provider === "r2") {
-        await r2CopyObject(fromPublicId, toPublicId);
-        await r2DeleteObject(fromPublicId);
-        asset.publicId = toPublicId;
-        asset.folder = baseDir || asset.folder;
-        asset.url = null;
-        asset.secureUrl = null;
-        asset.thumbnailUrl = null;
-        if (asset.cloudinary && typeof asset.cloudinary === "object") {
-          asset.cloudinary.public_id = toPublicId;
-          asset.cloudinary.r2_key = toPublicId;
-          asset.cloudinary.key = toPublicId;
-        }
-        await asset.save();
-      } else {
-        const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-        const timestamp = Math.floor(Date.now() / 1000);
-        const signature = cloudinarySign({ from_public_id: fromPublicId, timestamp, to_public_id: toPublicId }, apiSecret);
-
-        const url = `https://api.cloudinary.com/v1_1/${cloudName}/${String(asset.resourceType)}/rename`;
-        const body = new URLSearchParams();
-        body.set("from_public_id", fromPublicId);
-        body.set("to_public_id", toPublicId);
-        body.set("api_key", apiKey);
-        body.set("timestamp", String(timestamp));
-        body.set("signature", signature);
-
-        const resp = await axios.post(url, body.toString(), {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          timeout: 15000
-        });
-
-        const nextPublicId = String(resp?.data?.public_id || toPublicId).trim() || toPublicId;
-        asset.publicId = nextPublicId;
-        asset.assetId = resp?.data?.asset_id ? String(resp.data.asset_id) : asset.assetId;
-        asset.url = resp?.data?.url ? String(resp.data.url) : asset.url;
-        asset.secureUrl = resp?.data?.secure_url ? String(resp.data.secure_url) : asset.secureUrl;
-        asset.thumbnailUrl = resp?.data?.secure_url ? String(resp.data.secure_url) : asset.thumbnailUrl;
-        asset.cloudinaryCreatedAt = resp?.data?.created_at ? new Date(resp.data.created_at) : asset.cloudinaryCreatedAt;
-        await asset.save();
+      if (provider !== "r2") throw new ApiError(400, "Unsupported media provider", { code: "UNSUPPORTED_MEDIA_PROVIDER" });
+      await r2CopyObject(fromPublicId, toPublicId);
+      await r2DeleteObject(fromPublicId);
+      asset.publicId = toPublicId;
+      asset.folder = baseDir || asset.folder;
+      asset.url = null;
+      asset.secureUrl = null;
+      asset.thumbnailUrl = null;
+      if (asset.cloudinary && typeof asset.cloudinary === "object") {
+        asset.cloudinary.public_id = toPublicId;
+        asset.cloudinary.r2_key = toPublicId;
+        asset.cloudinary.key = toPublicId;
       }
+      await asset.save();
 
       for (const key of publicCache.keys()) {
         if (String(key || "").startsWith("public:media:")) publicCache.delete(key);
@@ -3817,18 +3560,15 @@ function createApiRouter(config) {
       const asset = await MediaAsset.findOne({ _id: String(pValue.id), storeId, deletedAt: null });
       if (!asset) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
 
-      const expectedPrefix = `${String(config?.cloudinary?.folderPrefix || "bundle_app").trim().replace(/\/+$/g, "")}/${storeId}/`;
+      const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
       if (!String(asset.publicId || "").startsWith(expectedPrefix)) {
         throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       }
 
       try {
         const provider = String(asset?.cloudinary?.__provider || asset?.cloudinary?.provider || "").trim().toLowerCase();
-        if (provider === "r2") {
-          await r2DeleteObject(String(asset.publicId));
-        } else {
-          await cloudinaryDestroyByPublicId({ resourceType: String(asset.resourceType), publicId: String(asset.publicId) });
-        }
+        if (provider !== "r2") throw new ApiError(400, "Unsupported media provider", { code: "UNSUPPORTED_MEDIA_PROVIDER" });
+        await r2DeleteObject(String(asset.publicId));
       } catch (e) {
         const msg = String(e?.response?.data?.error?.message || e?.message || e);
         throw new ApiError(502, "Bad gateway", { code: "BAD_GATEWAY", details: { message: msg } });
@@ -3886,7 +3626,6 @@ function createApiRouter(config) {
       if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
 
       const merchantId = String(qValue.merchantId);
-      const timestamp = Math.floor(Date.now() / 1000);
       const provider = getMediaProviderOrThrow();
       const folderPrefix = getMediaFolderPrefix();
       const folder = mediaFolderForMerchant(folderPrefix, merchantId);
@@ -3924,37 +3663,13 @@ function createApiRouter(config) {
             folder,
             publicId,
             key,
-            contentType
+            contentType,
+            ...(contextStr ? { context: contextStr } : {}),
+            ...(tagsStr ? { tags: tagsStr } : {})
           }
         });
       }
-
-      const { cloudName, apiKey, apiSecret } = requireCloudinaryConfig();
-      const paramsToSign = {
-        folder,
-        timestamp,
-        public_id: publicId,
-        ...(contextStr ? { context: contextStr } : {}),
-        ...(tagsStr ? { tags: tagsStr } : {})
-      };
-      const signature = cloudinarySign(paramsToSign, apiSecret);
-
-      return res.json({
-        ok: true,
-        cloudinary: {
-          provider: "cloudinary",
-          cloudName,
-          apiKey,
-          resourceType: policy.resourceType,
-          uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${policy.resourceType}/upload`,
-          folder,
-          publicId,
-          timestamp,
-          signature,
-          ...(contextStr ? { context: contextStr } : {}),
-          ...(tagsStr ? { tags: tagsStr } : {})
-        }
-      });
+      throw new ApiError(500, "Media provider is not supported", { code: "MEDIA_PROVIDER_NOT_SUPPORTED" });
     } catch (err) {
       return next(err);
     }
@@ -3993,13 +3708,10 @@ function createApiRouter(config) {
       const provider = String(c.__provider || c.provider || "").trim().toLowerCase();
       const isR2 = provider === "r2";
       const r2Key = isR2 ? String(c.r2_key || c.key || c.public_id || "").trim() : "";
+      if (!isR2) throw new ApiError(400, "Unsupported media provider", { code: "UNSUPPORTED_MEDIA_PROVIDER" });
       const destroyUploaded = async () => {
-        if (isR2) {
-          if (!r2Key) return;
-          await r2DeleteObject(r2Key);
-          return;
-        }
-        await cloudinaryDestroyByPublicId({ resourceType: String(c.resource_type), publicId: String(c.public_id) });
+        if (!r2Key) return;
+        await r2DeleteObject(r2Key);
       };
 
       const planKey = getPlanKey(merchant);
@@ -4024,29 +3736,22 @@ function createApiRouter(config) {
       }
 
       const expectedPrefix = `${getMediaFolderPrefix().replace(/\/+$/g, "")}/${storeId}/`;
-      if (isR2) {
-        if (!r2Key) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
-        if (!r2Key.startsWith(expectedPrefix)) {
-          await destroyUploaded().catch(() => undefined);
-          throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-        }
-        let head = null;
-        try {
-          head = await r2HeadObject(r2Key);
-        } catch (e) {
-          await destroyUploaded().catch(() => undefined);
-          throw new ApiError(404, "Not found", { code: "NOT_FOUND", details: { message: String(e?.message || e) } });
-        }
-        const actualBytes = Number(head?.ContentLength || 0) || 0;
-        c.bytes = actualBytes || c.bytes;
-        c.public_id = r2Key;
-        if (!c.folder) c.folder = r2Key.includes("/") ? r2Key.split("/").slice(0, -1).join("/") : "";
-      } else {
-        if (!String(c.public_id || "").startsWith(expectedPrefix)) {
-          await destroyUploaded().catch(() => undefined);
-          throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-        }
+      if (!r2Key) throw new ApiError(400, "Validation error", { code: "VALIDATION_ERROR" });
+      if (!r2Key.startsWith(expectedPrefix)) {
+        await destroyUploaded().catch(() => undefined);
+        throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
       }
+      let head = null;
+      try {
+        head = await r2HeadObject(r2Key);
+      } catch (e) {
+        await destroyUploaded().catch(() => undefined);
+        throw new ApiError(404, "Not found", { code: "NOT_FOUND", details: { message: String(e?.message || e) } });
+      }
+      const actualBytes = Number(head?.ContentLength || 0) || 0;
+      c.bytes = actualBytes || c.bytes;
+      c.public_id = r2Key;
+      if (!c.folder) c.folder = r2Key.includes("/") ? r2Key.split("/").slice(0, -1).join("/") : "";
 
       const prev = await MediaAsset.findOne({ storeId, publicId: String(c.public_id), deletedAt: null }).lean();
       const used = await getStoreUsedBytesCached(storeId);
@@ -4066,12 +3771,7 @@ function createApiRouter(config) {
 
       if (String(c.format || "").toLowerCase() === "svg") {
         try {
-          if (isR2) {
-            await ensureSvgSafeR2OrThrow(r2Key);
-          } else {
-            const urlToCheck = String(c.secure_url || c.url || "").trim();
-            await ensureSvgSafeOrThrow(urlToCheck);
-          }
+          await ensureSvgSafeR2OrThrow(r2Key);
         } catch (e) {
           await destroyUploaded().catch(() => undefined);
           throw e;

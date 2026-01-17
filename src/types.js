@@ -4,11 +4,8 @@
  * @property {string|undefined} mongodbUri
  * @property {string} mongodbDbName
  * @property {{
- *   cloudName: string|undefined,
- *   apiKey: string|undefined,
- *   apiSecret: string|undefined,
  *   folderPrefix: string
- * }} cloudinary
+ * }} media
  * @property {{
  *   endpoint: string|undefined,
  *   bucket: string|undefined,
