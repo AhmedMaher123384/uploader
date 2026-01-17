@@ -424,6 +424,7 @@ const renderCompressionPlatform = (opts) => {
   const first = selected && selected[0] ? selected[0] : null;
   const mime = String((first && first.type) || "").trim().toLowerCase();
   const name0 = String((first && first.name) || "").trim().toLowerCase();
+  const fmtValue = String(state.compressFormat || "keep").trim().toLowerCase();
   const maxQuality = 80;
   const qDefault = Math.min(maxQuality, mime === "image/png" ? 90 : 82);
   const clampQ = (x) => Math.max(1, Math.min(maxQuality, Math.round(Number(x) || qDefault)));

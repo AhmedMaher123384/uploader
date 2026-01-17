@@ -136,21 +136,40 @@ const renderConversionPlatform = (opts) => {
   kindRow.appendChild(vidKindBtn);
   titleWrap.appendChild(kindRow);
 
-  const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
-  clearBtn.disabled = Boolean(state.converting) || planBlocked || !(Array.isArray(state.convertFiles) && state.convertFiles.length) || !onReset;
-  clearBtn.style.padding = "6px 10px";
-  clearBtn.style.borderRadius = "10px";
-  clearBtn.style.fontSize = "11px";
-  clearBtn.style.fontWeight = "950";
-  clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
-  clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
-  clearBtn.onclick = () => {
+  const canShowClearAll = Array.isArray(state.convertFiles) && state.convertFiles.length > 1;
+  if (canShowClearAll) {
+    const clearRow = document.createElement("div");
+    clearRow.style.display = "flex";
+    clearRow.style.justifyContent = "flex-start";
+    clearRow.style.alignItems = "center";
+    clearRow.style.direction = "ltr";
+
+    const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+    clearBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
+    clearBtn.style.padding = "2px 6px";
+    clearBtn.style.borderRadius = "8px";
+    clearBtn.style.fontSize = "9px";
+    clearBtn.style.fontWeight = "950";
+    clearBtn.style.lineHeight = "1";
+    clearBtn.style.color = "#ef4444";
     try {
-      if (clearBtn.disabled) return;
-      onReset();
+      clearBtn.style.borderColor = "rgba(239,68,68,.45)";
     } catch {}
-  };
-  titleWrap.appendChild(clearBtn);
+    try {
+      clearBtn.style.background = "rgba(239,68,68,.08)";
+    } catch {}
+    clearBtn.style.opacity = clearBtn.disabled ? "0.55" : "1";
+    clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+    clearBtn.onclick = () => {
+      try {
+        if (clearBtn.disabled) return;
+        onReset();
+      } catch {}
+    };
+
+    clearRow.appendChild(clearBtn);
+    titleWrap.appendChild(clearRow);
+  }
 
   const pickBtn = btnGhost(isArabic() ? "اختيار ملفات" : "Pick files");
   pickBtn.style.color = "#fff";
