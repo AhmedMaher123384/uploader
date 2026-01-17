@@ -12,6 +12,7 @@ const renderCompressionPlatform = (opts) => {
   const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
   const busy = Boolean(state.compressRunning);
+  const selected = Array.isArray(state.compressFiles) ? state.compressFiles : [];
 
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
@@ -154,7 +155,7 @@ const renderCompressionPlatform = (opts) => {
   title.style.color = "rgba(255,255,255,.95)";
   title.style.fontSize = "14px";
   title.style.fontWeight = "950";
-  title.textContent = isArabic() ? "منصة ضغط الصور" : "Image Compression Platform";
+  title.textContent = isArabic() ? "منصه الضغط" : "Image Compression Platform";
 
   const hint = document.createElement("div");
   hint.style.color = "rgba(255,255,255,.55)";
@@ -168,6 +169,22 @@ const renderCompressionPlatform = (opts) => {
 
   titleWrap.appendChild(title);
   titleWrap.appendChild(hint);
+
+  const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+  clearBtn.disabled = busy || !selected.length || !onReset;
+  clearBtn.style.padding = "6px 10px";
+  clearBtn.style.borderRadius = "10px";
+  clearBtn.style.fontSize = "11px";
+  clearBtn.style.fontWeight = "950";
+  clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
+  clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+  clearBtn.onclick = () => {
+    try {
+      if (clearBtn.disabled) return;
+      onReset();
+    } catch {}
+  };
+  titleWrap.appendChild(clearBtn);
 
   const pickBtn = btnGhost(isArabic() ? "اختيار صور" : "Pick images");
   pickBtn.style.color = "#fff";
@@ -197,7 +214,6 @@ const renderCompressionPlatform = (opts) => {
     isArabic() ? "اسحب صورك هنا أو اخترها من الجهاز" : "Drop images here or choose from device"
   );
 
-  const selected = Array.isArray(state.compressFiles) ? state.compressFiles : [];
   const selMeta = document.createElement("div");
   selMeta.style.display = "flex";
   selMeta.style.flexDirection = "column";

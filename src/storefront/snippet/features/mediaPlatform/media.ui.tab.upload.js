@@ -80,7 +80,7 @@ const renderUploadHero = (dash) => {
   hello.style.fontSize = "13px";
   hello.style.fontWeight = "900";
   hello.style.color = "rgba(255,255,255,.82)";
-  hello.textContent = isArabic() ? "أهلاً بك في مركز الرفع" : "Welcome to Upload Center";
+  hello.textContent = isArabic() ? "أهلاً بك في منصة الرفع" : "Welcome to Upload Center";
 
   const name = document.createElement("div");
   name.style.fontSize = "16px";

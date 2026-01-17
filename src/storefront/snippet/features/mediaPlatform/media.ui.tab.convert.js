@@ -136,6 +136,22 @@ const renderConversionPlatform = (opts) => {
   kindRow.appendChild(vidKindBtn);
   titleWrap.appendChild(kindRow);
 
+  const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+  clearBtn.disabled = Boolean(state.converting) || planBlocked || !(Array.isArray(state.convertFiles) && state.convertFiles.length) || !onReset;
+  clearBtn.style.padding = "6px 10px";
+  clearBtn.style.borderRadius = "10px";
+  clearBtn.style.fontSize = "11px";
+  clearBtn.style.fontWeight = "950";
+  clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
+  clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+  clearBtn.onclick = () => {
+    try {
+      if (clearBtn.disabled) return;
+      onReset();
+    } catch {}
+  };
+  titleWrap.appendChild(clearBtn);
+
   const pickBtn = btnGhost(isArabic() ? "اختيار ملفات" : "Pick files");
   pickBtn.style.color = "#fff";
   pickBtn.disabled = Boolean(state.converting) || planBlocked || !convertInput;

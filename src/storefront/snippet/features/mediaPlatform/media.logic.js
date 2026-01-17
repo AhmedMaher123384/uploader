@@ -2099,30 +2099,95 @@ const mount = () => {
           }
 
           const kind = String(state.convertKind || "image") === "video" ? "video" : "image";
-          const keep = [];
+          const existing = Array.isArray(state.convertFiles) ? state.convertFiles : [];
+          const incoming = [];
           for (let i = 0; i < fs.length; i += 1) {
             const f = fs[i];
             if (!f) continue;
             try {
-              if (guessResourceType(f) === kind) keep.push(f);
+              if (guessResourceType(f) === kind) incoming.push(f);
             } catch {}
           }
 
-          const chosen = keep.slice(0, maxFiles);
-          state.convertFiles = chosen;
-          state.convertFile = chosen[0] || null;
+          const ignoredByType = Math.max(0, fs.length - incoming.length);
+          const planName = planLabel(planKey || "basic");
+          const slots = Math.max(0, maxFiles - existing.length);
+          const toAdd = slots > 0 ? incoming.slice(0, slots) : [];
+          const ignoredByLimit = Math.max(0, incoming.length - toAdd.length);
+
+          if (!toAdd.length) {
+            if (!existing.length && fs.length) {
+              state.convertError = isArabic()
+                ? (kind === "video" ? "اختر فيديو فقط" : "اختر صور فقط")
+                : (kind === "video" ? "Please select videos only" : "Please select images only");
+              toastWarn(state.convertError);
+            } else {
+              if (ignoredByType > 0) {
+                toastWarn(
+                  isArabic()
+                    ? "تم تجاهل " + String(ignoredByType) + " ملف لأنه لا يطابق نوع التحويل"
+                    : "Ignored " + String(ignoredByType) + " file(s) that don't match the selected type"
+                );
+              }
+              if (ignoredByLimit > 0) {
+                toastWarn(
+                  isArabic()
+                    ? ("وصلت للحد الأقصى (" + String(maxFiles) + ") لباقة " + planName + " — احذف من الموجودين لإضافة ملفات جديدة")
+                    : ("Reached " + planName + " limit (" + String(maxFiles) + ") — remove some files to add more")
+                );
+              }
+            }
+            render();
+            return;
+          }
+
+          const next = existing.concat(toAdd);
+          state.convertFiles = next;
+          const current = state.convertFile;
+          state.convertFile = current && next.includes(current) ? current : (next[0] || null);
+
           let defaultFmt = kind === "video" ? String(state.convertFormat || "mp4") : String(state.convertFormat || "keep");
           if (kind !== "video" && defaultFmt === "auto") defaultFmt = "keep";
-          state.convertFileFormats = chosen.map(() => defaultFmt);
-          state.convertFileFormatCustom = chosen.map(() => false);
+
+          const oldFormats = Array.isArray(state.convertFileFormats) ? state.convertFileFormats : [];
+          const oldFormatsCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom : [];
+          const nextFormats = [];
+          const nextFormatsCustom = [];
+          for (let i = 0; i < next.length; i += 1) {
+            if (i < existing.length) {
+              nextFormats[i] = String(oldFormats[i] || defaultFmt);
+              nextFormatsCustom[i] = Boolean(oldFormatsCustom[i]);
+            } else {
+              nextFormats[i] = defaultFmt;
+              nextFormatsCustom[i] = false;
+            }
+          }
+          state.convertFileFormats = nextFormats;
+          state.convertFileFormatCustom = nextFormatsCustom;
+
           if (kind === "video") {
             state.convertFilePresets = [];
             state.convertFilePresetCustom = [];
           } else {
             const p0 = String(state.convertPreset || "original") || "original";
-            state.convertFilePresets = chosen.map(() => p0);
-            state.convertFilePresetCustom = chosen.map(() => false);
+            const oldPresets = Array.isArray(state.convertFilePresets) ? state.convertFilePresets : [];
+            const oldPresetsCustom = Array.isArray(state.convertFilePresetCustom) ? state.convertFilePresetCustom : [];
+            const nextPresets = [];
+            const nextPresetsCustom = [];
+            for (let i = 0; i < next.length; i += 1) {
+              if (i < existing.length) {
+                nextPresets[i] = String(oldPresets[i] || p0);
+                nextPresetsCustom[i] = Boolean(oldPresetsCustom[i]);
+              } else {
+                nextPresets[i] = p0;
+                nextPresetsCustom[i] = false;
+              }
+            }
+            state.convertFilePresets = nextPresets;
+            state.convertFilePresetCustom = nextPresetsCustom;
           }
+
+          state.convertError = "";
           state.convertItems = [];
           state.converting = false;
           state.convertProgress = 0;
@@ -2144,56 +2209,57 @@ const mount = () => {
           } catch {}
           convertObjUrl = "";
 
-          state.convertFileDims = kind === "image" ? chosen.map(() => null) : [];
-          state.convertFileDimsLoading = Boolean(kind === "image" && chosen.length);
-          const dimsToken = String(Date.now()) + "_" + String(Math.random()).slice(2);
-          state.convertDimsToken = dimsToken;
-          if (kind === "image" && chosen.length) {
+          if (kind === "image") {
+            const oldDims = Array.isArray(state.convertFileDims) ? state.convertFileDims : [];
+            const nextDims = [];
+            for (let i = 0; i < next.length; i += 1) {
+              nextDims[i] = i < existing.length ? (oldDims[i] || null) : null;
+            }
+            state.convertFileDims = nextDims;
+            state.convertFileDimsLoading = Boolean(next.length);
+            const dimsToken = String(Date.now()) + "_" + String(Math.random()).slice(2);
+            state.convertDimsToken = dimsToken;
             (async () => {
-              for (let i = 0; i < chosen.length; i += 1) {
+              const nextDims2 = Array.isArray(state.convertFileDims) && state.convertFileDims.length === next.length
+                ? state.convertFileDims.slice(0)
+                : next.map(() => null);
+              for (let i = 0; i < next.length; i += 1) {
                 if (state.convertDimsToken !== dimsToken) return;
-                const f = chosen[i] || null;
+                if (nextDims2[i]) continue;
+                const f = next[i] || null;
                 const dims = await readImageDims(f);
                 if (state.convertDimsToken !== dimsToken) return;
-                if (!Array.isArray(state.convertFileDims) || state.convertFileDims.length !== chosen.length) {
-                  state.convertFileDims = chosen.map(() => null);
-                }
-                state.convertFileDims[i] = dims;
-                render();
+                nextDims2[i] = dims;
               }
               if (state.convertDimsToken !== dimsToken) return;
+              state.convertFileDims = nextDims2;
               state.convertFileDimsLoading = false;
               render();
             })();
+          } else {
+            state.convertFileDims = [];
+            state.convertFileDimsLoading = false;
           }
 
-          const ignored = Math.max(0, fs.length - keep.length);
-          const planName = planLabel(planKey || "basic");
-          state.convertError = !chosen.length && fs.length
-            ? (isArabic()
-                ? (kind === "video" ? "اختر فيديو فقط" : "اختر صور فقط")
-                : (kind === "video" ? "Please select videos only" : "Please select images only"))
-            : "";
-
-          if (state.convertError) toastWarn(state.convertError);
-          if (ignored > 0 && chosen.length) {
+          if (ignoredByType > 0) {
             toastWarn(
               isArabic()
-                ? "تم تجاهل " + String(ignored) + " ملف لأنه لا يطابق نوع التحويل"
-                : "Ignored " + String(ignored) + " file(s) that don't match the selected type"
+                ? "تم تجاهل " + String(ignoredByType) + " ملف لأنه لا يطابق نوع التحويل"
+                : "Ignored " + String(ignoredByType) + " file(s) that don't match the selected type"
             );
           }
-          if (keep.length > maxFiles) {
+          if (ignoredByLimit > 0) {
             toastWarn(
               isArabic()
-                ? "باقة " + planName + " تسمح بتحويل " + String(maxFiles) + " ملف فقط في المرة — سيتم أخذ أول " + String(maxFiles) + " فقط"
-                : planName + " allows converting " + String(maxFiles) + " files per run — only the first " + String(maxFiles) + " will be used"
+                ? ("وصلت للحد الأقصى (" + String(maxFiles) + ") لباقة " + planName + " — احذف من الموجودين لإضافة ملفات جديدة")
+                : ("Reached " + planName + " limit (" + String(maxFiles) + ") — remove some files to add more")
             );
           }
-          if (!state.convertError && chosen.length) {
-            const kindText = String(state.convertKind || "image") === "video" ? (isArabic() ? "فيديو" : "videos") : (isArabic() ? "صور" : "images");
-            toastInfo(isArabic() ? ("تم اختيار " + String(chosen.length) + " " + kindText) : ("Selected " + String(chosen.length) + " " + kindText));
-          }
+          toastInfo(
+            isArabic()
+              ? ("تمت إضافة " + String(toAdd.length) + " ملف")
+              : ("Added " + String(toAdd.length) + " file(s)")
+          );
           render();
         };
 
@@ -2806,26 +2872,45 @@ const mount = () => {
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
           const planName = planLabel(planKey || "basic");
           const maxFiles = maxCompressFilesForPlan(planKey || "basic");
-          const chosen = imgs.slice(0, maxFiles);
-          state.compressFiles = chosen;
+          const existing = Array.isArray(state.compressFiles) ? state.compressFiles : [];
+          const ignoredByType = Math.max(0, fs.length - imgs.length);
+          const slots = Math.max(0, maxFiles - existing.length);
+          const toAdd = slots > 0 ? imgs.slice(0, slots) : [];
+          const ignoredByLimit = Math.max(0, imgs.length - toAdd.length);
+
+          if (!toAdd.length) {
+            if (!existing.length && fs.length) {
+              state.compressError = isArabic() ? "اختر صور فقط" : "Please select images only";
+              toastWarn(state.compressError);
+            } else {
+              if (ignoredByType > 0) toastWarn(isArabic() ? "تم تجاهل " + String(ignoredByType) + " ملف لأنه ليس صورة" : "Ignored " + String(ignoredByType) + " non-image file(s)");
+              if (ignoredByLimit > 0) {
+                toastWarn(
+                  isArabic()
+                    ? ("وصلت للحد الأقصى (" + String(maxFiles) + ") لباقة " + planName + " — احذف من الموجودين لإضافة صور جديدة")
+                    : ("Reached " + planName + " limit (" + String(maxFiles) + ") — remove some images to add more")
+                );
+              }
+            }
+            render();
+            return;
+          }
+
+          state.compressFiles = existing.concat(toAdd);
           state.compressItems = [];
           state.compressRunning = false;
           state.compressOverallProgress = 0;
           state.compressUploadingAny = false;
-          const ignored = Math.max(0, fs.length - imgs.length);
-          state.compressError = !chosen.length && fs.length ? (isArabic() ? "اختر صور فقط" : "Please select images only") : "";
-          if (state.compressError) toastWarn(state.compressError);
-          if (ignored > 0 && chosen.length) {
-            toastWarn(isArabic() ? "تم تجاهل " + String(ignored) + " ملف لأنه ليس صورة" : "Ignored " + String(ignored) + " non-image file(s)");
-          }
-          if (imgs.length > maxFiles) {
+          state.compressError = "";
+          if (ignoredByType > 0) toastWarn(isArabic() ? "تم تجاهل " + String(ignoredByType) + " ملف لأنه ليس صورة" : "Ignored " + String(ignoredByType) + " non-image file(s)");
+          if (ignoredByLimit > 0) {
             toastWarn(
               isArabic()
-                ? "باقة " + planName + " تسمح بضغط " + String(maxFiles) + " صورة فقط في المرة — سيتم أخذ أول " + String(maxFiles) + " فقط"
-                : planName + " allows compressing " + String(maxFiles) + " images per run — only the first " + String(maxFiles) + " will be used"
+                ? ("وصلت للحد الأقصى (" + String(maxFiles) + ") لباقة " + planName + " — احذف من الموجودين لإضافة صور جديدة")
+                : ("Reached " + planName + " limit (" + String(maxFiles) + ") — remove some images to add more")
             );
           }
-          if (!state.compressError && chosen.length) toastInfo(isArabic() ? ("تم اختيار " + String(chosen.length) + " صورة") : ("Selected " + String(chosen.length) + " images"));
+          toastInfo(isArabic() ? ("تمت إضافة " + String(toAdd.length) + " صورة") : ("Added " + String(toAdd.length) + " image(s)"));
           render();
         };
 
@@ -3324,7 +3409,7 @@ const mount = () => {
             };
 
             const labels = isArabic()
-              ? { upload: "مركز الرفع", compress: "ضغط الصور", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              ? { upload: "منصة الرفع", compress: "منصه الضغط", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
               : { upload: "Upload Center", compress: "Compression", convert: "Conversion Platform", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
 
             const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
@@ -3427,6 +3512,29 @@ const mount = () => {
               uploadCard.style.gap = "12px";
               uploadCard.style.flex = "1 1 auto";
               uploadCard.style.minHeight = "0";
+
+              const headRow = document.createElement("div");
+              headRow.style.display = "flex";
+              headRow.style.alignItems = "center";
+              headRow.style.justifyContent = "flex-start";
+              const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
+              clearBtn.disabled = Boolean(state.uploading) || !(Array.isArray(state.uploads) && state.uploads.length);
+              clearBtn.style.padding = "6px 10px";
+              clearBtn.style.borderRadius = "10px";
+              clearBtn.style.fontSize = "11px";
+              clearBtn.style.fontWeight = "950";
+              clearBtn.style.opacity = clearBtn.disabled ? "0.6" : "1";
+              clearBtn.style.cursor = clearBtn.disabled ? "not-allowed" : "pointer";
+              clearBtn.onclick = () => {
+                try {
+                  if (clearBtn.disabled) return;
+                  state.uploads = [];
+                  state.uploadError = "";
+                  render();
+                } catch {}
+              };
+              headRow.appendChild(clearBtn);
+              uploadCard.appendChild(headRow);
 
               uploadCard.appendChild(renderUploadHero(state.dash));
               uploadCard.appendChild(renderSmartStats(state.dash));
@@ -3672,6 +3780,9 @@ const mount = () => {
           const fs0 = Array.isArray(files) ? files : [];
           const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
           const maxFiles = maxUploadFilesForPlan(planKey || "basic");
+          const existingUploads = Array.isArray(state.uploads) ? state.uploads : [];
+          const existingCount = existingUploads.filter((x) => x && String(x.status || "") !== "rejected").length;
+          const slots = Math.max(0, maxFiles - existingCount);
           const limits = getPlanLimits(planKey || "basic");
           const allowed = getAllowedExtForPlan(planKey || "basic");
           const allowedText = allowed ? fmtExtSet(allowed, 18) : "";
@@ -3720,10 +3831,10 @@ const mount = () => {
             if (maxStorageBytes > 0) remainBytes -= Math.max(0, size);
           }
 
-          const toUpload = withinStorage.slice(0, maxFiles);
+          const toUpload = withinStorage.slice(0, slots);
           if (withinStorage.length > toUpload.length) {
             for (let i = toUpload.length; i < withinStorage.length; i += 1) {
-              rejected.push({ file: withinStorage[i], reason: "too_many_for_plan" });
+              rejected.push({ file: withinStorage[i], reason: "queue_full" });
             }
           }
 
@@ -3774,13 +3885,13 @@ const mount = () => {
           }
 
           const limitMsg =
-            fs0.length > maxFiles
+            withinStorage.length > slots
               ? isArabic()
-                ? ("حد الرفع في المرة الواحدة لباقة " + planName + " هو " + String(maxFiles) + " ملف")
-                : ("Upload limit per batch for " + planName + " is " + String(maxFiles) + " files")
+                ? ("حد الملفات في منصة الرفع لباقة " + planName + " هو " + String(maxFiles) + " ملف — احذف من الموجودين لإضافة ملفات جديدة")
+                : ("Upload list limit for " + planName + " is " + String(maxFiles) + " files — remove some to add more")
               : "";
           const limitUpgradeHint =
-            rejectsByReason.too_many_for_plan
+            false
               ? (planKey === "pro"
                   ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
                   : planKey === "basic"
@@ -3806,8 +3917,8 @@ const mount = () => {
           if (rejectsByReason.storage_full) {
             detailParts.push(isArabic() ? "مساحة غير كافية" : "Insufficient storage");
           }
-          if (rejectsByReason.too_many_for_plan) {
-            detailParts.push(isArabic() ? "تجاوز حد الملفات" : "Over file limit");
+          if (rejectsByReason.queue_full) {
+            detailParts.push(isArabic() ? "القائمة ممتلئة" : "List is full");
           }
 
           const summaryMsg =
@@ -3907,38 +4018,15 @@ const mount = () => {
                 ? ("لا توجد مساحة كافية في باقة " + planName + " — المتبقي: " + fmtBytes(remainBytes0))
                 : ("Not enough storage on " + planName + " — remaining: " + fmtBytes(remainBytes0));
             }
-            if (reason === "too_many_for_plan") {
-              const upgradeHint =
-                planKey === "pro"
-                  ? (isArabic() ? "متاحة فقط في Business." : "Available on Business only.")
-                  : planKey === "basic"
-                    ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.")
-                    : "";
+            if (reason === "queue_full") {
               return isArabic()
-                ? ("تجاوزت حد الرفع في المرة الواحدة (" + String(maxFiles) + ") لباقة " + planName + (upgradeHint ? (" " + upgradeHint) : ""))
-                : ("Over per-batch upload limit (" + String(maxFiles) + ") for " + planName + (upgradeHint ? (" " + upgradeHint) : ""));
+                ? ("القائمة ممتلئة — الحد الأقصى لباقة " + planName + " هو " + String(maxFiles) + " ملف. احذف من الموجودين لإضافة ملفات جديدة.")
+                : ("List is full — " + planName + " limit is " + String(maxFiles) + " files. Remove some to add more.");
             }
             return isArabic() ? "لم يتم رفع هذا الملف" : "This file was not uploaded";
           };
 
-          const upgradeHintAll = (() => {
-            if (!rejectsByReason.not_allowed_ext) return "";
-            if (planKey !== "basic") return "";
-            const proAllowedAny = (() => {
-              try {
-                const s = getAllowedExtForPlan("pro");
-                if (!s) return false;
-                for (let i = 0; i < notAllowedExts.length; i += 1) {
-                  const ext = notAllowedExts[i];
-                  if (ext && s.has(ext)) return true;
-                }
-                return false;
-              } catch {
-                return false;
-              }
-            })();
-            return proAllowedAny ? (isArabic() ? "متاحة فقط في Pro و Business." : "Available on Pro & Business only.") : "";
-          })();
+          const upgradeHintAll = "";
 
           const toastMsg =
             !toUpload.length && rejected.length
@@ -3953,13 +4041,19 @@ const mount = () => {
             toastWarn(state.uploadError, title);
           }
 
+          if (!toUpload.length) {
+            render();
+            return;
+          }
+
           state.uploading = true;
-          state.uploads = [];
+          const nextUploads = Array.isArray(state.uploads) ? state.uploads : [];
+          const newRecs = [];
 
           for (let i = 0; i < toUpload.length; i += 1) {
             const f = toUpload[i];
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_" + String(i);
-            state.uploads.push({
+            const rec = {
               id,
               name: String((f && f.name) || ""),
               size: Number((f && f.size) || 0) || 0,
@@ -3970,9 +4064,12 @@ const mount = () => {
               loaded: 0,
               total: Number((f && f.size) || 0) || 0,
               file: f
-            });
+            };
+            nextUploads.push(rec);
+            newRecs.push(rec);
           }
 
+          let rejectedAdded = 0;
           for (let i = 0; i < rejected.length; i += 1) {
             const f = rejected[i] && rejected[i].file ? rejected[i].file : null;
             if (!f) continue;
@@ -3983,9 +4080,9 @@ const mount = () => {
             const errMsg = buildSingleRejectToast(rejected[i]);
             const id = String(Date.now()) + "_" + String(Math.random()).slice(2) + "_rej_" + String(i);
 
-            if (reason === "too_many_for_plan") continue;
+            if (reason === "queue_full") continue;
 
-            state.uploads.push({
+            nextUploads.push({
               id,
               name,
               size,
@@ -3997,11 +4094,13 @@ const mount = () => {
               total: size,
               file: null
             });
+            rejectedAdded += 1;
           }
 
+          state.uploads = nextUploads;
           render();
 
-          const uploadCount = toUpload.length;
+          const uploadCount = newRecs.length;
           if (!uploadCount) {
             state.uploading = false;
             render();
@@ -4015,8 +4114,8 @@ const mount = () => {
           );
           let errToastBudget = 3;
           let uploadIndex = 0;
-          for (let i = 0; i < state.uploads.length; i += 1) {
-            const rec = state.uploads[i];
+          for (let i = 0; i < newRecs.length; i += 1) {
+            const rec = newRecs[i];
             const file = rec && rec.file ? rec.file : null;
             if (!file) continue;
             uploadIndex += 1;
@@ -4070,8 +4169,8 @@ const mount = () => {
           render();
           toastClose(toastId);
           try {
-            const ok = state.uploads.filter((x) => x && String(x.status || "") === "done").length;
-            const failed = state.uploads.filter((x) => x && (String(x.status || "") === "error" || String(x.status || "") === "rejected")).length;
+            const ok = newRecs.filter((x) => x && String(x.status || "") === "done").length;
+            const failed = newRecs.filter((x) => x && String(x.status || "") === "error").length + rejectedAdded;
             if (!failed) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " ملف") : ("Uploaded " + String(ok) + " files"));
             else toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(failed) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(failed) + " failed)"));
           } catch {}
