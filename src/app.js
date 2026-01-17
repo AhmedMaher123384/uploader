@@ -21,7 +21,11 @@ function createApp(config) {
       crossOriginResourcePolicy: { policy: "cross-origin" }
     })
   );
-  app.use(cors());
+  app.use(
+    cors({
+      exposedHeaders: ["X-Converted-Format", "X-Output-Format"]
+    })
+  );
   app.use(morgan("combined"));
 
   app.get("/", (_req, res) => {
