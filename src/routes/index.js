@@ -351,6 +351,19 @@ function createApiRouter(config) {
     return await getSignedUrl(client, cmd, { expiresIn: 5 * 60 });
   }
 
+  async function r2PutObject({ key, body, contentType }) {
+    const { bucket } = requireR2Config();
+    const client = getR2Client();
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: String(key),
+        Body: body,
+        ...(contentType ? { ContentType: String(contentType) } : {})
+      })
+    );
+  }
+
   async function r2HeadObject(key) {
     const { bucket } = requireR2Config();
     const client = getR2Client();
@@ -3670,6 +3683,72 @@ function createApiRouter(config) {
         });
       }
       throw new ApiError(500, "Media provider is not supported", { code: "MEDIA_PROVIDER_NOT_SUPPORTED" });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  const proxyMediaUploadQuerySchema = Joi.object({
+    merchantId: Joi.string().trim().min(1).max(80).required(),
+    token: Joi.string().trim().min(10),
+    signature: Joi.string().trim().min(8),
+    hmac: Joi.string().trim().min(8),
+    key: Joi.string().trim().min(1).max(1024).required(),
+    resourceType: Joi.string().trim().valid("image", "video", "raw").default("image"),
+    filename: Joi.string().trim().min(1).max(200).default("file"),
+    contentType: Joi.string().trim().max(150).allow("").default("")
+  })
+    .or("signature", "hmac", "token")
+    .unknown(true);
+
+  router.put("/proxy/media/upload", express.raw({ type: () => true, limit: "60mb" }), async (req, res, next) => {
+    try {
+      const { error: qErr, value: qValue } = proxyMediaUploadQuerySchema.validate(req.query, {
+        abortEarly: false,
+        stripUnknown: false
+      });
+      if (qErr) {
+        throw new ApiError(400, "Validation error", {
+          code: "VALIDATION_ERROR",
+          details: qErr.details.map((d) => ({ message: d.message, path: d.path }))
+        });
+      }
+
+      ensureValidProxyAuth(qValue, qValue.merchantId);
+
+      const merchant = await findMerchantByMerchantId(String(qValue.merchantId));
+      if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+      if (merchant.appStatus !== "installed") throw new ApiError(403, "Merchant is not active", { code: "MERCHANT_INACTIVE" });
+
+      if (getMediaProviderOrThrow() !== "r2") throw new ApiError(500, "Media provider is not supported", { code: "MEDIA_PROVIDER_NOT_SUPPORTED" });
+
+      const merchantId = String(qValue.merchantId);
+      const folderPrefix = getMediaFolderPrefix();
+      const folder = mediaFolderForMerchant(folderPrefix, merchantId);
+
+      const key = String(qValue.key || "").trim();
+      const expectedPrefix = `${String(folder).replace(/\/+$/g, "")}/`;
+      if (!key.startsWith(expectedPrefix)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+      const leaf = key.slice(expectedPrefix.length);
+      if (!leaf || leaf.includes("/")) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
+      const contentType =
+        String(qValue.contentType || "").trim() ||
+        String(req.headers["content-type"] || "").trim() ||
+        "application/octet-stream";
+
+      const bodyBuf = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || "");
+      const size = Number(req.headers["content-length"] || 0) || bodyBuf.length || 0;
+
+      await validateUploadPolicyOrThrow({
+        merchant,
+        file: { name: String(qValue.filename || "file"), size, type: contentType },
+        resourceTypeHint: qValue.resourceType
+      });
+
+      await r2PutObject({ key, body: bodyBuf, contentType });
+
+      return res.json({ ok: true, key });
     } catch (err) {
       return next(err);
     }

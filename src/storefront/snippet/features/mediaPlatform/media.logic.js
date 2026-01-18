@@ -612,104 +612,154 @@ const uploadToCloudinary = async (file, sign, onProgress) => {
   if (!url) throw new Error("Invalid upload url");
 
   if (method === "PUT") {
-    return await new Promise((resolve, reject) => {
-      let xhr = null;
-      try {
-        xhr = new XMLHttpRequest();
-      } catch {
-        xhr = null;
-      }
-      if (!xhr) {
-        reject(new Error("Upload not supported"));
-        return;
-      }
+    const ct = String(c.contentType || (file && file.type) || "").trim();
+    const key = String(c.key || (String(c.folder || "") + "/" + String(c.publicId || ""))).trim();
+    const rt = String(c.resourceType || guessResourceType(file) || "raw");
 
-      try {
-        xhr.open("PUT", url, true);
-        const ct = String(c.contentType || (file && file.type) || "").trim();
-        if (ct) xhr.setRequestHeader("Content-Type", ct);
-      } catch {
-        reject(new Error("Upload failed"));
-        return;
-      }
-
-      let lastAt = 0;
-      const emit = (pct, loaded, total) => {
+    const putViaXhr = (uploadUrl) =>
+      new Promise((resolve, reject) => {
+        let xhr = null;
         try {
-          if (typeof onProgress !== "function") return;
-          const now = Date.now();
-          if (pct === 100 || now - lastAt > 80) {
-            lastAt = now;
-            onProgress(pct, loaded, total);
-          }
-        } catch {}
-      };
-
-      try {
-        if (xhr.upload) {
-          xhr.upload.onprogress = (ev) => {
-            try {
-              const loaded = Number(ev && ev.loaded) || 0;
-              const evTotal = Number(ev && ev.total) || 0;
-              const denom = evTotal > 0 ? evTotal : fileSize > 0 ? fileSize : 0;
-              if (denom > 0) {
-                const pct = Math.max(0, Math.min(100, Math.round((loaded / denom) * 100)));
-                emit(pct, loaded, denom);
-                return;
-              }
-              emit(0, loaded, evTotal);
-            } catch {}
-          };
-          try {
-            xhr.upload.onloadstart = () => {
-              emit(0, 0, fileSize);
-            };
-          } catch {}
+          xhr = new XMLHttpRequest();
+        } catch {
+          xhr = null;
         }
-      } catch {}
+        if (!xhr) {
+          reject(new Error("Upload not supported"));
+          return;
+        }
 
-      xhr.onerror = () => reject(new Error("Upload failed"));
-      xhr.onabort = () => reject(new Error("Upload aborted"));
-      xhr.onload = () => {
         try {
-          emit(100, fileSize, fileSize);
-        } catch {}
-
-        const status = Number(xhr.status || 0) || 0;
-        if (status < 200 || status >= 300) {
+          xhr.open("PUT", String(uploadUrl), true);
+          if (ct) xhr.setRequestHeader("Content-Type", ct);
+        } catch {
           reject(new Error("Upload failed"));
           return;
         }
 
-        const key = String(c.key || (String(c.folder || "") + "/" + String(c.publicId || ""))).trim();
-        const ext = getExt(file && file.name);
-        resolve({
-          __provider: "r2",
-          r2_key: key,
-          public_id: key,
-          asset_id: null,
-          resource_type: String(c.resourceType || guessResourceType(file) || "raw"),
-          secure_url: null,
-          url: null,
-          bytes: fileSize || null,
-          format: ext || null,
-          width: null,
-          height: null,
-          duration: null,
-          original_filename: String((file && file.name) || "") || null,
-          folder: String(c.folder || "") || null,
-          tags: [],
-          context: null,
-          created_at: new Date().toISOString()
-        });
-      };
+        let lastAt = 0;
+        let progressSeen = false;
+        let noProgressTimer = null;
 
-      try {
-        xhr.send(file);
-      } catch {
-        reject(new Error("Upload failed"));
-      }
-    });
+        const clearNoProgressTimer = () => {
+          try {
+            if (noProgressTimer) clearTimeout(noProgressTimer);
+          } catch {}
+          noProgressTimer = null;
+        };
+
+        const emit = (pct, loaded, total) => {
+          try {
+            if (typeof onProgress !== "function") return;
+            const now = Date.now();
+            if (pct === 100 || now - lastAt > 80) {
+              lastAt = now;
+              onProgress(pct, loaded, total);
+            }
+          } catch {}
+        };
+
+        const fail = (err) => {
+          try {
+            clearNoProgressTimer();
+          } catch {}
+          reject(err || new Error("Upload failed"));
+        };
+
+        try {
+          if (xhr.upload) {
+            xhr.upload.onprogress = (ev) => {
+              try {
+                progressSeen = true;
+                clearNoProgressTimer();
+              } catch {}
+              try {
+                const loaded = Number(ev && ev.loaded) || 0;
+                const evTotal = Number(ev && ev.total) || 0;
+                const denom = evTotal > 0 ? evTotal : fileSize > 0 ? fileSize : 0;
+                if (denom > 0) {
+                  const pct = Math.max(0, Math.min(100, Math.round((loaded / denom) * 100)));
+                  emit(pct, loaded, denom);
+                  return;
+                }
+                emit(0, loaded, evTotal);
+              } catch {}
+            };
+            try {
+              xhr.upload.onloadstart = () => {
+                emit(0, 0, fileSize);
+              };
+            } catch {}
+          }
+        } catch {}
+
+        xhr.onerror = () => fail(new Error("Upload failed"));
+        xhr.onabort = () => fail(new Error("Upload aborted"));
+        xhr.onload = () => {
+          try {
+            clearNoProgressTimer();
+          } catch {}
+          try {
+            emit(100, fileSize, fileSize);
+          } catch {}
+
+          const status = Number(xhr.status || 0) || 0;
+          if (status < 200 || status >= 300) {
+            fail(new Error("Upload failed"));
+            return;
+          }
+          resolve(true);
+        };
+
+        try {
+          noProgressTimer = setTimeout(() => {
+            try {
+              if (progressSeen) return;
+              xhr.abort();
+            } catch {}
+          }, 12_000);
+        } catch {}
+
+        try {
+          xhr.send(file);
+        } catch {
+          fail(new Error("Upload failed"));
+        }
+      });
+
+    try {
+      await putViaXhr(url);
+    } catch (e) {
+      const fallbackUrl = buildUrl("/api/proxy/media/upload", {
+        key,
+        resourceType: rt,
+        filename: String((file && file.name) || "file"),
+        contentType: ct
+      });
+      if (!fallbackUrl) throw e;
+      await putViaXhr(fallbackUrl);
+    }
+
+    const ext = getExt(file && file.name);
+    return {
+      __provider: "r2",
+      r2_key: key,
+      public_id: key,
+      asset_id: null,
+      resource_type: rt,
+      secure_url: null,
+      url: null,
+      bytes: fileSize || null,
+      format: ext || null,
+      width: null,
+      height: null,
+      duration: null,
+      original_filename: String((file && file.name) || "") || null,
+      folder: String(c.folder || "") || null,
+      tags: [],
+      context: null,
+      created_at: new Date().toISOString()
+    };
   }
 
   const fd = new FormData();
@@ -1057,6 +1107,7 @@ const mount = () => {
         let toastSeq = 0;
         const toastMap = new Map();
         let swalLoadPromise = null;
+        let swalLoadResult = undefined;
         let swalStyleDone = false;
 
         const getSwalTarget = () => {
@@ -1089,7 +1140,21 @@ const mount = () => {
               ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
               ".bundleapp-swal-confirm{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
               ".bundleapp-swal-cancel{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
-              ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}";
+              ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
+              ".bundleapp-toast-host{position:absolute;left:0;right:0;top:10px;z-index:100000;pointer-events:none;padding:0 12px;display:flex;justify-content:center;align-items:flex-start}" +
+              ".bundleapp-toast{pointer-events:auto;min-width:min(460px,100%);max-width:min(640px,100%);background:#373737;color:#fff;border:1px solid rgba(24,181,213,.18);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:10px 12px;display:flex;gap:10px;align-items:flex-start;font-weight:900;opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease}" +
+              ".bundleapp-toast.is-in{opacity:1;transform:translateY(0)}" +
+              ".bundleapp-toast__icon{width:18px;height:18px;flex:0 0 18px;margin-top:1px;display:flex;align-items:center;justify-content:center}" +
+              ".bundleapp-toast__spinner{width:14px;height:14px;border-radius:999px;border:2px solid rgba(255,255,255,.25);border-top-color:#18b5d5;animation:bundleappSpin .75s linear infinite}" +
+              ".bundleapp-toast__body{flex:1 1 auto;min-width:0}" +
+              ".bundleapp-toast__title{font-size:12px;font-weight:950;line-height:1.35;margin:0}" +
+              ".bundleapp-toast__msg{font-size:12px;font-weight:850;line-height:1.5;margin-top:2px;color:rgba(255,255,255,.88);word-break:break-word}" +
+              ".bundleapp-toast__close{appearance:none;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;border-radius:10px;padding:4px 8px;cursor:pointer;font-weight:950;line-height:1}" +
+              ".bundleapp-toast.is-success{border-color:rgba(34,197,94,.35)}" +
+              ".bundleapp-toast.is-error{border-color:rgba(239,68,68,.35)}" +
+              ".bundleapp-toast.is-warning{border-color:rgba(234,179,8,.35)}" +
+              ".bundleapp-toast.is-info{border-color:rgba(59,130,246,.35)}" +
+              "@keyframes bundleappSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}";
             document.head.appendChild(style);
           } catch {}
         };
@@ -1102,78 +1167,230 @@ const mount = () => {
             }
           } catch {}
 
-          if (swalLoadPromise) return await swalLoadPromise;
-          swalLoadPromise = await new Promise((resolve) => {
-            try {
-              const existing = document.querySelector('script[data-bundleapp-swal="1"]');
-              if (existing) {
-                existing.addEventListener("load", () => resolve(g.Swal || null), { once: true });
-                existing.addEventListener("error", () => resolve(null), { once: true });
-                return;
+          if (swalLoadResult !== undefined) return swalLoadResult;
+
+          if (!swalLoadPromise) {
+            swalLoadPromise = (async () => {
+              const sources = [
+                "https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.26.17/sweetalert2.all.min.js",
+                "https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js",
+                "https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"
+              ];
+
+              const tryLoad = async (src) => {
+                return await new Promise((resolve) => {
+                  let done = false;
+                  let timer = null;
+                  let s = null;
+                  const finish = (val) => {
+                    if (done) return;
+                    done = true;
+                    try {
+                      if (timer) clearTimeout(timer);
+                    } catch {}
+                    timer = null;
+                    try {
+                      if (s && s.remove) s.remove();
+                    } catch {}
+                    s = null;
+                    resolve(val);
+                  };
+
+                  try {
+                    s = document.createElement("script");
+                    s.async = true;
+                    s.defer = true;
+                    s.setAttribute("data-bundleapp-swal", "1");
+                    s.src = String(src);
+                    s.onload = () => finish(g.Swal && typeof g.Swal.fire === "function" ? g.Swal : null);
+                    s.onerror = () => finish(null);
+                    document.head.appendChild(s);
+                    timer = setTimeout(() => finish(null), 2500);
+                  } catch {
+                    finish(null);
+                  }
+                });
+              };
+
+              for (const src of sources) {
+                const hit = await tryLoad(src);
+                if (hit) return hit;
               }
-            } catch {}
+              return null;
+            })();
+          }
 
-            try {
-              const s = document.createElement("script");
-              s.async = true;
-              s.defer = true;
-              s.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js";
-              s.setAttribute("data-bundleapp-swal", "1");
-              s.onload = () => resolve(g.Swal || null);
-              s.onerror = () => resolve(null);
-              document.head.appendChild(s);
-            } catch {
-              resolve(null);
-            }
-          });
-
+          swalLoadResult = await swalLoadPromise;
           try {
-            if (g.Swal && typeof g.Swal.fire === "function") ensureSwalStyles();
+            if (swalLoadResult) ensureSwalStyles();
           } catch {}
-          return (g.Swal && typeof g.Swal.fire === "function" ? g.Swal : null);
+          return swalLoadResult;
         };
 
-        const fireToast = async ({ kind, title, message, duration, loading }) => {
+        const ensureLocalToastHost = () => {
+          try {
+            const target = getSwalTarget();
+            ensureSwalStyles();
+            if (!target || !target.querySelector) return null;
+            let host = target.querySelector(".bundleapp-toast-host");
+            if (!host) {
+              host = document.createElement("div");
+              host.className = "bundleapp-toast-host";
+              target.appendChild(host);
+            }
+            return host;
+          } catch {
+            return null;
+          }
+        };
+
+        const fireToast = async ({ id, kind, title, message, duration, loading }) => {
           const Swal = await ensureSwal();
-          if (!Swal) return;
           const target = getSwalTarget();
           const t = String(title || "").trim();
           const msg = String(message || "").trim();
           const icon = kind === "success" || kind === "error" || kind === "warning" || kind === "info" ? kind : "info";
-          await Swal.fire({
-            target,
-            toast: true,
-            position: "top",
-            icon: loading ? undefined : icon,
-            title: t || msg,
-            ...(t && msg ? { text: msg } : {}),
-            showConfirmButton: false,
-            showCloseButton: true,
-            timer: duration || undefined,
-            timerProgressBar: Boolean(duration),
-            customClass: {
-              container: "bundleapp-swal-container",
-              popup: "bundleapp-swal-toast"
-            },
-            didOpen: (el) => {
-              try {
-                el.dir = isRtl() ? "rtl" : "ltr";
-              } catch {}
-              try {
-                el.addEventListener("mouseenter", Swal.stopTimer);
-                el.addEventListener("mouseleave", Swal.resumeTimer);
-              } catch {}
-              try {
-                if (loading) Swal.showLoading();
-              } catch {}
-            }
+
+          if (Swal) {
+            await Swal.fire({
+              target,
+              toast: true,
+              position: "top",
+              icon: loading ? undefined : icon,
+              title: t || msg,
+              ...(t && msg ? { text: msg } : {}),
+              showConfirmButton: false,
+              showCloseButton: true,
+              timer: duration || undefined,
+              timerProgressBar: Boolean(duration),
+              customClass: {
+                container: "bundleapp-swal-container",
+                popup: "bundleapp-swal-toast"
+              },
+              didOpen: (el) => {
+                try {
+                  el.dir = isRtl() ? "rtl" : "ltr";
+                } catch {}
+                try {
+                  el.addEventListener("mouseenter", Swal.stopTimer);
+                  el.addEventListener("mouseleave", Swal.resumeTimer);
+                } catch {}
+                try {
+                  if (loading) Swal.showLoading();
+                } catch {}
+              }
+            });
+            return;
+          }
+
+          const host = ensureLocalToastHost();
+          if (!host) return;
+
+          const toast = document.createElement("div");
+          toast.className = "bundleapp-toast is-" + icon;
+
+          const iconEl = document.createElement("div");
+          iconEl.className = "bundleapp-toast__icon";
+          if (loading) {
+            const sp = document.createElement("div");
+            sp.className = "bundleapp-toast__spinner";
+            iconEl.appendChild(sp);
+          } else {
+            iconEl.textContent = icon === "success" ? "✓" : icon === "error" ? "×" : icon === "warning" ? "!" : "i";
+          }
+
+          const body = document.createElement("div");
+          body.className = "bundleapp-toast__body";
+          const ttl = document.createElement("div");
+          ttl.className = "bundleapp-toast__title";
+          ttl.textContent = t || msg || "";
+          body.appendChild(ttl);
+          if (t && msg) {
+            const mm = document.createElement("div");
+            mm.className = "bundleapp-toast__msg";
+            mm.textContent = msg;
+            body.appendChild(mm);
+          }
+
+          const close = document.createElement("button");
+          close.type = "button";
+          close.className = "bundleapp-toast__close";
+          close.textContent = "×";
+
+          toast.appendChild(iconEl);
+          toast.appendChild(body);
+          toast.appendChild(close);
+          host.innerHTML = "";
+          host.appendChild(toast);
+
+          try {
+            toast.dir = isRtl() ? "rtl" : "ltr";
+          } catch {}
+
+          let timer = null;
+          const cleanup = () => {
+            try {
+              if (timer) clearTimeout(timer);
+            } catch {}
+            timer = null;
+            try {
+              if (toast && toast.remove) toast.remove();
+            } catch {}
+          };
+
+          close.addEventListener("click", () => {
+            cleanup();
+            if (id) toastMap.delete(String(id));
           });
+
+          requestAnimationFrame(() => {
+            try {
+              toast.classList.add("is-in");
+            } catch {}
+          });
+
+          if (duration) {
+            timer = setTimeout(cleanup, Math.max(600, Number(duration) || 0));
+          }
+
+          if (id) {
+            toastMap.set(String(id), {
+              kind: "loading",
+              local: {
+                update: (nextTitle, nextMsg) => {
+                  try {
+                    ttl.textContent = nextTitle || nextMsg || "";
+                  } catch {}
+                  try {
+                    const existingMsg = body.querySelector(".bundleapp-toast__msg");
+                    if (existingMsg) {
+                      if (nextTitle && nextMsg) existingMsg.textContent = nextMsg;
+                      else existingMsg.remove();
+                    } else if (nextTitle && nextMsg) {
+                      const mm = document.createElement("div");
+                      mm.className = "bundleapp-toast__msg";
+                      mm.textContent = nextMsg;
+                      body.appendChild(mm);
+                    }
+                  } catch {}
+                },
+                close: cleanup
+              }
+            });
+          }
         };
 
         const toastClose = (id) => {
           const key = String(id || "");
           if (!toastMap.has(key)) return;
+          const entry = toastMap.get(key);
           toastMap.delete(key);
+          try {
+            if (entry && entry.local && typeof entry.local.close === "function") {
+              entry.local.close();
+              return;
+            }
+          } catch {}
           ensureSwal().then((Swal) => {
             try {
               if (Swal) Swal.close();
@@ -1186,6 +1403,13 @@ const mount = () => {
           if (!toastMap.has(key)) return;
           const title = next && "title" in next ? String(next.title || "").trim() : "";
           const message = next && "message" in next ? String(next.message || "").trim() : "";
+          const entry = toastMap.get(key);
+          try {
+            if (entry && entry.local && typeof entry.local.update === "function") {
+              entry.local.update(title, message);
+              return;
+            }
+          } catch {}
           ensureSwal().then((Swal) => {
             try {
               if (!Swal) return;
@@ -1204,7 +1428,7 @@ const mount = () => {
         const toastLoading = (message, title) => {
           const id = "swal_" + String((toastSeq += 1));
           toastMap.set(id, { kind: "loading" });
-          fireToast({ kind: "info", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), loading: true });
+          fireToast({ id, kind: "info", title: title || (isArabic() ? "جاري التنفيذ" : "Working"), message: String(message || ""), loading: true });
           return id;
         };
 
