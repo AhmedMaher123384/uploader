@@ -3647,6 +3647,7 @@ const mount = () => {
           try {
             sheet.tabs.innerHTML = "";
             sheet.actions.innerHTML = "";
+            if (sheet.headActions) sheet.headActions.innerHTML = "";
             sheet.uploads.innerHTML = "";
             sheet.content.innerHTML = "";
             sheet.footer.innerHTML = "";
@@ -3706,31 +3707,31 @@ const mount = () => {
             const refreshBtn = btnGhost(labels.ref);
             refreshBtn.setAttribute("aria-label", labels.ref);
             refreshBtn.setAttribute("title", labels.ref);
-            refreshBtn.style.border = "1px solid rgba(255,255,255,.12)";
-            refreshBtn.style.background = "#303030";
-            refreshBtn.style.padding = "8px 12px";
-            refreshBtn.style.borderRadius = "12px";
+            refreshBtn.style.border = "1px solid rgba(24,181,213,.35)";
+            refreshBtn.style.background = "rgba(24,181,213,.12)";
+            refreshBtn.style.padding = "6px 10px";
+            refreshBtn.style.borderRadius = "10px";
             refreshBtn.style.display = "inline-flex";
             refreshBtn.style.alignItems = "center";
             refreshBtn.style.justifyContent = "center";
-            refreshBtn.style.gap = "8px";
+            refreshBtn.style.gap = "6px";
             const refreshIcon = document.createElement("i");
             refreshIcon.className = "sicon-back";
             refreshIcon.setAttribute("aria-hidden", "true");
             refreshIcon.style.display = "block";
-            refreshIcon.style.fontSize = "18px";
+            refreshIcon.style.fontSize = "16px";
             refreshIcon.style.lineHeight = "1";
             refreshIcon.style.pointerEvents = "none";
             refreshIcon.style.transition = "transform .25s ease";
             const refreshLabel = document.createElement("span");
             refreshLabel.textContent = labels.ref;
-            refreshLabel.style.fontSize = "12px";
+            refreshLabel.style.fontSize = "11px";
             refreshLabel.style.fontWeight = "900";
             refreshLabel.style.lineHeight = "1";
             refreshBtn.innerHTML = "";
             refreshBtn.appendChild(refreshIcon);
             refreshBtn.appendChild(refreshLabel);
-            refreshBtn.style.color = "#fff";
+            refreshBtn.style.color = "#18b5d5";
             refreshBtn.disabled = Boolean(state.dashLoading);
             refreshBtn.style.opacity = refreshBtn.disabled ? "0.7" : "1";
             refreshBtn.style.cursor = refreshBtn.disabled ? "not-allowed" : "pointer";
@@ -3750,7 +3751,8 @@ const mount = () => {
               toastClose(toastId);
               toastSuccess(isArabic() ? "تم التحديث" : "Refreshed");
             };
-            sheet.actions.appendChild(refreshBtn);
+            if (sheet.headActions) sheet.headActions.appendChild(refreshBtn);
+            else sheet.actions.appendChild(refreshBtn);
 
             if (state.view === "upload" && state.uploads.length) {
               sheet.uploads.style.display = "flex";
@@ -3938,6 +3940,16 @@ const mount = () => {
             const allBtn = pill(labels.all, state.type === "");
             const imgBtn = pill(labels.img, state.type === "image");
             const vidBtn = pill(labels.vid, state.type === "video");
+            const tuneFilter = (b) => {
+              b.style.padding = "6px 10px";
+              b.style.fontSize = "11px";
+              b.style.borderRadius = "999px";
+              b.style.width = "auto";
+              b.style.lineHeight = "1";
+            };
+            tuneFilter(allBtn);
+            tuneFilter(imgBtn);
+            tuneFilter(vidBtn);
 
             const setType = (t) => {
               state.type = t || "";
@@ -3955,7 +3967,7 @@ const mount = () => {
 
             const typeRow = document.createElement("div");
             typeRow.style.display = "flex";
-            typeRow.style.gap = "8px";
+            typeRow.style.gap = "6px";
             typeRow.style.flexWrap = "wrap";
             typeRow.appendChild(allBtn);
             typeRow.appendChild(imgBtn);

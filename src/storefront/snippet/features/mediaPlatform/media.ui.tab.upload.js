@@ -360,7 +360,12 @@ const renderSmartStats = (dash) => {
   wrap.appendChild(grid);
   if (lastUrl) {
     const link = renderLinkBlock(lastUrl, { label: isArabic() ? "رابط آخر رفع" : "Last upload link" });
-    if (link) wrap.appendChild(link);
+    if (link) {
+      link.style.border = "2px solid rgba(24,181,213,.8)";
+      link.style.background = "#2b2b2b";
+      link.style.boxShadow = "0 10px 24px rgba(0,0,0,.25)";
+      wrap.appendChild(link);
+    }
   }
   return wrap;
 };

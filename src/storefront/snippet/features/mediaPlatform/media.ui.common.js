@@ -592,18 +592,27 @@ const buildSheet = () => {
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
-  head.style.padding = "16px 14px";
+  head.style.padding = "14px 14px";
   head.style.display = "flex";
   head.style.alignItems = "center";
   head.style.justifyContent = "space-between";
+  head.style.gap = "10px";
   head.style.borderBottom = "1px solid rgba(24,181,213,.2)";
+  head.style.background = "linear-gradient(90deg, rgba(24,181,213,.14), rgba(48,48,48,0))";
 
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
   title.textContent = isArabic() ? "ملاك ابلودر" : "Malak Uploader";
-  title.style.fontSize = "18px";
+  title.style.fontSize = "19px";
   title.style.fontWeight = "900";
-  title.style.color = "#fff";
+  title.style.color = "#18b5d5";
+  title.style.letterSpacing = ".2px";
+
+  const headActions = document.createElement("div");
+  headActions.style.display = "flex";
+  headActions.style.alignItems = "center";
+  headActions.style.gap = "8px";
+  headActions.style.flex = "0 0 auto";
 
   const close = document.createElement("button");
   close.type = "button";
@@ -628,8 +637,17 @@ const buildSheet = () => {
   closeIcon.style.pointerEvents = "none";
   close.appendChild(closeIcon);
 
+  const headRight = document.createElement("div");
+  headRight.style.display = "flex";
+  headRight.style.alignItems = "center";
+  headRight.style.gap = "8px";
+  headRight.style.flex = "0 0 auto";
+
+  headRight.appendChild(headActions);
+  headRight.appendChild(close);
+
   head.appendChild(title);
-  head.appendChild(close);
+  head.appendChild(headRight);
 
   const body = document.createElement("div");
   body.style.padding = "0 14px 14px";
@@ -689,7 +707,7 @@ const buildSheet = () => {
   panel.appendChild(body);
   overlay.appendChild(panel);
 
-  return { overlay, closeBtn: close, title, tabs, actions, uploads, content, footer };
+  return { overlay, closeBtn: close, title, tabs, actions, uploads, content, footer, headActions };
 };
 `,
   `
