@@ -42,7 +42,7 @@ const renderConversionPlatform = (opts) => {
   title.style.color = "rgba(255,255,255,.95)";
   title.style.fontSize = "14px";
   title.style.fontWeight = "950";
-  title.textContent = isArabic() ? "منصة التحويل" : "Conversion Platform";
+  title.textContent = isArabic() ? "تحويل الصيغ" : "Conversion Platform";
 
   const convertIsVideoKind = String(state.convertKind || "image") === "video";
   const hintWrap = document.createElement("div");
@@ -1233,7 +1233,7 @@ const renderConversionPlatform = (opts) => {
           right.appendChild(up);
 
           if (uploadedUrl) {
-            const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتي" : "Open in My files");
+            const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتك" : "Open in My files");
             openFilesBtn.disabled = !onOpenFiles;
             openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.7" : "1";
             openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";

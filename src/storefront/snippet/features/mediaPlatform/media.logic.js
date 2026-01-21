@@ -908,7 +908,7 @@ const mount = () => {
       ? (() => {
           const btn = document.createElement("button");
           btn.type = "button";
-          btn.setAttribute("aria-label", isArabic() ? "منصة الرفع" : "Media platform");
+          btn.setAttribute("aria-label", isArabic() ? "ملاك ابلودر" : "Malak Uploader");
           btn.style.width = "100%";
           btn.style.minHeight = "44px";
           btn.style.border = "1px solid rgba(24,181,213,.35)";
@@ -965,7 +965,7 @@ const mount = () => {
           icon.appendChild(path);
 
           const label = document.createElement("span");
-          label.textContent = isArabic() ? "فتح منصة الرفع" : "Open media platform";
+          label.textContent = isArabic() ? "فتح ملاك ابلودر" : "Open Malak Uploader";
           label.style.lineHeight = "1";
 
           btn.appendChild(icon);
@@ -1133,27 +1133,39 @@ const mount = () => {
               ".bundleapp-swal-target{position:relative}" +
               ".bundleapp-swal-container{position:absolute!important;left:0!important;right:0!important;top:10px!important;bottom:auto!important;pointer-events:none!important;padding:0 12px!important;display:flex!important;justify-content:center!important;align-items:flex-start!important}" +
               ".bundleapp-swal-container .swal2-popup{pointer-events:auto!important}" +
-              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:900!important}" +
-              ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:950!important;margin:0!important}" +
+              ".bundleapp-swal-toast{background:#373737!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.35)!important;font-weight:400!important}" +
+              ".bundleapp-swal-toast .swal2-title{color:#fff!important;font-size:12px!important;font-weight:700!important;margin:0!important}" +
+              ".bundleapp-swal-toast .swal2-icon.swal2-success{border-color:#22c55e!important;color:#22c55e!important}" +
+              ".bundleapp-swal-toast .swal2-icon.swal2-warning{border-color:#facc15!important;color:#facc15!important}" +
+              ".bundleapp-swal-toast .swal2-icon.swal2-error{border-color:#ef4444!important;color:#ef4444!important}" +
+              ".bundleapp-swal-toast .swal2-success [class^='swal2-success-line']{background-color:#22c55e!important}" +
+              ".bundleapp-swal-toast .swal2-success .swal2-success-ring{border-color:rgba(34,197,94,.35)!important}" +
+              ".bundleapp-swal-toast .swal2-error [class^='swal2-x-mark-line']{background-color:#ef4444!important}" +
               ".bundleapp-swal-popup{background:#303030!important;color:#fff!important;border:1px solid rgba(24,181,213,.18)!important;border-radius:16px!important}" +
-              ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:950!important}" +
-              ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:850!important}" +
-              ".bundleapp-swal-confirm{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
-              ".bundleapp-swal-cancel{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
-              ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:950!important}" +
+              ".bundleapp-swal-popup .swal2-title{color:#fff!important;font-weight:700!important}" +
+              ".bundleapp-swal-popup .swal2-html-container{color:rgba(255,255,255,.85)!important;font-weight:400!important}" +
+              ".bundleapp-swal-confirm{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:700!important}" +
+              ".bundleapp-swal-cancel{background:#373737!important;color:#fff!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:12px!important;padding:10px 12px!important;font-weight:700!important}" +
+              ".bundleapp-swal-ok{background:#18b5d5!important;color:#303030!important;border:0!important;border-radius:12px!important;padding:10px 12px!important;font-weight:700!important}" +
               ".bundleapp-toast-host{position:absolute;left:0;right:0;top:10px;z-index:100000;pointer-events:none;padding:0 12px;display:flex;justify-content:center;align-items:flex-start}" +
-              ".bundleapp-toast{pointer-events:auto;min-width:min(460px,100%);max-width:min(640px,100%);background:#373737;color:#fff;border:1px solid rgba(24,181,213,.18);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:10px 12px;display:flex;gap:10px;align-items:flex-start;font-weight:900;opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease}" +
+              ".bundleapp-toast{pointer-events:auto;min-width:min(460px,100%);max-width:min(640px,100%);background:#373737;color:#fff;border:1px solid rgba(24,181,213,.18);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:10px 12px;display:flex;gap:10px;align-items:flex-start;font-weight:400;opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease}" +
               ".bundleapp-toast.is-in{opacity:1;transform:translateY(0)}" +
-              ".bundleapp-toast__icon{width:18px;height:18px;flex:0 0 18px;margin-top:1px;display:flex;align-items:center;justify-content:center}" +
+              ".bundleapp-toast__icon{width:18px;height:18px;flex:0 0 18px;margin-top:1px;display:flex;align-items:center;justify-content:center;color:#fff}" +
               ".bundleapp-toast__spinner{width:14px;height:14px;border-radius:999px;border:2px solid rgba(255,255,255,.25);border-top-color:#18b5d5;animation:bundleappSpin .75s linear infinite}" +
               ".bundleapp-toast__body{flex:1 1 auto;min-width:0}" +
-              ".bundleapp-toast__title{font-size:12px;font-weight:950;line-height:1.35;margin:0}" +
-              ".bundleapp-toast__msg{font-size:12px;font-weight:850;line-height:1.5;margin-top:2px;color:rgba(255,255,255,.88);word-break:break-word}" +
-              ".bundleapp-toast__close{appearance:none;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;border-radius:10px;padding:4px 8px;cursor:pointer;font-weight:950;line-height:1}" +
+              ".bundleapp-toast__title{font-size:12px;font-weight:700;line-height:1.35;margin:0}" +
+              ".bundleapp-toast__msg{font-size:12px;font-weight:400;line-height:1.5;margin-top:2px;color:rgba(255,255,255,.88);word-break:break-word}" +
+              ".bundleapp-toast__close{appearance:none;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;border-radius:10px;padding:4px 8px;cursor:pointer;font-weight:400;line-height:1}" +
               ".bundleapp-toast.is-success{border-color:rgba(34,197,94,.35)}" +
               ".bundleapp-toast.is-error{border-color:rgba(239,68,68,.35)}" +
               ".bundleapp-toast.is-warning{border-color:rgba(234,179,8,.35)}" +
               ".bundleapp-toast.is-info{border-color:rgba(59,130,246,.35)}" +
+              ".bundleapp-toast.is-success .bundleapp-toast__icon{color:#22c55e}" +
+              ".bundleapp-toast.is-warning .bundleapp-toast__icon{color:#facc15}" +
+              ".bundleapp-toast.is-error .bundleapp-toast__icon{color:#ef4444}" +
+              ".bundleapp-toast.is-info .bundleapp-toast__icon{color:#38bdf8}" +
+              ".bundle-app-bottomsheet,.bundle-app-bottomsheet *{font-weight:400!important}" +
+              ".bundle-app-bottomsheet__title,.bundle-app-bottomsheet h1,.bundle-app-bottomsheet h2,.bundle-app-bottomsheet h3,.bundle-app-bottomsheet h4,.bundle-app-bottomsheet strong,.bundleapp-tab{font-weight:700!important}" +
               "@keyframes bundleappSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}";
             document.head.appendChild(style);
           } catch {}
@@ -2315,7 +2327,7 @@ const mount = () => {
           if (!maxFiles) {
             const planName = planLabel(planKey || "basic");
             state.convertError = isArabic()
-              ? "منصة التحويل متاحة في Pro و Business فقط" + (planName ? " (خطتك الحالية: " + planName + ")" : "")
+              ? "تحويل الصيغ متاحة في Pro و Business فقط" + (planName ? " (خطتك الحالية: " + planName + ")" : "")
               : "Conversion is available in Pro and Business only" + (planName ? " (your plan: " + planName + ")" : "");
             toastError(state.convertError);
             render();
@@ -2496,7 +2508,7 @@ const mount = () => {
           if (!maxFiles) {
             const planName = planLabel(planKey || "basic");
             state.convertError = isArabic()
-              ? "منصة التحويل متاحة في Pro و Business فقط" + (planName ? " (خطتك الحالية: " + planName + ")" : "")
+              ? "تحويل الصيغ متاحة في Pro و Business فقط" + (planName ? " (خطتك الحالية: " + planName + ")" : "")
               : "Conversion is available in Pro and Business only" + (planName ? " (your plan: " + planName + ")" : "");
             toastError(state.convertError);
             render();
@@ -2837,7 +2849,7 @@ const mount = () => {
             it.uploadProgress = 100;
             render();
             toastClose(toastId);
-            toastSuccess(isArabic() ? "تم رفع الملف إلى ملفاتي" : "Uploaded to My files");
+            toastSuccess(isArabic() ? "تم رفع الملف إلى ملفاتك" : "Uploaded to My files");
           } catch (e) {
             it.uploading = false;
             it.uploadProgress = 0;
@@ -2952,7 +2964,7 @@ const mount = () => {
 
         const openFilesFromConvert = async () => {
           try {
-            toastInfo(isArabic() ? "فتح ملفاتي..." : "Opening files...");
+            toastInfo(isArabic() ? "فتح ملفاتك..." : "Opening files...");
             state.view = "files";
             state.type = "";
             state.page = 1;
@@ -3536,7 +3548,7 @@ const mount = () => {
             state.compressUploadingAny = items.some((x) => x && x.uploading);
             render();
             toastClose(toastId);
-            toastSuccess(isArabic() ? "تم رفع الصورة إلى ملفاتي" : "Uploaded to My files");
+            toastSuccess(isArabic() ? "تم رفع الصورة إلى ملفاتك" : "Uploaded to My files");
           } catch (e) {
             it.uploading = false;
             it.uploadProgress = 0;
@@ -3607,7 +3619,7 @@ const mount = () => {
 
         const openFilesFromCompress = async () => {
           try {
-            toastInfo(isArabic() ? "فتح ملفاتي..." : "Opening files...");
+            toastInfo(isArabic() ? "فتح ملفاتك..." : "Opening files...");
             state.view = "files";
             state.type = "";
             state.page = 1;
@@ -3634,8 +3646,19 @@ const mount = () => {
             };
 
             const labels = isArabic()
-              ? { upload: "منصة الرفع", compress: "منصه الضغط", convert: "منصة التحويل", files: "ملفاتي", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
+              ? { upload: "رفع الملفات", compress: "ضغط الصور", convert: "تحويل الصيغ", files: "ملفاتك", all: "الكل", img: "صور", vid: "فيديو", ref: "تحديث" }
               : { upload: "Upload Center", compress: "Compression", convert: "Conversion Platform", files: "My files", all: "All", img: "Images", vid: "Videos", ref: "Refresh" };
+
+            const appTitle = isArabic() ? "ملاك ابلودر" : "Malak Uploader";
+            const viewLabel =
+              state.view === "compress"
+                ? labels.compress
+                : state.view === "convert"
+                  ? labels.convert
+                  : state.view === "files"
+                    ? labels.files
+                    : labels.upload;
+            if (sheet.title) sheet.title.textContent = String(appTitle) + " — " + String(viewLabel);
 
             const planKey = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
             const allowConvert = planKey === "pro" || planKey === "business";
@@ -4128,7 +4151,7 @@ const mount = () => {
           const limitMsg =
             withinStorage.length > slots
               ? isArabic()
-                ? ("حد الملفات في منصة الرفع لباقة " + planName + " هو " + String(maxFiles) + " ملف — احذف من الموجودين لإضافة ملفات جديدة")
+                ? ("حد الملفات في رفع الملفات لباقة " + planName + " هو " + String(maxFiles) + " ملف — احذف من الموجودين لإضافة ملفات جديدة")
                 : ("Upload list limit for " + planName + " is " + String(maxFiles) + " files — remove some to add more")
               : "";
           const limitUpgradeHint =

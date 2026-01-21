@@ -73,7 +73,7 @@ const setupFabFooterReveal = (btn) => {
 const createFab = () => {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.setAttribute("aria-label", isArabic() ? "منصة الرفع" : "Upload platform");
+  btn.setAttribute("aria-label", isArabic() ? "ملاك ابلودر" : "Malak Uploader");
   btn.style.position = "fixed";
   btn.style.top = "calc(env(safe-area-inset-top, 0px) + 12px)";
   if (typeof isRtl === "function" && isRtl()) {
@@ -154,10 +154,10 @@ const getLegalCopy = (kind, ar) => {
 
   const intro = isPrivacy
     ? (ar
-        ? "توضح سياسة الخصوصية كيفية تعاملنا مع بياناتك عند استخدام مركز الرفع."
+        ? "توضح سياسة الخصوصية كيفية تعاملنا مع بياناتك عند استخدام رفع الملفات."
         : "Privacy Policy explains how we handle your data while using Upload Center.")
     : (ar
-        ? "توضح شروط الاستخدام القواعد والمسؤوليات الأساسية لاستخدام مركز الرفع."
+        ? "توضح شروط الاستخدام القواعد والمسؤوليات الأساسية لاستخدام رفع الملفات."
         : "Terms of Use describe the basic rules and responsibilities when using Upload Center.");
 
   const mk = (id, title, points) => ({ id: String(id || ""), title: String(title || ""), points: Array.isArray(points) ? points : [] });
@@ -172,7 +172,7 @@ const getLegalCopy = (kind, ar) => {
             mk("collect", "المعلومات التي نجمعها", ["معلومات فنية عن الملف (مثل النوع والحجم).", "معرّفات تشغيل داخلية مرتبطة بمتجرك.", "قد يتم تسجيل أحداث تقنية لأغراض الأمان والتشخيص."]),
             mk("use", "كيفية استخدام المعلومات", ["رفع الملفات وإدارتها.", "تحسين الأداء وتجربة الاستخدام.", "منع إساءة الاستخدام وحماية الخدمة."]),
             mk("share", "المشاركة مع أطراف خارجية", ["قد نعتمد على مزوّدي بنية تحتية (تخزين/شبكات) لتنفيذ الخدمة.", "لا نقوم ببيع بياناتك."]),
-            mk("retain", "الاحتفاظ والحذف", ["نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية.", "يمكنك حذف ملفاتك من تبويب (ملفاتي) عند توفره."]),
+            mk("retain", "الاحتفاظ والحذف", ["نحتفظ بالبيانات للمدة اللازمة لتقديم الخدمة أو للمتطلبات القانونية/الأمنية.", "يمكنك حذف ملفاتك من تبويب (ملفاتك) عند توفره."]),
             mk("rights", "حقوقك", ["يمكنك طلب حذف/مراجعة بيانات مرتبطة باستخدامك للخدمة عبر فريق الدعم."])
           ]
         : [
@@ -194,7 +194,7 @@ const getLegalCopy = (kind, ar) => {
           mk("allowed", "الاستخدام المسموح", ["لا يجوز رفع إلا المحتوى الذي تملكه أو تملك حق استخدامه.", "يجب استخدام الخدمة لأغراض مشروعة وبما يتوافق مع سياسات منصتك."]),
           mk("blocked", "المحتوى المحظور", ["لا يجوز رفع محتوى ينتهك حقوق الملكية الفكرية.", "لا يجوز رفع محتوى غير قانوني أو ضار أو يتضمن برمجيات خبيثة."]),
           mk("resp", "المسؤولية", ["تتحمل المسؤولية عن الملفات التي تقوم برفعها وكيفية استخدامها.", "قد تتأثر إتاحة الخدمة مؤقتًا بسبب الصيانة أو الأسباب التقنية."]),
-          mk("retain", "الحذف والاحتفاظ", ["يمكنك حذف ملفاتك من تبويب (ملفاتي) عند توفره.", "قد نحتفظ بنسخ تشغيلية/أمنية مؤقتة ضمن حدود معقولة."])
+          mk("retain", "الحذف والاحتفاظ", ["يمكنك حذف ملفاتك من تبويب (ملفاتك) عند توفره.", "قد نحتفظ بنسخ تشغيلية/أمنية مؤقتة ضمن حدود معقولة."])
         ]
       : [
           mk("allowed", "Permitted Use", ["Upload only content you own or have rights to use.", "Use the service lawfully and in compliance with your platform policies."]),
@@ -600,7 +600,7 @@ const buildSheet = () => {
 
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
-  title.textContent = isArabic() ? "منصة الرفع" : "Media platform";
+  title.textContent = isArabic() ? "ملاك ابلودر" : "Malak Uploader";
   title.style.fontSize = "18px";
   title.style.fontWeight = "900";
   title.style.color = "#fff";
@@ -688,13 +688,14 @@ const buildSheet = () => {
   panel.appendChild(body);
   overlay.appendChild(panel);
 
-  return { overlay, closeBtn: close, tabs, actions, uploads, content, footer };
+  return { overlay, closeBtn: close, title, tabs, actions, uploads, content, footer };
 };
 `,
   `
 const pill = (label, active) => {
   const b = document.createElement("button");
   b.type = "button";
+  b.className = "bundleapp-tab";
   b.textContent = label;
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
@@ -1176,7 +1177,7 @@ const renderEmpty = () => {
   wrap.style.fontSize = "13px";
   wrap.style.fontWeight = "900";
   wrap.textContent = isArabic()
-    ? "مفيش ملفات مرفوعة لحد دلوقتي. ارفع من (مركز الرفع) أو اضغط/حوّل وبعدين ارفع النتيجة."
+    ? "مفيش ملفات مرفوعة لحد دلوقتي. ارفع من (رفع الملفات) أو اضغط/حوّل وبعدين ارفع النتيجة."
     : "No files yet. Upload from Upload Center, or compress/convert then upload the result.";
   return wrap;
 };

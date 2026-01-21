@@ -155,7 +155,7 @@ const renderCompressionPlatform = (opts) => {
   title.style.color = "rgba(255,255,255,.95)";
   title.style.fontSize = "14px";
   title.style.fontWeight = "950";
-  title.textContent = isArabic() ? "منصه الضغط" : "Image Compression Platform";
+  title.textContent = isArabic() ? "ضغط الصور" : "Image Compression Platform";
 
   const hint = document.createElement("div");
   hint.style.color = "rgba(255,255,255,.55)";
