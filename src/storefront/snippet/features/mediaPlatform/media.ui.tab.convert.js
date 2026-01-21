@@ -40,7 +40,7 @@ const renderConversionPlatform = (opts) => {
 
   const title = document.createElement("div");
   title.style.color = "rgba(255,255,255,.95)";
-  title.style.fontSize = "14px";
+  title.style.fontSize = "20px";
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "تحويل الصيغ" : "Conversion Platform";
 
@@ -53,13 +53,13 @@ const renderConversionPlatform = (opts) => {
 
   const hint1 = document.createElement("div");
   hint1.style.color = "rgba(255,255,255,.65)";
-  hint1.style.fontSize = "12px";
+  hint1.style.fontSize = "13px";
   hint1.style.fontWeight = "900";
   hint1.style.lineHeight = "1.6";
 
   const hint2 = document.createElement("div");
   hint2.style.color = "rgba(255,255,255,.50)";
-  hint2.style.fontSize = "12px";
+  hint2.style.fontSize = "13px";
   hint2.style.fontWeight = "900";
   hint2.style.lineHeight = "1.6";
 

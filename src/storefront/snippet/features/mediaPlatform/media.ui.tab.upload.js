@@ -77,13 +77,13 @@ const renderUploadHero = (dash) => {
   meta.style.minWidth = "0";
 
   const hello = document.createElement("div");
-  hello.style.fontSize = "13px";
+  hello.style.fontSize = "17px";
   hello.style.fontWeight = "900";
   hello.style.color = "rgba(255,255,255,.82)";
   hello.textContent = isArabic() ? "أهلاً بك في رفع الملفات" : "Welcome to Upload Center";
 
   const name = document.createElement("div");
-  name.style.fontSize = "16px";
+  name.style.fontSize = "22px";
   name.style.fontWeight = "950";
   name.style.color = "#fff";
   name.style.overflow = "hidden";
@@ -204,13 +204,13 @@ const statCard = (label, value) => {
   c.style.gap = "8px";
 
   const l = document.createElement("div");
-  l.style.fontSize = "12px";
+  l.style.fontSize = "13px";
   l.style.fontWeight = "900";
   l.style.color = "rgba(255,255,255,.78)";
   l.textContent = String(label || "");
 
   const v = document.createElement("div");
-  v.style.fontSize = "16px";
+  v.style.fontSize = "18px";
   v.style.fontWeight = "950";
   v.style.color = "#fff";
   v.textContent = String(value == null ? "" : value);
@@ -224,21 +224,34 @@ const statCard = (label, value) => {
 const renderSmartStats = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const s = d.summary && typeof d.summary === "object" ? d.summary : {};
+  const lastUrl = (() => {
+    try {
+      const last = d.lastAsset && typeof d.lastAsset === "object" ? d.lastAsset : {};
+      return String(last.secureUrl || last.url || "").trim();
+    } catch {
+      return "";
+    }
+  })();
 
   const wrap = document.createElement("div");
-  wrap.style.display = "grid";
-  wrap.style.gridTemplateColumns = "repeat(3,minmax(0,1fr))";
+  wrap.style.display = "flex";
+  wrap.style.flexDirection = "column";
   wrap.style.gap = "10px";
+
+  const grid = document.createElement("div");
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(3,minmax(0,1fr))";
+  grid.style.gap = "10px";
   try {
     const w = Number(window.innerWidth || 0) || 0;
-    if (w && w < 560) wrap.style.gridTemplateColumns = "repeat(1,minmax(0,1fr))";
+    if (w && w < 560) grid.style.gridTemplateColumns = "repeat(1,minmax(0,1fr))";
   } catch {}
 
   const totalFiles = Number(s.total || 0) || 0;
   const totalBytes = Number(s.totalBytes || 0) || 0;
   const lastAt = String(s.lastAt || "").trim();
 
-  wrap.appendChild(statCard(isArabic() ? "إجمالي الملفات" : "Total files", String(totalFiles)));
+  grid.appendChild(statCard(isArabic() ? "إجمالي الملفات" : "Total files", String(totalFiles)));
 
   const bytesFromGb = (gb) => Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
   const maxStorageBytesForPlan = () => {
@@ -342,8 +355,13 @@ const renderSmartStats = (dash) => {
     return c;
   };
 
-  wrap.appendChild(renderStorageCard());
-  wrap.appendChild(statCard(isArabic() ? "آخر رفع" : "Last upload", lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—")));
+  grid.appendChild(renderStorageCard());
+  grid.appendChild(statCard(isArabic() ? "آخر رفع" : "Last upload", lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—")));
+  wrap.appendChild(grid);
+  if (lastUrl) {
+    const link = renderLinkBlock(lastUrl, { label: isArabic() ? "رابط آخر رفع" : "Last upload link" });
+    if (link) wrap.appendChild(link);
+  }
   return wrap;
 };
 `,

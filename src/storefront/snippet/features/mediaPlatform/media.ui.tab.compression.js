@@ -58,7 +58,7 @@ const renderCompressionPlatform = (opts) => {
 
     const title = document.createElement("div");
     title.style.color = "rgba(255,255,255,.95)";
-    title.style.fontSize = "13px";
+    title.style.fontSize = "18px";
     title.style.fontWeight = "950";
     title.textContent = String(titleText || "");
 
@@ -70,7 +70,7 @@ const renderCompressionPlatform = (opts) => {
     if (subText) {
       const sub = document.createElement("div");
       sub.style.color = "rgba(255,255,255,.55)";
-      sub.style.fontSize = "12px";
+      sub.style.fontSize = "13px";
       sub.style.fontWeight = "900";
       sub.style.lineHeight = "1.6";
       sub.textContent = String(subText || "");
@@ -153,13 +153,13 @@ const renderCompressionPlatform = (opts) => {
 
   const title = document.createElement("div");
   title.style.color = "rgba(255,255,255,.95)";
-  title.style.fontSize = "14px";
+  title.style.fontSize = "20px";
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "ضغط الصور" : "Image Compression Platform";
 
   const hint = document.createElement("div");
   hint.style.color = "rgba(255,255,255,.55)";
-  hint.style.fontSize = "12px";
+  hint.style.fontSize = "13px";
   hint.style.fontWeight = "900";
   hint.style.lineHeight = "1.6";
   const limText = maxFiles ? String(maxFiles) : "—";

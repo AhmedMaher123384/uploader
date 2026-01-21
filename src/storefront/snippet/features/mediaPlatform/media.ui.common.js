@@ -244,7 +244,7 @@ const buildLegalHead = (titleText, theme, onClose) => {
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
   title.textContent = String(titleText || "");
-  title.style.fontSize = "18px";
+  title.style.fontSize = "20px";
   title.style.fontWeight = "950";
   title.style.color = "#fff";
   title.style.minWidth = "0";
@@ -700,9 +700,9 @@ const pill = (label, active) => {
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
   b.style.color = active ? "#303030" : "#fff";
-  b.style.padding = "9px 12px";
-  b.style.borderRadius = "999px";
-  b.style.fontSize = "13px";
+  b.style.padding = "10px 14px";
+  b.style.borderRadius = "10px";
+  b.style.fontSize = "14px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
   return b;
@@ -1250,43 +1250,91 @@ const copyText = (text, onDone) => {
 };
 `,
   `
-const renderLinkBlock = (url) => {
+const renderLinkBlock = (url, opts) => {
   const u = String(url || "");
   if (!u) return null;
+  const o = opts && typeof opts === "object" ? opts : {};
+  const labelText = String(o.label || "").trim() || (isArabic() ? "رابط الملف" : "File link");
+  const host = (() => {
+    try {
+      const parsed = new URL(u);
+      return String(parsed.hostname || "").trim();
+    } catch {
+      return "";
+    }
+  })();
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.flexDirection = isArabic() ? "row-reverse" : "row";
-  wrap.style.gap = "10px";
-  wrap.style.padding = "10px";
-  wrap.style.borderRadius = "12px";
+  wrap.style.flexDirection = "column";
+  wrap.style.gap = "8px";
+  wrap.style.padding = "12px";
+  wrap.style.borderRadius = "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.35)";
   wrap.style.background = "#373737";
+
+  const head = document.createElement("div");
+  head.style.display = "flex";
+  head.style.alignItems = "center";
+  head.style.justifyContent = "space-between";
+  head.style.gap = "8px";
+
+  const label = document.createElement("div");
+  label.style.fontSize = "12px";
+  label.style.fontWeight = "900";
+  label.style.color = "rgba(255,255,255,.75)";
+  label.textContent = labelText;
+
+  const hostChip = document.createElement("div");
+  hostChip.style.display = host ? "inline-flex" : "none";
+  hostChip.style.alignItems = "center";
+  hostChip.style.justifyContent = "center";
+  hostChip.style.padding = "4px 8px";
+  hostChip.style.borderRadius = "999px";
+  hostChip.style.border = "1px solid rgba(255,255,255,.12)";
+  hostChip.style.background = "rgba(255,255,255,.06)";
+  hostChip.style.color = "rgba(255,255,255,.82)";
+  hostChip.style.fontSize = "11px";
+  hostChip.style.fontWeight = "950";
+  hostChip.style.lineHeight = "1";
+  hostChip.textContent = host;
+
+  head.appendChild(label);
+  head.appendChild(hostChip);
+
+  const linkBox = document.createElement("div");
+  linkBox.style.border = "1px solid rgba(255,255,255,.10)";
+  linkBox.style.borderRadius = "12px";
+  linkBox.style.background = "#303030";
+  linkBox.style.padding = "10px 12px";
 
   const a = document.createElement("a");
   a.href = u;
   a.target = "_blank";
   a.rel = "noopener";
   a.textContent = u;
-  a.style.flex = "1 1 auto";
-  a.style.minWidth = "0";
-  a.style.overflow = "hidden";
-  a.style.textOverflow = "ellipsis";
-  a.style.whiteSpace = "nowrap";
+  a.style.display = "block";
+  a.style.wordBreak = "break-word";
   a.style.direction = "ltr";
-  a.style.textAlign = isArabic() ? "right" : "left";
-  a.style.fontSize = "14px";
+  a.style.textAlign = "left";
+  a.style.fontSize = "15px";
   a.style.fontWeight = "950";
   a.style.color = "#18b5d5";
   a.style.textDecoration = "underline";
   a.style.textDecorationThickness = "2px";
   a.style.textUnderlineOffset = "3px";
 
+  linkBox.appendChild(a);
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.flexWrap = "wrap";
+  actions.style.gap = "8px";
+  actions.style.justifyContent = isArabic() ? "flex-start" : "flex-end";
+
   const copy = document.createElement("button");
   copy.type = "button";
   copy.textContent = isArabic() ? "انسخ الرابط" : "Copy link";
-  copy.style.flex = "0 0 auto";
   copy.style.border = "0";
   copy.style.cursor = "pointer";
   copy.style.padding = "10px 14px";
@@ -1304,8 +1352,29 @@ const renderLinkBlock = (url) => {
     } catch {}
   };
 
-  wrap.appendChild(a);
-  wrap.appendChild(copy);
+  const open = document.createElement("a");
+  open.href = u;
+  open.target = "_blank";
+  open.rel = "noopener";
+  open.textContent = isArabic() ? "فتح الرابط" : "Open link";
+  open.style.display = "inline-flex";
+  open.style.alignItems = "center";
+  open.style.justifyContent = "center";
+  open.style.padding = "10px 14px";
+  open.style.borderRadius = "10px";
+  open.style.border = "1px solid rgba(255,255,255,.14)";
+  open.style.background = "#303030";
+  open.style.color = "#fff";
+  open.style.fontSize = "13px";
+  open.style.fontWeight = "950";
+  open.style.textDecoration = "none";
+
+  actions.appendChild(copy);
+  actions.appendChild(open);
+
+  wrap.appendChild(head);
+  wrap.appendChild(linkBox);
+  wrap.appendChild(actions);
   return wrap;
 };
 `
