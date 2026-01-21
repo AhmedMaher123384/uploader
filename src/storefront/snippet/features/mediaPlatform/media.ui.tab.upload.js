@@ -379,30 +379,13 @@ const renderSmartStats = (dash) => {
     c.appendChild(l);
     c.appendChild(v);
 
-    if (lastUrl) {
-      const linkLabel = document.createElement("div");
-      linkLabel.style.fontSize = "11px";
-      linkLabel.style.fontWeight = "900";
-      linkLabel.style.color = "rgba(255,255,255,.65)";
-      linkLabel.textContent = isArabic() ? "آخر ملف" : "Last file";
-
-      const a = document.createElement("a");
-      a.href = lastUrl;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = lastUrl;
-      a.style.display = "block";
-      a.style.wordBreak = "break-word";
-      a.style.direction = "ltr";
-      a.style.textAlign = "left";
-      a.style.fontSize = "12px";
-      a.style.fontWeight = "900";
-      a.style.color = "#18b5d5";
-      a.style.textDecoration = "underline";
-      a.style.textUnderlineOffset = "3px";
-
-      c.appendChild(linkLabel);
-      c.appendChild(a);
+    const linkBlock = lastUrl ? renderLinkBlock(lastUrl, { label: isArabic() ? "آخر ملف" : "Last file" }) : null;
+    if (linkBlock) {
+      linkBlock.style.border = "1px solid rgba(255,255,255,.08)";
+      linkBlock.style.background = "#303030";
+      linkBlock.style.padding = "8px";
+      linkBlock.style.gap = "6px";
+      c.appendChild(linkBlock);
     }
 
     return c;
