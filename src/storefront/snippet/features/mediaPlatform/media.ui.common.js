@@ -1277,6 +1277,7 @@ const renderLinkBlock = (url, opts) => {
   const u = String(url || "");
   if (!u) return null;
   const o = opts && typeof opts === "object" ? opts : {};
+  const compact = Boolean(o.compact);
   const labelText = String(o.label || "").trim() || (isArabic() ? "رابط الملف" : "File link");
   const metaText = String(o.meta || "").trim();
   const host = (() => {
@@ -1291,9 +1292,9 @@ const renderLinkBlock = (url, opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
-  wrap.style.gap = "8px";
-  wrap.style.padding = "12px";
-  wrap.style.borderRadius = "14px";
+  wrap.style.gap = compact ? "6px" : "8px";
+  wrap.style.padding = compact ? "8px" : "12px";
+  wrap.style.borderRadius = compact ? "12px" : "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.35)";
   wrap.style.background = "#373737";
 
@@ -1304,7 +1305,7 @@ const renderLinkBlock = (url, opts) => {
   head.style.gap = "8px";
 
   const label = document.createElement("div");
-  label.style.fontSize = "12px";
+  label.style.fontSize = compact ? "11px" : "12px";
   label.style.fontWeight = "900";
   label.style.color = "rgba(255,255,255,.75)";
   label.textContent = labelText;
@@ -1313,12 +1314,12 @@ const renderLinkBlock = (url, opts) => {
   hostChip.style.display = host ? "inline-flex" : "none";
   hostChip.style.alignItems = "center";
   hostChip.style.justifyContent = "center";
-  hostChip.style.padding = "4px 8px";
+  hostChip.style.padding = compact ? "3px 6px" : "4px 8px";
   hostChip.style.borderRadius = "999px";
   hostChip.style.border = "1px solid rgba(255,255,255,.12)";
   hostChip.style.background = "rgba(255,255,255,.06)";
   hostChip.style.color = "rgba(255,255,255,.82)";
-  hostChip.style.fontSize = "11px";
+  hostChip.style.fontSize = compact ? "10px" : "11px";
   hostChip.style.fontWeight = "950";
   hostChip.style.lineHeight = "1";
   hostChip.textContent = host;
@@ -1328,7 +1329,7 @@ const renderLinkBlock = (url, opts) => {
 
   if (metaText) {
     const meta = document.createElement("div");
-    meta.style.fontSize = "11px";
+    meta.style.fontSize = compact ? "10px" : "11px";
     meta.style.fontWeight = "900";
     meta.style.color = "rgba(255,255,255,.7)";
     meta.textContent = metaText;
@@ -1339,7 +1340,7 @@ const renderLinkBlock = (url, opts) => {
   linkBox.style.border = "1px solid rgba(255,255,255,.10)";
   linkBox.style.borderRadius = "12px";
   linkBox.style.background = "#303030";
-  linkBox.style.padding = "10px 12px";
+  linkBox.style.padding = compact ? "8px 10px" : "10px 12px";
 
   const a = document.createElement("a");
   a.href = u;
@@ -1350,12 +1351,17 @@ const renderLinkBlock = (url, opts) => {
   a.style.wordBreak = "break-word";
   a.style.direction = "ltr";
   a.style.textAlign = "left";
-  a.style.fontSize = "15px";
+  a.style.fontSize = compact ? "12px" : "15px";
   a.style.fontWeight = "950";
   a.style.color = "#18b5d5";
   a.style.textDecoration = "underline";
-  a.style.textDecorationThickness = "2px";
-  a.style.textUnderlineOffset = "3px";
+  a.style.textDecorationThickness = compact ? "1px" : "2px";
+  a.style.textUnderlineOffset = compact ? "2px" : "3px";
+  if (compact) {
+    a.style.whiteSpace = "nowrap";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+  }
 
   linkBox.appendChild(a);
 
@@ -1407,7 +1413,7 @@ const renderLinkBlock = (url, opts) => {
 
   wrap.appendChild(head);
   wrap.appendChild(linkBox);
-  wrap.appendChild(actions);
+  if (!compact) wrap.appendChild(actions);
   return wrap;
 };
 `

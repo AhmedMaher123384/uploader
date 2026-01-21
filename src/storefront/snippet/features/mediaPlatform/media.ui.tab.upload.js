@@ -224,14 +224,15 @@ const statCard = (label, value) => {
 const renderSmartStats = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const s = d.summary && typeof d.summary === "object" ? d.summary : {};
-  const lastUrl = (() => {
+  const lastAsset = (() => {
     try {
-      const last = d.lastAsset && typeof d.lastAsset === "object" ? d.lastAsset : {};
-      return String(last.secureUrl || last.url || "").trim();
+      return d.lastAsset && typeof d.lastAsset === "object" ? d.lastAsset : {};
     } catch {
-      return "";
+      return {};
     }
   })();
+  const lastUrl = String(lastAsset.secureUrl || lastAsset.url || "").trim();
+  const lastMeta = String(lastAsset.originalFilename || lastAsset.publicId || "").trim();
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
@@ -379,7 +380,9 @@ const renderSmartStats = (dash) => {
     c.appendChild(l);
     c.appendChild(v);
 
-    const linkBlock = lastUrl ? renderLinkBlock(lastUrl, { label: isArabic() ? "آخر ملف" : "Last file" }) : null;
+    const linkBlock = lastUrl
+      ? renderLinkBlock(lastUrl, { label: isArabic() ? "آخر ملف" : "Last file", meta: lastMeta, compact: true })
+      : null;
     if (linkBlock) {
       linkBlock.style.border = "1px solid rgba(255,255,255,.08)";
       linkBlock.style.background = "#303030";

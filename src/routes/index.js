@@ -2805,7 +2805,11 @@ function createApiRouter(config) {
         { $addFields: { lastAt: { $ifNull: ["$lastCloudinaryCreatedAt", "$lastCreatedAt"] } } }
       ];
 
-      const [storeInfo, summaryAgg] = await Promise.all([getPublicStoreInfo(storeId), MediaAsset.aggregate(summaryPipeline, { allowDiskUse: true })]);
+      const [storeInfo, summaryAgg, lastAssetDoc] = await Promise.all([
+        getPublicStoreInfo(storeId),
+        MediaAsset.aggregate(summaryPipeline, { allowDiskUse: true }),
+        MediaAsset.findOne(baseStoreFilter).sort({ cloudinaryCreatedAt: -1, createdAt: -1 }).lean()
+      ]);
 
       const summaryRoot = Array.isArray(summaryAgg) && summaryAgg.length ? summaryAgg[0] : null;
       const summary = summaryRoot
@@ -2824,7 +2828,8 @@ function createApiRouter(config) {
         merchantId: storeId,
         planKey: String(merchant.planKey || "basic"),
         store: storeInfo || null,
-        summary
+        summary,
+        lastAsset: serializeMediaAsset(lastAssetDoc)
       });
     } catch (err) {
       return next(err);
