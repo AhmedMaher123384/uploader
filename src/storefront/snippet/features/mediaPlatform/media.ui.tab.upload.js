@@ -240,7 +240,7 @@ const renderSmartStats = (dash) => {
 
   const grid = document.createElement("div");
   grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(3,minmax(0,1fr))";
+  grid.style.gridTemplateColumns = "repeat(2,minmax(0,1fr))";
   grid.style.gap = "10px";
   try {
     const w = Number(window.innerWidth || 0) || 0;
@@ -250,7 +250,6 @@ const renderSmartStats = (dash) => {
   const totalFiles = Number(s.total || 0) || 0;
   const totalBytes = Number(s.totalBytes || 0) || 0;
   const lastAt = String(s.lastAt || "").trim();
-
   grid.appendChild(statCard(isArabic() ? "إجمالي الملفات" : "Total files", String(totalFiles)));
 
   const bytesFromGb = (gb) => Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
@@ -356,14 +355,14 @@ const renderSmartStats = (dash) => {
   };
 
   grid.appendChild(renderStorageCard());
-  grid.appendChild(statCard(isArabic() ? "آخر رفع" : "Last upload", lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—")));
   wrap.appendChild(grid);
   if (lastUrl) {
-    const link = renderLinkBlock(lastUrl, { label: isArabic() ? "رابط آخر رفع" : "Last upload link" });
+    const dateText = lastAt ? fmtDateTime(lastAt) : "";
+    const link = renderLinkBlock(lastUrl, { label: isArabic() ? "آخر رفع" : "Last upload", meta: dateText });
     if (link) {
-      link.style.border = "2px solid rgba(24,181,213,.8)";
-      link.style.background = "#2b2b2b";
-      link.style.boxShadow = "0 10px 24px rgba(0,0,0,.25)";
+      link.style.border = "1px solid rgba(24,181,213,.45)";
+      link.style.background = "linear-gradient(180deg, rgba(24,181,213,.08), rgba(55,55,55,.75))";
+      link.style.boxShadow = "0 12px 26px rgba(0,0,0,.25)";
       wrap.appendChild(link);
     }
   }

@@ -1278,6 +1278,7 @@ const renderLinkBlock = (url, opts) => {
   if (!u) return null;
   const o = opts && typeof opts === "object" ? opts : {};
   const labelText = String(o.label || "").trim() || (isArabic() ? "رابط الملف" : "File link");
+  const metaText = String(o.meta || "").trim();
   const host = (() => {
     try {
       const parsed = new URL(u);
@@ -1324,6 +1325,15 @@ const renderLinkBlock = (url, opts) => {
 
   head.appendChild(label);
   head.appendChild(hostChip);
+
+  if (metaText) {
+    const meta = document.createElement("div");
+    meta.style.fontSize = "11px";
+    meta.style.fontWeight = "900";
+    meta.style.color = "rgba(255,255,255,.7)";
+    meta.textContent = metaText;
+    wrap.appendChild(meta);
+  }
 
   const linkBox = document.createElement("div");
   linkBox.style.border = "1px solid rgba(255,255,255,.10)";
