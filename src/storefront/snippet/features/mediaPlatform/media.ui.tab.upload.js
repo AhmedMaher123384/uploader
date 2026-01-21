@@ -354,13 +354,63 @@ const renderSmartStats = (dash) => {
     return c;
   };
 
+  const renderLastUploadCard = () => {
+    const c = document.createElement("div");
+    c.style.border = "1px solid rgba(255,255,255,.10)";
+    c.style.borderRadius = "14px";
+    c.style.background = "#373737";
+    c.style.padding = "12px";
+    c.style.display = "flex";
+    c.style.flexDirection = "column";
+    c.style.gap = "8px";
+
+    const l = document.createElement("div");
+    l.style.fontSize = "13px";
+    l.style.fontWeight = "900";
+    l.style.color = "rgba(255,255,255,.78)";
+    l.textContent = isArabic() ? "آخر رفع" : "Last upload";
+
+    const v = document.createElement("div");
+    v.style.fontSize = "18px";
+    v.style.fontWeight = "950";
+    v.style.color = "#fff";
+    v.textContent = lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—");
+
+    c.appendChild(l);
+    c.appendChild(v);
+
+    if (lastUrl) {
+      const linkLabel = document.createElement("div");
+      linkLabel.style.fontSize = "11px";
+      linkLabel.style.fontWeight = "900";
+      linkLabel.style.color = "rgba(255,255,255,.65)";
+      linkLabel.textContent = isArabic() ? "آخر ملف" : "Last file";
+
+      const a = document.createElement("a");
+      a.href = lastUrl;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = lastUrl;
+      a.style.display = "block";
+      a.style.wordBreak = "break-word";
+      a.style.direction = "ltr";
+      a.style.textAlign = "left";
+      a.style.fontSize = "12px";
+      a.style.fontWeight = "900";
+      a.style.color = "#18b5d5";
+      a.style.textDecoration = "underline";
+      a.style.textUnderlineOffset = "3px";
+
+      c.appendChild(linkLabel);
+      c.appendChild(a);
+    }
+
+    return c;
+  };
+
   grid.appendChild(renderStorageCard());
-  grid.appendChild(statCard(isArabic() ? "آخر رفع" : "Last upload", lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—")));
+  grid.appendChild(renderLastUploadCard());
   wrap.appendChild(grid);
-  if (lastUrl) {
-    const link = renderLinkBlock(lastUrl, { label: isArabic() ? "رابط آخر رفع" : "Last upload link" });
-    if (link) wrap.appendChild(link);
-  }
   return wrap;
 };
 `,
