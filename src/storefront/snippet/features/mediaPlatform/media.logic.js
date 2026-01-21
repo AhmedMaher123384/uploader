@@ -1171,6 +1171,18 @@ const mount = () => {
           } catch {}
         };
 
+        let refreshSpinStyleDone = false;
+        const ensureRefreshSpinStyles = () => {
+          if (refreshSpinStyleDone) return;
+          refreshSpinStyleDone = true;
+          try {
+            const style = document.createElement("style");
+            style.type = "text/css";
+            style.textContent = "@keyframes bundleapp-rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}";
+            document.head.appendChild(style);
+          } catch {}
+        };
+
         const ensureSwal = async () => {
           try {
             if (g.Swal && typeof g.Swal.fire === "function") {
@@ -3690,16 +3702,18 @@ const mount = () => {
             if (allowConvert) sheet.tabs.appendChild(convertTab);
             sheet.tabs.appendChild(filesTab);
 
-            const refreshBtn = btnGhost("");
+            ensureRefreshSpinStyles();
+            const refreshBtn = btnGhost(labels.ref);
             refreshBtn.setAttribute("aria-label", labels.ref);
             refreshBtn.setAttribute("title", labels.ref);
-            refreshBtn.style.border = "0";
-            refreshBtn.style.background = "transparent";
-            refreshBtn.style.padding = "0";
-            refreshBtn.style.width = "36px";
-            refreshBtn.style.height = "36px";
-            refreshBtn.style.display = "grid";
-            refreshBtn.style.placeItems = "center";
+            refreshBtn.style.border = "1px solid rgba(255,255,255,.12)";
+            refreshBtn.style.background = "#303030";
+            refreshBtn.style.padding = "8px 12px";
+            refreshBtn.style.borderRadius = "12px";
+            refreshBtn.style.display = "inline-flex";
+            refreshBtn.style.alignItems = "center";
+            refreshBtn.style.justifyContent = "center";
+            refreshBtn.style.gap = "8px";
             const refreshIcon = document.createElement("i");
             refreshIcon.className = "sicon-back";
             refreshIcon.setAttribute("aria-hidden", "true");
@@ -3707,9 +3721,22 @@ const mount = () => {
             refreshIcon.style.fontSize = "18px";
             refreshIcon.style.lineHeight = "1";
             refreshIcon.style.pointerEvents = "none";
+            refreshIcon.style.transition = "transform .25s ease";
+            const refreshLabel = document.createElement("span");
+            refreshLabel.textContent = labels.ref;
+            refreshLabel.style.fontSize = "12px";
+            refreshLabel.style.fontWeight = "900";
+            refreshLabel.style.lineHeight = "1";
+            refreshBtn.innerHTML = "";
             refreshBtn.appendChild(refreshIcon);
+            refreshBtn.appendChild(refreshLabel);
             refreshBtn.style.color = "#fff";
+            refreshBtn.disabled = Boolean(state.dashLoading);
+            refreshBtn.style.opacity = refreshBtn.disabled ? "0.7" : "1";
+            refreshBtn.style.cursor = refreshBtn.disabled ? "not-allowed" : "pointer";
+            refreshIcon.style.animation = state.dashLoading ? "bundleapp-rotate 1.1s linear infinite" : "none";
             refreshBtn.onclick = async () => {
+              if (refreshBtn.disabled) return;
               const toastId = toastLoading(isArabic() ? "جاري التحديث..." : "Refreshing...");
               try {
                 clearMediaApiCache();

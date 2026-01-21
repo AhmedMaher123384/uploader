@@ -648,9 +648,10 @@ const buildSheet = () => {
   topRow.style.padding = "12px 0";
 
   const tabs = document.createElement("div");
-  tabs.style.display = "flex";
-  tabs.style.gap = "8px";
-  tabs.style.flexWrap = "wrap";
+  tabs.style.display = "grid";
+  tabs.style.gridTemplateColumns = "repeat(auto-fit,minmax(140px,1fr))";
+  tabs.style.gap = "10px";
+  tabs.style.width = "100%";
 
   const actions = document.createElement("div");
   actions.style.display = "flex";
@@ -697,6 +698,9 @@ const pill = (label, active) => {
   b.type = "button";
   b.className = "bundleapp-tab";
   b.textContent = label;
+  b.style.display = "flex";
+  b.style.alignItems = "center";
+  b.style.justifyContent = "center";
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
   b.style.color = active ? "#303030" : "#fff";
@@ -705,6 +709,7 @@ const pill = (label, active) => {
   b.style.fontSize = "14px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
+  b.style.width = "100%";
   return b;
 };
 `,
