@@ -627,11 +627,30 @@ const renderUploadRow = (rec, opts) => {
   actions.style.flexDirection = isArabic() ? "row-reverse" : "row";
 
   const url = String((rec && rec.url) || "");
-  if (url && rec.status === "done") {
+  const toPublicUrl = (raw) => {
+    const u = String(raw || "");
+    if (!u) return "";
+    try {
+      const x = new URL(u, window.location.origin);
+      try {
+        x.searchParams.delete("token");
+      } catch {}
+      try {
+        const p = String(x.pathname || "");
+        if (p.startsWith("/cdn/")) x.pathname = "/" + p.slice(5);
+      } catch {}
+      return x.toString();
+    } catch {
+      return u.replace("/cdn/", "/");
+    }
+  };
+  const publicUrl = url ? toPublicUrl(url) : "";
+
+  if (publicUrl && rec.status === "done") {
     const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
     copy.onclick = () => {
       try {
-        copyText(url, () => {});
+        copyText(publicUrl, () => {});
       } catch {}
     };
     const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
@@ -639,7 +658,7 @@ const renderUploadRow = (rec, opts) => {
       try {
         e.preventDefault();
         e.stopPropagation();
-        window.open(url, "_blank", "noopener");
+        window.open(publicUrl, "_blank", "noopener");
       } catch {}
     };
     actions.appendChild(openBtn);
@@ -668,31 +687,31 @@ const renderUploadRow = (rec, opts) => {
     }
   })();
   sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
-  if (actions.childNodes && actions.childNodes.length) bottom.appendChild(actions);
-  if (sizeChip.textContent) bottom.appendChild(sizeChip);
+  const footer = document.createElement("div");
+  footer.style.display = "flex";
+  footer.style.alignItems = "center";
+  footer.style.justifyContent = "space-between";
+  footer.style.gap = "12px";
+  footer.style.minWidth = "0";
+  footer.style.flexWrap = "nowrap";
+  if (typeof isRtl === "function" && isRtl()) {
+    footer.style.flexDirection = "row-reverse";
+  }
 
-  row.appendChild(left);
-  wrap.appendChild(row);
-  if (bottom.childNodes && bottom.childNodes.length) wrap.appendChild(bottom);
+  const leftGroup = document.createElement("div");
+  leftGroup.style.display = "flex";
+  leftGroup.style.alignItems = "center";
+  leftGroup.style.gap = "10px";
+  leftGroup.style.flex = "0 0 auto";
+  leftGroup.style.flexWrap = "wrap";
 
-  const stripTokenFromUrl = (raw) => {
-    const u = String(raw || "");
-    if (!u) return "";
-    try {
-      const x = new URL(u, window.location.origin);
-      try {
-        x.searchParams.delete("token");
-      } catch {}
-      return x.toString();
-    } catch {
-      return u;
-    }
-  };
+  if (actions.childNodes && actions.childNodes.length) leftGroup.appendChild(actions);
+  if (sizeChip.textContent) leftGroup.appendChild(sizeChip);
 
-  if (url && rec.status === "done") {
-    const link = document.createElement("a");
-    const cleanUrl = stripTokenFromUrl(url);
-    link.href = cleanUrl;
+  let link = null;
+  if (publicUrl && rec.status === "done") {
+    link = document.createElement("a");
+    link.href = publicUrl;
     link.target = "_blank";
     link.rel = "noopener";
     link.style.display = "block";
@@ -701,18 +720,14 @@ const renderUploadRow = (rec, opts) => {
     link.style.color = "rgba(255,255,255,.62)";
     link.style.textDecoration = "none";
     link.style.direction = "ltr";
-    link.style.textAlign = "left";
     link.style.whiteSpace = "nowrap";
     link.style.overflow = "hidden";
     link.style.textOverflow = "ellipsis";
     link.style.padding = "0 2px";
-    if (typeof isRtl === "function" && isRtl()) {
-      link.style.marginRight = "32px";
-      link.style.textAlign = "right";
-    } else {
-      link.style.marginLeft = "32px";
-    }
-    link.textContent = cleanUrl;
+    link.style.minWidth = "0";
+    link.style.flex = "1 1 auto";
+    if (typeof isRtl === "function" && isRtl()) link.style.textAlign = "right";
+    link.textContent = publicUrl;
     link.onmouseenter = () => {
       try {
         link.style.color = "rgba(24,181,213,.95)";
@@ -727,8 +742,18 @@ const renderUploadRow = (rec, opts) => {
         link.style.textDecoration = "none";
       } catch {}
     };
-    wrap.appendChild(link);
   }
+
+  row.appendChild(left);
+  wrap.appendChild(row);
+  if ((link || (leftGroup.childNodes && leftGroup.childNodes.length)) && rec.status !== "uploading") {
+    if (link) footer.appendChild(link);
+    if (leftGroup.childNodes && leftGroup.childNodes.length) footer.appendChild(leftGroup);
+    bottom.appendChild(footer);
+  } else if (leftGroup.childNodes && leftGroup.childNodes.length) {
+    bottom.appendChild(leftGroup);
+  }
+  if (bottom.childNodes && bottom.childNodes.length) wrap.appendChild(bottom);
 
   if (rec.status === "uploading") {
     const bar = document.createElement("div");
