@@ -557,7 +557,7 @@ const renderUploadRow = (rec, opts) => {
 
   const url = String((rec && rec.url) || "");
   if (url && rec.status === "done") {
-    const block = renderLinkBlock(url);
+    const block = renderLinkBlock(url, { compact: true });
     if (block) wrap.appendChild(block);
   }
 
