@@ -389,6 +389,18 @@ function createApp(config) {
     }
   });
 
+  app.get("/:code([A-Za-z0-9_-]{8,24})", (req, res, next) => {
+    try {
+      const code = String(req.params.code || "");
+      const qIndex = String(req.originalUrl || "").indexOf("?");
+      const qs = qIndex >= 0 ? String(req.originalUrl || "").slice(qIndex) : "";
+      req.url = `/p/${encodeURIComponent(code)}${qs}`;
+      return apiRouter.handle(req, res, next);
+    } catch (e) {
+      return next(e);
+    }
+  });
+
   app.use(notFound);
   app.use(errorHandler);
 

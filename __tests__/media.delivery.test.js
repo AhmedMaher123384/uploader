@@ -665,6 +665,119 @@ describe("GET /cdn/:code", () => {
   });
 });
 
+describe("GET /:code", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("يسلّم الطلب بدون token لو referer صحيح", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "installed",
+      updatedAt: new Date(),
+      storeDomain: "myshop.com",
+      storeUrl: "https://myshop.com",
+      accessToken: "tok",
+      tokenExpiresAt: new Date(Date.now() + 60_000),
+      save: jest.fn()
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+    getStoreInfo.mockResolvedValue({ data: { store: { id: 123, domain: "myshop.com", url: "https://myshop.com" } } });
+
+    const app = createApp(makeConfig());
+    const code = "abcdEF12";
+    const asset = {
+      storeId: "123",
+      shortCode: code,
+      publicId: `malak_uploader/123/abcdef`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
+    };
+
+    MediaAsset.findOne.mockImplementation(() => ({
+      lean: jest.fn().mockResolvedValue(asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "3" },
+      data: Readable.from(Buffer.from("abc"))
+    });
+
+    const res = await request(app).get(`/${code}`).set("referer", "https://myshop.com/p/1").buffer(true).parse(binaryParser);
+    expect(res.status).toBe(200);
+    expect(res.headers.location).toBeUndefined();
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.body.toString("utf8")).toBe("abc");
+  });
+
+  it("يحذف token عبر redirect ويثبت session cookie بـ Path=/", async () => {
+    const merchant = {
+      merchantId: "123",
+      appStatus: "installed",
+      updatedAt: new Date(),
+      storeDomain: "myshop.com",
+      storeUrl: "https://myshop.com",
+      accessToken: "tok",
+      tokenExpiresAt: new Date(Date.now() + 60_000),
+      save: jest.fn()
+    };
+
+    findMerchantByMerchantId.mockResolvedValue(merchant);
+    getStoreInfo.mockResolvedValue({ data: { store: { id: 123, domain: "myshop.com", url: "https://myshop.com" } } });
+
+    const app = createApp(makeConfig());
+    const code = "abcdEF12";
+    const asset = {
+      storeId: "123",
+      shortCode: code,
+      publicId: `malak_uploader/123/abcdef`,
+      deletedAt: null,
+      resourceType: "image",
+      secureUrl: "https://example.invalid/media/123/abcdef.png"
+    };
+
+    MediaAsset.findOne.mockImplementation(() => ({
+      lean: jest.fn().mockResolvedValue(asset)
+    }));
+
+    axios.get.mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "image/png", "content-length": "3" },
+      data: Readable.from(Buffer.from("abc"))
+    });
+
+    const token = issueStorefrontTokenForTest("123", "secret");
+
+    const r0 = await request(app)
+      .get(`/${code}?token=${encodeURIComponent(token)}`)
+      .set("referer", "https://myshop.com/p/1")
+      .set("accept", "text/html")
+      .set("user-agent", "jest")
+      .redirects(0);
+
+    expect(r0.status).toBe(302);
+    expect(r0.headers.location).toBe(`/${code}`);
+    expect(Array.isArray(r0.headers["set-cookie"])).toBe(true);
+    expect(String(r0.headers["set-cookie"][0] || "")).toContain("Path=/");
+
+    const cookieHeader = String(r0.headers["set-cookie"][0] || "").split(";")[0];
+
+    const r1 = await request(app)
+      .get(`/${code}`)
+      .set("cookie", cookieHeader)
+      .set("user-agent", "jest")
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(r1.status).toBe(200);
+    expect(r1.headers.location).toBeUndefined();
+    expect(r1.body.toString("utf8")).toBe("abc");
+  });
+});
+
 describe("GET /api/media/watermark/:storeId.png", () => {
   beforeEach(() => {
     jest.clearAllMocks();

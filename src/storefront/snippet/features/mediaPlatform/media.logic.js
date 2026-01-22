@@ -570,7 +570,7 @@ const buildDeliveryUrlFromItem = (it) => {
     const origin = getBackendOrigin();
     if (!origin) return "";
     const sc = String((it && it.shortCode) || "").trim();
-    if (sc) return String(origin + "/cdn/" + encodeURIComponent(sc));
+    if (sc) return String(origin + "/" + encodeURIComponent(sc));
     const storeId = String((it && (it.storeId || it.merchantId)) || "").trim();
     const publicId = String((it && it.publicId) || "").trim();
     if (!storeId || !publicId) return "";
