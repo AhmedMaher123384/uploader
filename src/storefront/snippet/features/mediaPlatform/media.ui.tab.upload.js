@@ -413,10 +413,11 @@ const renderUploadRow = (rec, opts) => {
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.gap = "8px";
-  wrap.style.padding = "10px 12px";
+  wrap.style.padding = "14px 12px 10px";
   wrap.style.borderRadius = "16px";
   wrap.style.border = "1px solid rgba(255,255,255,.10)";
   wrap.style.background = "#2f2f2f";
+  wrap.style.position = "relative";
 
   const row = document.createElement("div");
   row.style.display = "flex";
@@ -557,27 +558,57 @@ const renderUploadRow = (rec, opts) => {
   if (onRemove) {
     rm = mkIconBtn(isArabic() ? "إزالة" : "Remove", "neutral", "sicon-cancel");
     rm.disabled = busy || rec.status === "uploading";
-    rm.style.position = "relative";
-    rm.style.top = "-2px";
+    rm.style.position = "absolute";
+    rm.style.top = "8px";
+    if (typeof isRtl === "function" && isRtl()) {
+      rm.style.left = "8px";
+    } else {
+      rm.style.right = "8px";
+    }
+    rm.style.width = "26px";
+    rm.style.height = "26px";
     rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
     rm.style.opacity = rm.disabled ? "0.55" : "1";
+    rm.style.border = "1px solid rgba(255,255,255,.12)";
+    rm.style.background = "rgba(255,255,255,.06)";
+    rm.style.color = "rgba(255,255,255,.75)";
+    try {
+      const ic = rm.querySelector("i");
+      if (ic) ic.style.fontSize = "14px";
+    } catch {}
+    rm.onmouseenter = () => {
+      try {
+        if (rm.disabled) return;
+        rm.style.background = "rgba(239,68,68,.14)";
+        rm.style.border = "1px solid rgba(239,68,68,.30)";
+        rm.style.color = "#ef4444";
+      } catch {}
+    };
+    rm.onmouseleave = () => {
+      try {
+        rm.style.background = "rgba(255,255,255,.06)";
+        rm.style.border = "1px solid rgba(255,255,255,.12)";
+        rm.style.color = "rgba(255,255,255,.75)";
+      } catch {}
+    };
     rm.onclick = () => {
       try {
         if (rm.disabled) return;
         onRemove(String((rec && rec.id) || ""));
       } catch {}
     };
+    wrap.appendChild(rm);
   }
 
   const url = String((rec && rec.url) || "");
   if (url && rec.status === "done") {
-    const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-pages");
+    const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
     copy.onclick = () => {
       try {
         copyText(url, () => {});
       } catch {}
     };
-    const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-external-link");
+    const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
     openBtn.onclick = (e) => {
       try {
         e.preventDefault();
@@ -612,8 +643,6 @@ const renderUploadRow = (rec, opts) => {
   })();
   sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
   if (sizeChip.textContent) right.appendChild(sizeChip);
-
-  if (rm) right.appendChild(rm);
 
   row.appendChild(left);
   row.appendChild(right);
