@@ -412,11 +412,18 @@ const renderUploadRow = (rec, opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
-  wrap.style.gap = "10px";
-  wrap.style.padding = "12px";
-  wrap.style.borderRadius = "14px";
-  wrap.style.border = "1px solid rgba(24,181,213,.25)";
-  wrap.style.background = "#373737";
+  wrap.style.gap = "6px";
+  wrap.style.padding = "8px 10px";
+  wrap.style.borderRadius = "12px";
+  wrap.style.border =
+    rec.status === "error" || rec.status === "rejected"
+      ? "1px solid rgba(239,68,68,.35)"
+      : rec.status === "uploading"
+        ? "1px solid rgba(24,181,213,.30)"
+        : rec.status === "done"
+          ? "1px solid rgba(24,181,213,.22)"
+          : "1px solid rgba(255,255,255,.10)";
+  wrap.style.background = "#303030";
 
   const row = document.createElement("div");
   row.style.display = "flex";
@@ -427,8 +434,56 @@ const renderUploadRow = (rec, opts) => {
   const left = document.createElement("div");
   left.style.minWidth = "0";
   left.style.display = "flex";
-  left.style.flexDirection = "column";
-  left.style.gap = "4px";
+  left.style.alignItems = "center";
+  left.style.gap = "10px";
+
+  const badge = document.createElement("div");
+  badge.style.width = "30px";
+  badge.style.height = "30px";
+  badge.style.borderRadius = "10px";
+  badge.style.display = "grid";
+  badge.style.placeItems = "center";
+  badge.style.flex = "0 0 auto";
+  badge.style.userSelect = "none";
+  badge.style.webkitUserSelect = "none";
+  badge.style.border =
+    rec.status === "error" || rec.status === "rejected"
+      ? "1px solid rgba(239,68,68,.35)"
+      : rec.status === "uploading"
+        ? "1px solid rgba(24,181,213,.30)"
+        : rec.status === "done"
+          ? "1px solid rgba(24,181,213,.22)"
+          : "1px solid rgba(255,255,255,.12)";
+  badge.style.background =
+    rec.status === "error" || rec.status === "rejected"
+      ? "rgba(239,68,68,.12)"
+      : rec.status === "uploading"
+        ? "rgba(24,181,213,.12)"
+        : rec.status === "done"
+          ? "rgba(24,181,213,.08)"
+          : "rgba(255,255,255,.06)";
+  badge.style.color = "#fff";
+  badge.style.fontWeight = "950";
+  badge.style.fontSize = "10px";
+  badge.style.letterSpacing = "0.3px";
+  const ext = (() => {
+    try {
+      const n = String((rec && rec.name) || "").trim();
+      const parts = n.split(".").filter(Boolean);
+      const last = parts.length > 1 ? String(parts[parts.length - 1] || "") : "";
+      const e = last.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
+      return e || "FILE";
+    } catch {
+      return "FILE";
+    }
+  })();
+  badge.textContent = ext;
+
+  const text = document.createElement("div");
+  text.style.minWidth = "0";
+  text.style.display = "flex";
+  text.style.flexDirection = "column";
+  text.style.gap = "2px";
 
   const name = document.createElement("div");
   name.style.fontSize = "12px";
@@ -440,7 +495,7 @@ const renderUploadRow = (rec, opts) => {
   name.textContent = String(rec.name || "");
 
   const sub = document.createElement("div");
-  sub.style.fontSize = "12px";
+  sub.style.fontSize = "11px";
   sub.style.fontWeight = "900";
   sub.style.color = rec.status === "error" || rec.status === "rejected" ? "#ef4444" : "rgba(24,181,213,.9)";
   const pct = (() => {
@@ -467,14 +522,49 @@ const renderUploadRow = (rec, opts) => {
             ? "في الانتظار"
             : "Queued";
 
-  left.appendChild(name);
-  left.appendChild(sub);
+  text.appendChild(name);
+  text.appendChild(sub);
+
+  left.appendChild(badge);
+  left.appendChild(text);
 
   const right = document.createElement("div");
   right.style.display = "flex";
   right.style.alignItems = "center";
-  right.style.gap = "10px";
+  right.style.gap = "6px";
   right.style.flex = "0 0 auto";
+
+  const mkTinyBtn = (tag, label, tone) => {
+    const el = document.createElement(tag);
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
+    el.style.width = "30px";
+    el.style.height = "30px";
+    el.style.borderRadius = "10px";
+    el.style.display = "grid";
+    el.style.placeItems = "center";
+    el.style.textDecoration = "none";
+    el.style.border = "1px solid rgba(255,255,255,.12)";
+    el.style.background = "#373737";
+    el.style.color = "#fff";
+    el.style.cursor = "pointer";
+    el.style.padding = "0";
+    el.style.margin = "0";
+    el.style.lineHeight = "1";
+    el.style.fontWeight = "950";
+    el.style.fontSize = "13px";
+    if (tone === "brand") {
+      el.style.border = "1px solid rgba(24,181,213,.45)";
+      el.style.background = "rgba(24,181,213,.18)";
+      el.style.color = "#18b5d5";
+    }
+    if (tone === "danger") {
+      el.style.border = "1px solid rgba(239,68,68,.40)";
+      el.style.background = "rgba(239,68,68,.14)";
+      el.style.color = "#ef4444";
+    }
+    return el;
+  };
 
   if (onRemove) {
     const rm = document.createElement("button");
@@ -482,15 +572,15 @@ const renderUploadRow = (rec, opts) => {
     rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
     rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
     rm.disabled = busy || rec.status === "uploading";
-    rm.style.border = "0";
-    rm.style.background = "transparent";
+    rm.style.width = "30px";
+    rm.style.height = "30px";
+    rm.style.borderRadius = "10px";
+    rm.style.display = "grid";
+    rm.style.placeItems = "center";
     rm.style.padding = "0";
     rm.style.margin = "0";
-    rm.style.width = "20px";
-    rm.style.height = "20px";
-    rm.style.display = "inline-flex";
-    rm.style.alignItems = "center";
-    rm.style.justifyContent = "center";
+    rm.style.border = "1px solid rgba(255,255,255,.12)";
+    rm.style.background = "#373737";
     rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
     rm.style.opacity = rm.disabled ? "0.55" : "1";
     rm.style.color = "rgba(255,255,255,.78)";
@@ -524,11 +614,46 @@ const renderUploadRow = (rec, opts) => {
     right.appendChild(rm);
   }
 
+  const url = String((rec && rec.url) || "");
+  if (url && rec.status === "done") {
+    const open = mkTinyBtn("a", isArabic() ? "فتح" : "Open", "neutral");
+    open.href = url;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.textContent = "↗";
+    right.appendChild(open);
+
+    const copy = mkTinyBtn("button", isArabic() ? "نسخ" : "Copy", "brand");
+    copy.type = "button";
+    copy.textContent = "⧉";
+    copy.onclick = () => {
+      try {
+        const prev = copy.textContent;
+        copyText(url, (ok) => {
+          try {
+            copy.textContent = ok ? "✓" : prev;
+            setTimeout(() => {
+              try {
+                copy.textContent = prev;
+              } catch {}
+            }, 900);
+          } catch {}
+        });
+      } catch {}
+    };
+    right.appendChild(copy);
+  }
+
   const meta = document.createElement("div");
-  meta.style.fontSize = "12px";
+  meta.style.fontSize = "11px";
   meta.style.fontWeight = "900";
-  meta.style.color = "rgba(24,181,213,.8)";
-  meta.style.textAlign = "right";
+  meta.style.color = "rgba(255,255,255,.78)";
+  meta.style.border = "1px solid rgba(255,255,255,.10)";
+  meta.style.background = "rgba(255,255,255,.06)";
+  meta.style.borderRadius = "999px";
+  meta.style.padding = "4px 8px";
+  meta.style.lineHeight = "1";
+  meta.style.whiteSpace = "nowrap";
   meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
   right.appendChild(meta);
 
@@ -538,7 +663,7 @@ const renderUploadRow = (rec, opts) => {
 
   if (rec.status === "uploading") {
     const bar = document.createElement("div");
-    bar.style.height = "10px";
+    bar.style.height = "6px";
     bar.style.borderRadius = "999px";
     bar.style.background = "rgba(255,255,255,.08)";
     bar.style.border = "1px solid rgba(255,255,255,.10)";
@@ -555,13 +680,7 @@ const renderUploadRow = (rec, opts) => {
     wrap.appendChild(bar);
   }
 
-  const url = String((rec && rec.url) || "");
-  if (url && rec.status === "done") {
-    const block = renderLinkBlock(url, { compact: true });
-    if (block) wrap.appendChild(block);
-  }
-
   return wrap;
 };
 `
-];
+ ];
