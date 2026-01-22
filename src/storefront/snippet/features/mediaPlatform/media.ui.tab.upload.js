@@ -699,9 +699,6 @@ const renderUploadRow = (rec, opts) => {
   footer.style.minWidth = "0";
   footer.style.flexWrap = "nowrap";
   footer.style.width = "100%";
-  if (typeof isRtl === "function" && isRtl()) {
-    footer.style.flexDirection = "row-reverse";
-  }
 
   const leftGroup = document.createElement("div");
   leftGroup.style.display = "flex";
@@ -731,7 +728,7 @@ const renderUploadRow = (rec, opts) => {
     link.style.padding = "0 2px";
     link.style.minWidth = "0";
     link.style.flex = "1 1 auto";
-    if (typeof isRtl === "function" && isRtl()) link.style.textAlign = "right";
+    link.style.textAlign = "right";
     link.textContent = displayUrl || cleanUrl;
     link.onmouseenter = () => {
       try {
@@ -752,8 +749,8 @@ const renderUploadRow = (rec, opts) => {
   row.appendChild(left);
   wrap.appendChild(row);
   if ((link || (leftGroup.childNodes && leftGroup.childNodes.length)) && rec.status !== "uploading") {
-    if (link) footer.appendChild(link);
     if (leftGroup.childNodes && leftGroup.childNodes.length) footer.appendChild(leftGroup);
+    if (link) footer.appendChild(link);
     bottom.appendChild(footer);
   } else if (leftGroup.childNodes && leftGroup.childNodes.length) {
     bottom.appendChild(leftGroup);
