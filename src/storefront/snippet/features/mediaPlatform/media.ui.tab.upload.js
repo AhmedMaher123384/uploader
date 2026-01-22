@@ -613,11 +613,7 @@ const renderUploadRow = (rec, opts) => {
   bottom.style.gap = "10px";
   bottom.style.flexWrap = "wrap";
   bottom.style.minWidth = "0";
-  if (typeof isRtl === "function" && isRtl()) {
-    bottom.style.marginRight = "20px";
-  } else {
-    bottom.style.marginLeft = "20px";
-  }
+  bottom.style.width = "100%";
 
   const actions = document.createElement("div");
   actions.style.display = "flex";
@@ -627,7 +623,7 @@ const renderUploadRow = (rec, opts) => {
   actions.style.flexDirection = isArabic() ? "row-reverse" : "row";
 
   const url = String((rec && rec.url) || "");
-  const toPublicUrl = (raw) => {
+  const normalizeUrl = (raw) => {
     const u = String(raw || "");
     if (!u) return "";
     try {
@@ -635,22 +631,30 @@ const renderUploadRow = (rec, opts) => {
       try {
         x.searchParams.delete("token");
       } catch {}
-      try {
-        const p = String(x.pathname || "");
-        if (p.startsWith("/cdn/")) x.pathname = "/" + p.slice(5);
-      } catch {}
+      return x.toString();
+    } catch {
+      return u;
+    }
+  };
+  const cleanUrl = url ? normalizeUrl(url) : "";
+  const displayUrl = (() => {
+    const u = String(cleanUrl || "");
+    if (!u) return "";
+    try {
+      const x = new URL(u, window.location.origin);
+      const p = String(x.pathname || "");
+      if (p.startsWith("/cdn/")) x.pathname = "/" + p.slice(5);
       return x.toString();
     } catch {
       return u.replace("/cdn/", "/");
     }
-  };
-  const publicUrl = url ? toPublicUrl(url) : "";
+  })();
 
-  if (publicUrl && rec.status === "done") {
+  if (cleanUrl && rec.status === "done") {
     const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
     copy.onclick = () => {
       try {
-        copyText(publicUrl, () => {});
+        copyText(cleanUrl, () => {});
       } catch {}
     };
     const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
@@ -658,7 +662,7 @@ const renderUploadRow = (rec, opts) => {
       try {
         e.preventDefault();
         e.stopPropagation();
-        window.open(publicUrl, "_blank", "noopener");
+        window.open(cleanUrl, "_blank", "noopener");
       } catch {}
     };
     actions.appendChild(openBtn);
@@ -694,6 +698,7 @@ const renderUploadRow = (rec, opts) => {
   footer.style.gap = "12px";
   footer.style.minWidth = "0";
   footer.style.flexWrap = "nowrap";
+  footer.style.width = "100%";
   if (typeof isRtl === "function" && isRtl()) {
     footer.style.flexDirection = "row-reverse";
   }
@@ -709,9 +714,9 @@ const renderUploadRow = (rec, opts) => {
   if (sizeChip.textContent) leftGroup.appendChild(sizeChip);
 
   let link = null;
-  if (publicUrl && rec.status === "done") {
+  if (cleanUrl && rec.status === "done") {
     link = document.createElement("a");
-    link.href = publicUrl;
+    link.href = cleanUrl;
     link.target = "_blank";
     link.rel = "noopener";
     link.style.display = "block";
@@ -727,7 +732,7 @@ const renderUploadRow = (rec, opts) => {
     link.style.minWidth = "0";
     link.style.flex = "1 1 auto";
     if (typeof isRtl === "function" && isRtl()) link.style.textAlign = "right";
-    link.textContent = publicUrl;
+    link.textContent = displayUrl || cleanUrl;
     link.onmouseenter = () => {
       try {
         link.style.color = "rgba(24,181,213,.95)";
