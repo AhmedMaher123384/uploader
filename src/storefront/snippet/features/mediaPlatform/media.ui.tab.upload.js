@@ -531,16 +531,16 @@ const renderUploadRow = (rec, opts) => {
   const right = document.createElement("div");
   right.style.display = "flex";
   right.style.alignItems = "center";
-  right.style.gap = "6px";
+  right.style.gap = "5px";
   right.style.flex = "0 0 auto";
 
   const mkTinyBtn = (tag, label, tone) => {
     const el = document.createElement(tag);
     el.setAttribute("aria-label", label);
     el.setAttribute("title", label);
-    el.style.width = "30px";
-    el.style.height = "30px";
-    el.style.borderRadius = "10px";
+    el.style.width = "26px";
+    el.style.height = "26px";
+    el.style.borderRadius = "9px";
     el.style.display = "grid";
     el.style.placeItems = "center";
     el.style.textDecoration = "none";
@@ -566,31 +566,34 @@ const renderUploadRow = (rec, opts) => {
     return el;
   };
 
+  let rm = null;
   if (onRemove) {
-    const rm = document.createElement("button");
+    rm = document.createElement("button");
     rm.type = "button";
     rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
     rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
     rm.disabled = busy || rec.status === "uploading";
-    rm.style.width = "30px";
-    rm.style.height = "30px";
-    rm.style.borderRadius = "10px";
+    rm.style.width = "22px";
+    rm.style.height = "22px";
+    rm.style.borderRadius = "8px";
     rm.style.display = "grid";
     rm.style.placeItems = "center";
     rm.style.padding = "0";
     rm.style.margin = "0";
     rm.style.border = "1px solid rgba(255,255,255,.12)";
     rm.style.background = "#373737";
+    rm.style.position = "relative";
+    rm.style.top = "-2px";
     rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
     rm.style.opacity = rm.disabled ? "0.55" : "1";
     rm.style.color = "rgba(255,255,255,.78)";
-    rm.style.fontSize = "18px";
+    rm.style.fontSize = "14px";
     rm.style.lineHeight = "1";
     const rmIcon = document.createElement("i");
     rmIcon.className = "sicon-cancel";
     rmIcon.setAttribute("aria-hidden", "true");
     rmIcon.style.display = "block";
-    rmIcon.style.fontSize = "18px";
+    rmIcon.style.fontSize = "14px";
     rmIcon.style.lineHeight = "1";
     rmIcon.style.pointerEvents = "none";
     rm.appendChild(rmIcon);
@@ -611,7 +614,6 @@ const renderUploadRow = (rec, opts) => {
         onRemove(String((rec && rec.id) || ""));
       } catch {}
     };
-    right.appendChild(rm);
   }
 
   const url = String((rec && rec.url) || "");
@@ -657,9 +659,59 @@ const renderUploadRow = (rec, opts) => {
   meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
   right.appendChild(meta);
 
+  if (rm) right.appendChild(rm);
+
   row.appendChild(left);
   row.appendChild(right);
   wrap.appendChild(row);
+
+  const stripTokenFromUrl = (raw) => {
+    const u = String(raw || "");
+    if (!u) return "";
+    try {
+      const x = new URL(u, window.location.origin);
+      try {
+        x.searchParams.delete("token");
+      } catch {}
+      return x.toString();
+    } catch {
+      return u;
+    }
+  };
+
+  if (url && rec.status === "done") {
+    const link = document.createElement("a");
+    const cleanUrl = stripTokenFromUrl(url);
+    link.href = cleanUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.style.display = "block";
+    link.style.fontSize = "10px";
+    link.style.fontWeight = "900";
+    link.style.color = "rgba(255,255,255,.62)";
+    link.style.textDecoration = "none";
+    link.style.direction = "ltr";
+    link.style.whiteSpace = "nowrap";
+    link.style.overflow = "hidden";
+    link.style.textOverflow = "ellipsis";
+    link.style.padding = "0 2px";
+    link.textContent = cleanUrl;
+    link.onmouseenter = () => {
+      try {
+        link.style.color = "rgba(24,181,213,.95)";
+        link.style.textDecoration = "underline";
+        link.style.textDecorationThickness = "1px";
+        link.style.textUnderlineOffset = "2px";
+      } catch {}
+    };
+    link.onmouseleave = () => {
+      try {
+        link.style.color = "rgba(255,255,255,.62)";
+        link.style.textDecoration = "none";
+      } catch {}
+    };
+    wrap.appendChild(link);
+  }
 
   if (rec.status === "uploading") {
     const bar = document.createElement("div");
