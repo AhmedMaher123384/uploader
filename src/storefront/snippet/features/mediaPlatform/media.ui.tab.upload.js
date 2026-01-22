@@ -699,6 +699,7 @@ const renderUploadRow = (rec, opts) => {
   footer.style.minWidth = "0";
   footer.style.flexWrap = "nowrap";
   footer.style.width = "100%";
+  footer.style.direction = "ltr";
 
   const leftGroup = document.createElement("div");
   leftGroup.style.display = "flex";
@@ -706,6 +707,7 @@ const renderUploadRow = (rec, opts) => {
   leftGroup.style.gap = "10px";
   leftGroup.style.flex = "0 0 auto";
   leftGroup.style.flexWrap = "wrap";
+  leftGroup.style.justifyContent = "flex-start";
 
   if (actions.childNodes && actions.childNodes.length) leftGroup.appendChild(actions);
   if (sizeChip.textContent) leftGroup.appendChild(sizeChip);
