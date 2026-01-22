@@ -231,7 +231,19 @@ const renderSmartStats = (dash) => {
       return {};
     }
   })();
-  const lastUrl = String(lastAsset.secureUrl || lastAsset.url || "").trim();
+  const lastUrl = (() => {
+    try {
+      const direct = String(lastAsset.deliveryUrl || lastAsset.secureUrl || lastAsset.url || "").trim();
+      if (direct) return direct;
+      if (typeof buildDeliveryUrlFromItem === "function") {
+        const u = String(buildDeliveryUrlFromItem(lastAsset) || "").trim();
+        if (u) return u;
+      }
+      return "";
+    } catch {
+      return "";
+    }
+  })();
   const lastMeta = String(lastAsset.originalFilename || lastAsset.publicId || "").trim();
 
   const wrap = document.createElement("div");
