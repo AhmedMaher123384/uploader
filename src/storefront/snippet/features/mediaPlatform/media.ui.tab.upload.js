@@ -414,15 +414,28 @@ const renderUploadRow = (rec, opts) => {
   wrap.style.flexDirection = "column";
   wrap.style.gap = "8px";
   wrap.style.padding = "14px 12px 10px";
-  wrap.style.borderRadius = "16px";
-  wrap.style.border = "1px solid rgba(255,255,255,.10)";
-  wrap.style.background = "#2f2f2f";
+  wrap.style.borderRadius = "18px";
+  wrap.style.border = "1px solid rgba(24,181,213,.45)";
+  wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
+  wrap.style.background = "#303030";
   wrap.style.position = "relative";
+  wrap.onmouseenter = () => {
+    try {
+      wrap.style.border = "1px solid rgba(24,181,213,.70)";
+      wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.22) inset";
+    } catch {}
+  };
+  wrap.onmouseleave = () => {
+    try {
+      wrap.style.border = "1px solid rgba(24,181,213,.45)";
+      wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
+    } catch {}
+  };
 
   const row = document.createElement("div");
   row.style.display = "flex";
   row.style.alignItems = "center";
-  row.style.justifyContent = "space-between";
+  row.style.justifyContent = "flex-start";
   row.style.gap = "12px";
   row.style.minWidth = "0";
 
@@ -495,13 +508,6 @@ const renderUploadRow = (rec, opts) => {
 
   left.appendChild(dot);
   left.appendChild(text);
-
-  const right = document.createElement("div");
-  right.style.display = "flex";
-  right.style.alignItems = "center";
-  right.style.gap = "8px";
-  right.style.flex = "0 0 auto";
-  right.style.flexDirection = isArabic() ? "row-reverse" : "row";
 
   const mkIconBtn = (label, tone, iconClass) => {
     const el = document.createElement("button");
@@ -600,6 +606,26 @@ const renderUploadRow = (rec, opts) => {
     wrap.appendChild(rm);
   }
 
+  const bottom = document.createElement("div");
+  bottom.style.display = "flex";
+  bottom.style.alignItems = "center";
+  bottom.style.justifyContent = "flex-start";
+  bottom.style.gap = "10px";
+  bottom.style.flexWrap = "wrap";
+  bottom.style.minWidth = "0";
+  if (typeof isRtl === "function" && isRtl()) {
+    bottom.style.marginRight = "20px";
+  } else {
+    bottom.style.marginLeft = "20px";
+  }
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.alignItems = "center";
+  actions.style.gap = "8px";
+  actions.style.flex = "0 0 auto";
+  actions.style.flexDirection = isArabic() ? "row-reverse" : "row";
+
   const url = String((rec && rec.url) || "");
   if (url && rec.status === "done") {
     const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
@@ -616,8 +642,8 @@ const renderUploadRow = (rec, opts) => {
         window.open(url, "_blank", "noopener");
       } catch {}
     };
-    right.appendChild(openBtn);
-    right.appendChild(copy);
+    actions.appendChild(openBtn);
+    actions.appendChild(copy);
   }
 
   const sizeChip = document.createElement("div");
@@ -642,11 +668,12 @@ const renderUploadRow = (rec, opts) => {
     }
   })();
   sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
-  if (sizeChip.textContent) right.appendChild(sizeChip);
+  if (actions.childNodes && actions.childNodes.length) bottom.appendChild(actions);
+  if (sizeChip.textContent) bottom.appendChild(sizeChip);
 
   row.appendChild(left);
-  row.appendChild(right);
   wrap.appendChild(row);
+  if (bottom.childNodes && bottom.childNodes.length) wrap.appendChild(bottom);
 
   const stripTokenFromUrl = (raw) => {
     const u = String(raw || "");
@@ -674,10 +701,17 @@ const renderUploadRow = (rec, opts) => {
     link.style.color = "rgba(255,255,255,.62)";
     link.style.textDecoration = "none";
     link.style.direction = "ltr";
+    link.style.textAlign = "left";
     link.style.whiteSpace = "nowrap";
     link.style.overflow = "hidden";
     link.style.textOverflow = "ellipsis";
     link.style.padding = "0 2px";
+    if (typeof isRtl === "function" && isRtl()) {
+      link.style.marginRight = "32px";
+      link.style.textAlign = "right";
+    } else {
+      link.style.marginLeft = "32px";
+    }
     link.textContent = cleanUrl;
     link.onmouseenter = () => {
       try {
