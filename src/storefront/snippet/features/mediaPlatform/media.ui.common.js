@@ -1292,11 +1292,31 @@ const renderLinkBlock = (url, opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
-  wrap.style.gap = compact ? "6px" : "8px";
-  wrap.style.padding = compact ? "8px" : "12px";
-  wrap.style.borderRadius = compact ? "12px" : "14px";
-  wrap.style.border = "1px solid rgba(24,181,213,.35)";
-  wrap.style.background = "#373737";
+  wrap.style.gap = compact ? "0" : "8px";
+  wrap.style.padding = compact ? "0" : "12px";
+  wrap.style.borderRadius = compact ? "0" : "14px";
+  wrap.style.border = compact ? "0" : "1px solid rgba(24,181,213,.35)";
+  wrap.style.background = compact ? "transparent" : "#373737";
+
+  if (compact) {
+    const a = document.createElement("a");
+    a.href = u;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = u;
+    a.style.display = "block";
+    a.style.direction = "ltr";
+    a.style.textAlign = "left";
+    a.style.fontSize = "10px";
+    a.style.fontWeight = "900";
+    a.style.color = "#18b5d5";
+    a.style.textDecoration = "none";
+    a.style.whiteSpace = "nowrap";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+    wrap.appendChild(a);
+    return wrap;
+  }
 
   const head = document.createElement("div");
   head.style.display = "flex";

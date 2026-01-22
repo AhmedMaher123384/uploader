@@ -392,16 +392,8 @@ const renderSmartStats = (dash) => {
     c.appendChild(l);
     c.appendChild(v);
 
-    const linkBlock = lastUrl
-      ? renderLinkBlock(lastUrl, { label: isArabic() ? "آخر ملف" : "Last file", meta: lastMeta, compact: true })
-      : null;
-    if (linkBlock) {
-      linkBlock.style.border = "1px solid rgba(255,255,255,.08)";
-      linkBlock.style.background = "#303030";
-      linkBlock.style.padding = "8px";
-      linkBlock.style.gap = "6px";
-      c.appendChild(linkBlock);
-    }
+    const linkBlock = lastUrl ? renderLinkBlock(lastUrl, { compact: true }) : null;
+    if (linkBlock) c.appendChild(linkBlock);
 
     return c;
   };
