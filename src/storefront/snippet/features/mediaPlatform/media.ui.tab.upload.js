@@ -412,24 +412,18 @@ const renderUploadRow = (rec, opts) => {
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
-  wrap.style.gap = "6px";
-  wrap.style.padding = "8px 10px";
-  wrap.style.borderRadius = "12px";
-  wrap.style.border =
-    rec.status === "error" || rec.status === "rejected"
-      ? "1px solid rgba(239,68,68,.35)"
-      : rec.status === "uploading"
-        ? "1px solid rgba(24,181,213,.30)"
-        : rec.status === "done"
-          ? "1px solid rgba(24,181,213,.22)"
-          : "1px solid rgba(255,255,255,.10)";
-  wrap.style.background = "#303030";
+  wrap.style.gap = "8px";
+  wrap.style.padding = "10px 12px";
+  wrap.style.borderRadius = "16px";
+  wrap.style.border = "1px solid rgba(255,255,255,.10)";
+  wrap.style.background = "#2f2f2f";
 
   const row = document.createElement("div");
   row.style.display = "flex";
   row.style.alignItems = "center";
   row.style.justifyContent = "space-between";
-  row.style.gap = "10px";
+  row.style.gap = "12px";
+  row.style.minWidth = "0";
 
   const left = document.createElement("div");
   left.style.minWidth = "0";
@@ -437,53 +431,26 @@ const renderUploadRow = (rec, opts) => {
   left.style.alignItems = "center";
   left.style.gap = "10px";
 
-  const badge = document.createElement("div");
-  badge.style.width = "30px";
-  badge.style.height = "30px";
-  badge.style.borderRadius = "10px";
-  badge.style.display = "grid";
-  badge.style.placeItems = "center";
-  badge.style.flex = "0 0 auto";
-  badge.style.userSelect = "none";
-  badge.style.webkitUserSelect = "none";
-  badge.style.border =
+  const dot = document.createElement("div");
+  dot.style.width = "10px";
+  dot.style.height = "10px";
+  dot.style.borderRadius = "999px";
+  dot.style.flex = "0 0 auto";
+  dot.style.border = "1px solid rgba(255,255,255,.20)";
+  dot.style.background =
     rec.status === "error" || rec.status === "rejected"
-      ? "1px solid rgba(239,68,68,.35)"
+      ? "#ef4444"
       : rec.status === "uploading"
-        ? "1px solid rgba(24,181,213,.30)"
+        ? "#18b5d5"
         : rec.status === "done"
-          ? "1px solid rgba(24,181,213,.22)"
-          : "1px solid rgba(255,255,255,.12)";
-  badge.style.background =
-    rec.status === "error" || rec.status === "rejected"
-      ? "rgba(239,68,68,.12)"
-      : rec.status === "uploading"
-        ? "rgba(24,181,213,.12)"
-        : rec.status === "done"
-          ? "rgba(24,181,213,.08)"
-          : "rgba(255,255,255,.06)";
-  badge.style.color = "#fff";
-  badge.style.fontWeight = "950";
-  badge.style.fontSize = "10px";
-  badge.style.letterSpacing = "0.3px";
-  const ext = (() => {
-    try {
-      const n = String((rec && rec.name) || "").trim();
-      const parts = n.split(".").filter(Boolean);
-      const last = parts.length > 1 ? String(parts[parts.length - 1] || "") : "";
-      const e = last.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
-      return e || "FILE";
-    } catch {
-      return "FILE";
-    }
-  })();
-  badge.textContent = ext;
+          ? "#18b5d5"
+          : "rgba(255,255,255,.45)";
 
   const text = document.createElement("div");
   text.style.minWidth = "0";
   text.style.display = "flex";
   text.style.flexDirection = "column";
-  text.style.gap = "2px";
+  text.style.gap = "3px";
 
   const name = document.createElement("div");
   name.style.fontSize = "12px";
@@ -497,7 +464,7 @@ const renderUploadRow = (rec, opts) => {
   const sub = document.createElement("div");
   sub.style.fontSize = "11px";
   sub.style.fontWeight = "900";
-  sub.style.color = rec.status === "error" || rec.status === "rejected" ? "#ef4444" : "rgba(24,181,213,.9)";
+  sub.style.color = rec.status === "error" || rec.status === "rejected" ? "#ef4444" : "rgba(255,255,255,.62)";
   const pct = (() => {
     try {
       const p = Number(rec && rec.progress);
@@ -525,89 +492,75 @@ const renderUploadRow = (rec, opts) => {
   text.appendChild(name);
   text.appendChild(sub);
 
-  left.appendChild(badge);
+  left.appendChild(dot);
   left.appendChild(text);
 
   const right = document.createElement("div");
   right.style.display = "flex";
   right.style.alignItems = "center";
-  right.style.gap = "5px";
+  right.style.gap = "8px";
   right.style.flex = "0 0 auto";
+  right.style.flexDirection = isArabic() ? "row-reverse" : "row";
 
-  const mkTinyBtn = (tag, label, tone) => {
-    const el = document.createElement(tag);
+  const mkIconBtn = (label, tone, iconClass) => {
+    const el = document.createElement("button");
+    el.type = "button";
     el.setAttribute("aria-label", label);
     el.setAttribute("title", label);
-    el.style.width = "26px";
-    el.style.height = "26px";
-    el.style.borderRadius = "9px";
+    el.style.width = "30px";
+    el.style.height = "30px";
+    el.style.borderRadius = "999px";
     el.style.display = "grid";
     el.style.placeItems = "center";
     el.style.textDecoration = "none";
     el.style.border = "1px solid rgba(255,255,255,.12)";
-    el.style.background = "#373737";
+    el.style.background = "rgba(255,255,255,.06)";
     el.style.color = "#fff";
     el.style.cursor = "pointer";
     el.style.padding = "0";
     el.style.margin = "0";
     el.style.lineHeight = "1";
-    el.style.fontWeight = "950";
-    el.style.fontSize = "13px";
     if (tone === "brand") {
-      el.style.border = "1px solid rgba(24,181,213,.45)";
-      el.style.background = "rgba(24,181,213,.18)";
+      el.style.border = "1px solid rgba(24,181,213,.35)";
+      el.style.background = "rgba(24,181,213,.16)";
       el.style.color = "#18b5d5";
-    }
-    if (tone === "danger") {
-      el.style.border = "1px solid rgba(239,68,68,.40)";
+    } else if (tone === "danger") {
+      el.style.border = "1px solid rgba(239,68,68,.30)";
       el.style.background = "rgba(239,68,68,.14)";
       el.style.color = "#ef4444";
     }
+
+    const ic = document.createElement("i");
+    ic.className = String(iconClass || "");
+    ic.setAttribute("aria-hidden", "true");
+    ic.style.display = "block";
+    ic.style.fontSize = "16px";
+    ic.style.lineHeight = "1";
+    ic.style.pointerEvents = "none";
+    el.appendChild(ic);
+
+    el.onmouseenter = () => {
+      try {
+        if (el.disabled) return;
+        el.style.background = tone === "brand" ? "rgba(24,181,213,.22)" : tone === "danger" ? "rgba(239,68,68,.18)" : "rgba(255,255,255,.09)";
+      } catch {}
+    };
+    el.onmouseleave = () => {
+      try {
+        el.style.background = tone === "brand" ? "rgba(24,181,213,.16)" : tone === "danger" ? "rgba(239,68,68,.14)" : "rgba(255,255,255,.06)";
+      } catch {}
+    };
     return el;
   };
 
   let rm = null;
   if (onRemove) {
-    rm = document.createElement("button");
-    rm.type = "button";
-    rm.setAttribute("aria-label", isArabic() ? "إزالة" : "Remove");
-    rm.setAttribute("title", isArabic() ? "إزالة" : "Remove");
+    rm = mkIconBtn(isArabic() ? "إزالة" : "Remove", "neutral", "sicon-cancel");
     rm.disabled = busy || rec.status === "uploading";
-    rm.style.width = "22px";
-    rm.style.height = "22px";
-    rm.style.borderRadius = "8px";
-    rm.style.display = "grid";
-    rm.style.placeItems = "center";
-    rm.style.padding = "0";
-    rm.style.margin = "0";
-    rm.style.border = "1px solid rgba(255,255,255,.12)";
-    rm.style.background = "#373737";
     rm.style.position = "relative";
     rm.style.top = "-2px";
     rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
     rm.style.opacity = rm.disabled ? "0.55" : "1";
-    rm.style.color = "rgba(255,255,255,.78)";
-    rm.style.fontSize = "14px";
-    rm.style.lineHeight = "1";
-    const rmIcon = document.createElement("i");
-    rmIcon.className = "sicon-cancel";
-    rmIcon.setAttribute("aria-hidden", "true");
-    rmIcon.style.display = "block";
-    rmIcon.style.fontSize = "14px";
-    rmIcon.style.lineHeight = "1";
-    rmIcon.style.pointerEvents = "none";
-    rm.appendChild(rmIcon);
-    rm.onmouseenter = () => {
-      try {
-        if (rm.disabled) return;
-        rm.style.color = "#ef4444";
-      } catch {}
-    };
-    rm.onmouseleave = () => {
-      try {
-        rm.style.color = "rgba(255,255,255,.78)";
-      } catch {}
-    };
     rm.onclick = () => {
       try {
         if (rm.disabled) return;
@@ -618,46 +571,47 @@ const renderUploadRow = (rec, opts) => {
 
   const url = String((rec && rec.url) || "");
   if (url && rec.status === "done") {
-    const open = mkTinyBtn("a", isArabic() ? "فتح" : "Open", "neutral");
-    open.href = url;
-    open.target = "_blank";
-    open.rel = "noopener";
-    open.textContent = "↗";
-    right.appendChild(open);
-
-    const copy = mkTinyBtn("button", isArabic() ? "نسخ" : "Copy", "brand");
-    copy.type = "button";
-    copy.textContent = "⧉";
+    const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-pages");
     copy.onclick = () => {
       try {
-        const prev = copy.textContent;
-        copyText(url, (ok) => {
-          try {
-            copy.textContent = ok ? "✓" : prev;
-            setTimeout(() => {
-              try {
-                copy.textContent = prev;
-              } catch {}
-            }, 900);
-          } catch {}
-        });
+        copyText(url, () => {});
       } catch {}
     };
+    const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-external-link");
+    openBtn.onclick = (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(url, "_blank", "noopener");
+      } catch {}
+    };
+    right.appendChild(openBtn);
     right.appendChild(copy);
   }
 
-  const meta = document.createElement("div");
-  meta.style.fontSize = "11px";
-  meta.style.fontWeight = "900";
-  meta.style.color = "rgba(255,255,255,.78)";
-  meta.style.border = "1px solid rgba(255,255,255,.10)";
-  meta.style.background = "rgba(255,255,255,.06)";
-  meta.style.borderRadius = "999px";
-  meta.style.padding = "4px 8px";
-  meta.style.lineHeight = "1";
-  meta.style.whiteSpace = "nowrap";
-  meta.textContent = rec.status === "uploading" ? String(pct) + "%" : (rec.size ? fmtBytes(rec.size) : "");
-  right.appendChild(meta);
+  const sizeChip = document.createElement("div");
+  sizeChip.style.fontSize = "11px";
+  sizeChip.style.fontWeight = "950";
+  sizeChip.style.color = "rgba(255,255,255,.70)";
+  sizeChip.style.border = "1px solid rgba(255,255,255,.10)";
+  sizeChip.style.background = "rgba(255,255,255,.06)";
+  sizeChip.style.borderRadius = "999px";
+  sizeChip.style.padding = "6px 10px";
+  sizeChip.style.lineHeight = "1";
+  sizeChip.style.whiteSpace = "nowrap";
+  const rawSize = rec && rec.size ? fmtBytes(rec.size) : "";
+  const sizeTxt = (() => {
+    try {
+      const s = String(rawSize || "").trim();
+      const parts = s.split(" ").filter(Boolean);
+      if (parts.length === 2) return parts[1] + " " + parts[0];
+      return s;
+    } catch {
+      return String(rawSize || "");
+    }
+  })();
+  sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
+  if (sizeChip.textContent) right.appendChild(sizeChip);
 
   if (rm) right.appendChild(rm);
 
