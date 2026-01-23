@@ -23,6 +23,16 @@ const setFabVisible = (btn, on) => {
 };
 `,
   `
+const isMobile = (bp = 520) => {
+  try {
+    const w = Number(window && window.innerWidth) || 0;
+    return w > 0 && w <= Number(bp || 520);
+  } catch {
+    return false;
+  }
+};
+`,
+  `
 const setupFabFooterReveal = (btn) => {
   try {
     const footer = findFooterEl();
@@ -572,27 +582,29 @@ const buildLegalFooter = () => {
 };
 
 const buildSheet = () => {
+  const mobile = typeof isMobile === "function" && isMobile();
   const overlay = document.createElement("div");
   overlay.className = "bundle-app-bottomsheet";
-  overlay.style.alignItems = "center";
+  overlay.style.alignItems = mobile ? "flex-end" : "center";
   overlay.style.justifyContent = "center";
-  overlay.style.padding = "14px";
+  overlay.style.padding = mobile ? "0" : "14px";
+  if (mobile) overlay.style.paddingBottom = "calc(env(safe-area-inset-bottom, 0px) + 0px)";
   overlay.style.zIndex = "100003";
 
   const panel = document.createElement("div");
   panel.className = "bundle-app-bottomsheet__panel";
-  panel.style.width = "min(760px,100%)";
-  panel.style.height = "85vh";
+  panel.style.width = mobile ? "100%" : "min(760px,100%)";
+  panel.style.height = mobile ? "min(92vh, calc(100vh - env(safe-area-inset-top, 0px)))" : "85vh";
   panel.style.overflow = "hidden";
   panel.style.background = "#303030";
-  panel.style.borderRadius = "16px";
+  panel.style.borderRadius = mobile ? "16px 16px 0 0" : "16px";
   panel.style.border = "1px solid rgba(24,181,213,.18)";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
-  head.style.padding = "14px 14px";
+  head.style.padding = mobile ? "12px 12px" : "14px 14px";
   head.style.display = "flex";
   head.style.alignItems = "center";
   head.style.justifyContent = "space-between";
@@ -603,7 +615,7 @@ const buildSheet = () => {
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
   title.textContent = isArabic() ? "ملاك ابلودر" : "Malak Uploader";
-  title.style.fontSize = "19px";
+  title.style.fontSize = mobile ? "17px" : "19px";
   title.style.fontWeight = "900";
   title.style.color = "#18b5d5";
   title.style.letterSpacing = ".2px";
@@ -622,8 +634,8 @@ const buildSheet = () => {
   close.style.border = "0";
   close.style.background = "transparent";
   close.style.padding = "0";
-  close.style.width = "36px";
-  close.style.height = "36px";
+  close.style.width = mobile ? "44px" : "36px";
+  close.style.height = mobile ? "44px" : "36px";
   close.style.display = "grid";
   close.style.placeItems = "center";
   close.style.color = "#fff";
@@ -632,7 +644,7 @@ const buildSheet = () => {
   closeIcon.className = "sicon-cancel";
   closeIcon.setAttribute("aria-hidden", "true");
   closeIcon.style.display = "block";
-  closeIcon.style.fontSize = "18px";
+  closeIcon.style.fontSize = mobile ? "20px" : "18px";
   closeIcon.style.lineHeight = "1";
   closeIcon.style.pointerEvents = "none";
   close.appendChild(closeIcon);
@@ -650,7 +662,7 @@ const buildSheet = () => {
   head.appendChild(headRight);
 
   const body = document.createElement("div");
-  body.style.padding = "0 14px 14px";
+  body.style.padding = mobile ? "0 12px 12px" : "0 14px 14px";
   body.style.display = "flex";
   body.style.flexDirection = "column";
   body.style.flex = "1 1 auto";
@@ -663,12 +675,12 @@ const buildSheet = () => {
   topRow.style.justifyContent = "space-between";
   topRow.style.gap = "10px";
   topRow.style.flexWrap = "wrap";
-  topRow.style.padding = "12px 0";
+  topRow.style.padding = mobile ? "10px 0" : "12px 0";
 
   const tabs = document.createElement("div");
   tabs.style.display = "grid";
-  tabs.style.gridTemplateColumns = "repeat(auto-fit,minmax(140px,1fr))";
-  tabs.style.gap = "10px";
+  tabs.style.gridTemplateColumns = mobile ? "repeat(auto-fit,minmax(110px,1fr))" : "repeat(auto-fit,minmax(140px,1fr))";
+  tabs.style.gap = mobile ? "8px" : "10px";
   tabs.style.width = "100%";
 
   const actions = document.createElement("div");
@@ -684,7 +696,7 @@ const buildSheet = () => {
   uploads.style.flexDirection = "column";
   uploads.style.gap = "8px";
   uploads.style.marginBottom = "10px";
-  uploads.style.maxHeight = "min(360px, 42vh)";
+  uploads.style.maxHeight = mobile ? "min(240px, 30vh)" : "min(360px, 42vh)";
   uploads.style.overflow = "auto";
   uploads.style.padding = "2px";
 
@@ -713,6 +725,7 @@ const buildSheet = () => {
   `
 const pill = (label, active) => {
   const b = document.createElement("button");
+  const mobile = typeof isMobile === "function" && isMobile();
   b.type = "button";
   b.className = "bundleapp-tab";
   b.textContent = label;
@@ -722,9 +735,9 @@ const pill = (label, active) => {
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
   b.style.color = active ? "#303030" : "#fff";
-  b.style.padding = "10px 14px";
+  b.style.padding = mobile ? "12px 10px" : "10px 14px";
   b.style.borderRadius = "10px";
-  b.style.fontSize = "14px";
+  b.style.fontSize = mobile ? "13px" : "14px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
   b.style.width = "100%";

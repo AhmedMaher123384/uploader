@@ -336,8 +336,8 @@ const renderCompressionPlatform = (opts) => {
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
-      name.style.flex = "0 1 320px";
-      name.style.maxWidth = "420px";
+      name.style.flex = "1 1 auto";
+      name.style.maxWidth = "100%";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";

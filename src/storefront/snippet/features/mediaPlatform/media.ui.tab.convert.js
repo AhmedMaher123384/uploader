@@ -15,12 +15,24 @@ const renderConversionPlatform = (opts) => {
   const onSetConvertFiles = typeof o.onSetConvertFiles === "function" ? o.onSetConvertFiles : null;
   const onSetKind = typeof o.onSetKind === "function" ? o.onSetKind : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
+  const mobile = (() => {
+    try {
+      const w = Number(window.innerWidth || 0) || 0;
+      return w > 0 && w < 420;
+    } catch {
+      return false;
+    }
+  })();
+  const controlHeight = mobile ? "34px" : "22px";
+  const controlFontSize = mobile ? "12px" : "9px";
+  const controlPadding = mobile ? "6px 30px 6px 10px" : "2px 18px 2px 7px";
+  const controlArrowFontSize = mobile ? "11px" : "9px";
 
   const card = document.createElement("div");
   card.style.border = "1px solid rgba(255,255,255,.08)";
   card.style.borderRadius = "16px";
   card.style.background = "#303030";
-  card.style.padding = "14px";
+  card.style.padding = mobile ? "12px" : "14px";
   card.style.display = "flex";
   card.style.flexDirection = "column";
   card.style.gap = "12px";
@@ -40,7 +52,7 @@ const renderConversionPlatform = (opts) => {
 
   const title = document.createElement("div");
   title.style.color = "rgba(255,255,255,.95)";
-  title.style.fontSize = "20px";
+  title.style.fontSize = mobile ? "18px" : "20px";
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "تحويل الصيغ" : "Conversion Platform";
 
@@ -360,9 +372,9 @@ const renderConversionPlatform = (opts) => {
 
       const clearBtn = btnGhost(isArabic() ? "مسح الكل" : "Clear all");
       clearBtn.disabled = Boolean(state.converting) || planBlocked || !onReset;
-      clearBtn.style.padding = "2px 6px";
+      clearBtn.style.padding = mobile ? "6px 10px" : "2px 6px";
       clearBtn.style.borderRadius = "8px";
-      clearBtn.style.fontSize = "9px";
+      clearBtn.style.fontSize = mobile ? "12px" : "11px";
       clearBtn.style.fontWeight = "950";
       clearBtn.style.lineHeight = "1";
       clearBtn.style.color = "#ef4444";
@@ -405,9 +417,11 @@ const renderConversionPlatform = (opts) => {
 
       const row = document.createElement("div");
       row.style.display = "flex";
-      row.style.alignItems = "center";
+      row.style.alignItems = mobile ? "flex-start" : "center";
       row.style.justifyContent = "flex-start";
       row.style.gap = "10px";
+      row.style.rowGap = "6px";
+      row.style.flexWrap = mobile ? "wrap" : "nowrap";
       row.style.padding = "8px 10px";
       row.style.borderRadius = "10px";
       row.style.background = "rgba(255,255,255,.06)";
@@ -422,8 +436,8 @@ const renderConversionPlatform = (opts) => {
       rm.style.background = "transparent";
       rm.style.padding = "0";
       rm.style.margin = "0";
-      rm.style.width = "20px";
-      rm.style.height = "20px";
+      rm.style.width = mobile ? "28px" : "20px";
+      rm.style.height = mobile ? "28px" : "20px";
       rm.style.display = "inline-flex";
       rm.style.alignItems = "center";
       rm.style.justifyContent = "center";
@@ -492,11 +506,12 @@ const renderConversionPlatform = (opts) => {
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
-      name.style.flex = "0 1 320px";
-      name.style.maxWidth = "420px";
+      name.style.flex = mobile ? "1 1 100%" : "0 1 320px";
+      name.style.maxWidth = "100%";
       name.style.overflow = "hidden";
-      name.style.textOverflow = "ellipsis";
-      name.style.whiteSpace = "nowrap";
+      name.style.textOverflow = mobile ? "clip" : "ellipsis";
+      name.style.whiteSpace = mobile ? "normal" : "nowrap";
+      name.style.wordBreak = mobile ? "break-word" : "normal";
       name.style.textAlign = isArabic() ? "right" : "left";
       name.style.direction = isArabic() ? "rtl" : "ltr";
       name.textContent = String(f.name || "");
@@ -516,7 +531,8 @@ const renderConversionPlatform = (opts) => {
       right.style.alignItems = "center";
       right.style.gap = "8px";
       right.style.flexWrap = "wrap";
-      right.style.flex = "0 0 auto";
+      right.style.flex = mobile ? "1 1 100%" : "0 0 auto";
+      if (mobile) right.style.width = "100%";
       right.style.direction = "ltr";
       if (!isArabic()) right.style.marginLeft = "auto";
 
@@ -534,17 +550,17 @@ const renderConversionPlatform = (opts) => {
 
       const fmt = document.createElement("select");
       fmt.disabled = Boolean(state.converting) || planBlocked;
-      fmt.style.padding = "2px 18px 2px 7px";
-      fmt.style.height = "22px";
-      fmt.style.minHeight = "22px";
+      fmt.style.padding = controlPadding;
+      fmt.style.height = controlHeight;
+      fmt.style.minHeight = controlHeight;
       fmt.style.borderRadius = "6px";
       fmt.style.border = "1px solid rgba(255,255,255,.10)";
       fmt.style.background = "#303030";
       fmt.style.color = "rgba(255,255,255,.92)";
-      fmt.style.fontSize = "9px";
+      fmt.style.fontSize = controlFontSize;
       fmt.style.fontWeight = "900";
       fmt.style.lineHeight = "1";
-      fmt.style.maxWidth = "96px";
+      fmt.style.maxWidth = mobile ? "180px" : "96px";
       fmt.style.cursor = fmt.disabled ? "not-allowed" : "pointer";
       fmt.style.opacity = fmt.disabled ? "0.7" : "1";
       fmt.style.appearance = "none";
@@ -601,17 +617,17 @@ const renderConversionPlatform = (opts) => {
         const dims = fileDims[i] || null;
         const preset = document.createElement("select");
         preset.disabled = Boolean(state.converting) || planBlocked;
-        preset.style.padding = "2px 18px 2px 7px";
-        preset.style.height = "22px";
-        preset.style.minHeight = "22px";
+        preset.style.padding = controlPadding;
+        preset.style.height = controlHeight;
+        preset.style.minHeight = controlHeight;
         preset.style.borderRadius = "6px";
         preset.style.border = "1px solid rgba(255,255,255,.10)";
         preset.style.background = "#303030";
         preset.style.color = "rgba(255,255,255,.92)";
-        preset.style.fontSize = "9px";
+        preset.style.fontSize = controlFontSize;
         preset.style.fontWeight = "900";
         preset.style.lineHeight = "1";
-        preset.style.maxWidth = "132px";
+        preset.style.maxWidth = mobile ? "240px" : "132px";
         preset.style.cursor = preset.disabled ? "not-allowed" : "pointer";
         preset.style.opacity = preset.disabled ? "0.7" : "1";
         preset.style.appearance = "none";
@@ -666,7 +682,7 @@ const renderConversionPlatform = (opts) => {
         arrow2.style.transform = "translateY(-50%)";
         arrow2.style.pointerEvents = "none";
         arrow2.style.color = "rgba(255,255,255,.70)";
-        arrow2.style.fontSize = "9px";
+        arrow2.style.fontSize = controlArrowFontSize;
         arrow2.style.fontWeight = "950";
         arrow2.style.lineHeight = "1";
 
@@ -689,7 +705,7 @@ const renderConversionPlatform = (opts) => {
         arrow.style.transform = "translateY(-50%)";
         arrow.style.pointerEvents = "none";
         arrow.style.color = "rgba(255,255,255,.70)";
-        arrow.style.fontSize = "9px";
+        arrow.style.fontSize = controlArrowFontSize;
         arrow.style.fontWeight = "950";
         arrow.style.lineHeight = "1";
 
@@ -702,7 +718,8 @@ const renderConversionPlatform = (opts) => {
       meta.style.alignItems = "center";
       meta.style.gap = "10px";
       meta.style.minWidth = "0";
-      meta.style.flex = "0 1 auto";
+      meta.style.flex = mobile ? "1 1 100%" : "0 1 auto";
+      if (mobile) meta.style.width = "100%";
       meta.style.direction = "ltr";
       if (isArabic()) {
         meta.style.marginLeft = "auto";
@@ -733,7 +750,7 @@ const renderConversionPlatform = (opts) => {
   dzWrap.style.border = "1px dashed rgba(255,255,255,.12)";
   dzWrap.style.borderRadius = "12px";
   dzWrap.style.background = "#373737";
-  dzWrap.style.padding = "32px 20px";
+  dzWrap.style.padding = mobile ? "22px 14px" : "32px 20px";
   dzWrap.style.display = "flex";
   dzWrap.style.flexDirection = "column";
   dzWrap.style.alignItems = "center";
@@ -744,7 +761,7 @@ const renderConversionPlatform = (opts) => {
 
   const dzIcon = document.createElement("div");
   dzIcon.style.color = "rgba(255,255,255,.40)";
-  dzIcon.style.fontSize = "32px";
+  dzIcon.style.fontSize = mobile ? "28px" : "32px";
   dzIcon.style.lineHeight = "1";
   dzIcon.textContent = "📁";
 

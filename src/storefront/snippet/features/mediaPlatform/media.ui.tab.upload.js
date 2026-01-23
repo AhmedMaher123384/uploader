@@ -3,6 +3,14 @@ module.exports = [
 const renderUploadHero = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const store = d.store && typeof d.store === "object" ? d.store : {};
+  const mobile = (() => {
+    try {
+      const w = Number(window.innerWidth || 0) || 0;
+      return w > 0 && w < 420;
+    } catch {
+      return false;
+    }
+  })();
 
   const sanitizeHttpUrl = (raw) => {
     const s0 = String(raw || "").trim();
@@ -28,7 +36,7 @@ const renderUploadHero = (dash) => {
   wrap.style.justifyContent = "space-between";
   wrap.style.gap = "12px";
   wrap.style.flexWrap = "wrap";
-  wrap.style.padding = "14px";
+  wrap.style.padding = mobile ? "12px" : "14px";
   wrap.style.borderRadius = "16px";
   wrap.style.border = "1px solid rgba(255,255,255,.10)";
   wrap.style.background = "#373737";
@@ -40,8 +48,8 @@ const renderUploadHero = (dash) => {
   left.style.minWidth = "0";
 
   const avatar = document.createElement("div");
-  avatar.style.width = "44px";
-  avatar.style.height = "44px";
+  avatar.style.width = mobile ? "40px" : "44px";
+  avatar.style.height = mobile ? "40px" : "44px";
   avatar.style.borderRadius = "14px";
   avatar.style.overflow = "hidden";
   avatar.style.flex = "0 0 auto";
@@ -77,18 +85,24 @@ const renderUploadHero = (dash) => {
   meta.style.minWidth = "0";
 
   const hello = document.createElement("div");
-  hello.style.fontSize = "17px";
+  hello.style.fontSize = mobile ? "15px" : "17px";
   hello.style.fontWeight = "900";
   hello.style.color = "rgba(255,255,255,.82)";
   hello.textContent = isArabic() ? "أهلاً بك في رفع الملفات" : "Welcome to Upload Center";
 
   const name = document.createElement("div");
-  name.style.fontSize = "22px";
+  name.style.fontSize = mobile ? "19px" : "22px";
   name.style.fontWeight = "950";
   name.style.color = "#fff";
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
-  name.style.whiteSpace = "nowrap";
+  name.style.whiteSpace = mobile ? "normal" : "nowrap";
+  if (mobile) {
+    name.style.display = "-webkit-box";
+    name.style.webkitBoxOrient = "vertical";
+    name.style.webkitLineClamp = "2";
+    name.style.lineHeight = "1.25";
+  }
   name.textContent = String(store.name || d.storeName || "") || (isArabic() ? "متجرك" : "Your store");
 
   const domain = document.createElement("div");
@@ -137,7 +151,7 @@ const renderUploadHero = (dash) => {
   planIcon.style.color = "currentColor";
 
   const planTxt = document.createElement("span");
-  planTxt.style.whiteSpace = "nowrap";
+  planTxt.style.whiteSpace = mobile ? "normal" : "nowrap";
   planTxt.textContent = (isArabic() ? "" : "Plan: ") + planLabel(d.planKey);
 
   plan.appendChild(planIcon);
@@ -409,11 +423,19 @@ const renderUploadRow = (rec, opts) => {
   const o = opts && typeof opts === "object" ? opts : {};
   const busy = Boolean(o.busy);
   const onRemove = typeof o.onRemove === "function" ? o.onRemove : null;
+  const mobile = (() => {
+    try {
+      const w = Number(window.innerWidth || 0) || 0;
+      return w > 0 && w < 420;
+    } catch {
+      return false;
+    }
+  })();
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.gap = "8px";
-  wrap.style.padding = "14px 12px 10px";
+  wrap.style.padding = mobile ? "12px 10px 10px" : "14px 12px 10px";
   wrap.style.borderRadius = "18px";
   wrap.style.border = "1px solid rgba(24,181,213,.45)";
   wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
@@ -434,9 +456,11 @@ const renderUploadRow = (rec, opts) => {
 
   const row = document.createElement("div");
   row.style.display = "flex";
-  row.style.alignItems = "center";
+  row.style.alignItems = mobile ? "flex-start" : "center";
   row.style.justifyContent = "flex-start";
   row.style.gap = "12px";
+  row.style.rowGap = "8px";
+  row.style.flexWrap = mobile ? "wrap" : "nowrap";
   row.style.minWidth = "0";
 
   const left = document.createElement("div");
@@ -444,6 +468,7 @@ const renderUploadRow = (rec, opts) => {
   left.style.display = "flex";
   left.style.alignItems = "center";
   left.style.gap = "10px";
+  if (mobile) left.style.flex = "1 1 100%";
 
   const dot = document.createElement("div");
   dot.style.width = "10px";
@@ -472,7 +497,13 @@ const renderUploadRow = (rec, opts) => {
   name.style.color = "#fff";
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
-  name.style.whiteSpace = "nowrap";
+  name.style.whiteSpace = mobile ? "normal" : "nowrap";
+  if (mobile) {
+    name.style.display = "-webkit-box";
+    name.style.webkitBoxOrient = "vertical";
+    name.style.webkitLineClamp = "2";
+    name.style.lineHeight = "1.25";
+  }
   name.textContent = String(rec.name || "");
 
   const sub = document.createElement("div");
@@ -697,7 +728,7 @@ const renderUploadRow = (rec, opts) => {
   footer.style.justifyContent = "space-between";
   footer.style.gap = "12px";
   footer.style.minWidth = "0";
-  footer.style.flexWrap = "nowrap";
+  footer.style.flexWrap = mobile ? "wrap" : "nowrap";
   footer.style.width = "100%";
   footer.style.direction = "ltr";
 
@@ -705,7 +736,7 @@ const renderUploadRow = (rec, opts) => {
   leftGroup.style.display = "flex";
   leftGroup.style.alignItems = "center";
   leftGroup.style.gap = "10px";
-  leftGroup.style.flex = "0 0 auto";
+  leftGroup.style.flex = mobile ? "1 1 100%" : "0 0 auto";
   leftGroup.style.flexWrap = "wrap";
   leftGroup.style.justifyContent = "flex-start";
 
@@ -724,13 +755,13 @@ const renderUploadRow = (rec, opts) => {
     link.style.color = "rgba(255,255,255,.62)";
     link.style.textDecoration = "none";
     link.style.direction = "ltr";
-    link.style.whiteSpace = "nowrap";
+    link.style.whiteSpace = mobile ? "normal" : "nowrap";
     link.style.overflow = "hidden";
     link.style.textOverflow = "ellipsis";
     link.style.padding = "0 2px";
     link.style.minWidth = "0";
-    link.style.flex = "1 1 auto";
-    link.style.textAlign = "right";
+    link.style.flex = mobile ? "1 1 100%" : "1 1 auto";
+    link.style.textAlign = mobile ? "left" : "right";
     link.textContent = displayUrl || cleanUrl;
     link.onmouseenter = () => {
       try {
@@ -738,7 +769,7 @@ const renderUploadRow = (rec, opts) => {
         link.style.textDecoration = "underline";
         link.style.textDecorationThickness = "1px";
         link.style.textUnderlineOffset = "2px";
-      } catch {}
+      } catch {} 
     };
     link.onmouseleave = () => {
       try {

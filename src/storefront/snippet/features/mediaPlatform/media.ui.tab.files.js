@@ -321,6 +321,14 @@ const revokeMediaObjectUrls = () => {
 `,
   `
 const renderGrid = (items, opts) => {
+  const mobile = (() => {
+    try {
+      const w = Number(window.innerWidth || 0) || 0;
+      return w > 0 && w < 420;
+    } catch {
+      return false;
+    }
+  })();
   const grid = document.createElement("div");
   grid.style.display = "grid";
   const minCol = (() => {
@@ -334,7 +342,7 @@ const renderGrid = (items, opts) => {
     }
   })();
   grid.style.gridTemplateColumns = "repeat(auto-fit,minmax(" + String(minCol) + "px,1fr))";
-  grid.style.gap = "12px";
+  grid.style.gap = mobile ? "10px" : "12px";
   grid.style.alignItems = "stretch";
   grid.style.marginTop = "4px";
 
@@ -463,16 +471,17 @@ const renderGrid = (items, opts) => {
     }
 
     const meta = document.createElement("div");
-    meta.style.padding = "10px";
+    meta.style.padding = mobile ? "9px" : "10px";
     meta.style.display = "flex";
     meta.style.flexDirection = "column";
     meta.style.gap = "8px";
 
     const top = document.createElement("div");
     top.style.display = "flex";
-    top.style.alignItems = "center";
+    top.style.alignItems = mobile ? "flex-start" : "center";
     top.style.justifyContent = "space-between";
     top.style.gap = "10px";
+    top.style.flexWrap = "wrap";
 
     const fileName = String(it.originalFilename || it.publicId || "").trim();
     const ext = (() => {
@@ -519,6 +528,7 @@ const renderGrid = (items, opts) => {
     badge.style.border = "1px solid rgba(24,181,213,.35)";
     badge.style.background = "rgba(24,181,213,.10)";
     badge.style.color = "#18b5d5";
+    if (mobile && !isArabic()) badge.style.marginLeft = "auto";
     badge.textContent = (() => {
       const rtKey = String(rt || "").trim().toLowerCase();
       if (fmt) return fmt;
