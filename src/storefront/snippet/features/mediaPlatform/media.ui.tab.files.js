@@ -321,14 +321,8 @@ const revokeMediaObjectUrls = () => {
 `,
   `
 const renderGrid = (items, opts) => {
-  const mobile = (() => {
-    try {
-      const w = Number(window.innerWidth || 0) || 0;
-      return w > 0 && w < 420;
-    } catch {
-      return false;
-    }
-  })();
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const grid = document.createElement("div");
   grid.style.display = "grid";
   const minCol = (() => {
@@ -342,7 +336,7 @@ const renderGrid = (items, opts) => {
     }
   })();
   grid.style.gridTemplateColumns = "repeat(auto-fit,minmax(" + String(minCol) + "px,1fr))";
-  grid.style.gap = mobile ? "10px" : "12px";
+  grid.style.gap = isMobile ? (isTiny ? "8px" : "10px") : "12px";
   grid.style.alignItems = "stretch";
   grid.style.marginTop = "4px";
 
@@ -378,7 +372,7 @@ const renderGrid = (items, opts) => {
 
     const card = document.createElement("div");
     card.style.border = "1px solid rgba(255,255,255,.10)";
-    card.style.borderRadius = "16px";
+    card.style.borderRadius = isMobile ? "14px" : "16px";
     card.style.overflow = "hidden";
     card.style.background = "#373737";
 
@@ -412,10 +406,10 @@ const renderGrid = (items, opts) => {
       box.style.alignItems = "center";
       box.style.justifyContent = "center";
       box.style.gap = "10px";
-      box.style.padding = "18px";
+      box.style.padding = isMobile ? (isTiny ? "12px" : "14px") : "18px";
 
       const label = document.createElement("div");
-      label.style.fontSize = "14px";
+      label.style.fontSize = isMobile ? "12px" : "14px";
       label.style.fontWeight = "950";
       label.style.color = "#fff";
       label.style.textAlign = "center";
@@ -430,12 +424,13 @@ const renderGrid = (items, opts) => {
       open.style.display = "inline-flex";
       open.style.alignItems = "center";
       open.style.justifyContent = "center";
-      open.style.padding = "10px 12px";
-      open.style.borderRadius = "12px";
+      open.style.padding = isMobile ? (isTiny ? "8px 10px" : "9px 10px") : "10px 12px";
+      open.style.borderRadius = isMobile ? "11px" : "12px";
       open.style.border = "1px solid rgba(24,181,213,.35)";
       open.style.background = "rgba(24,181,213,.10)";
       open.style.color = "#18b5d5";
       open.style.fontWeight = "950";
+      open.style.fontSize = isMobile ? "12px" : "13px";
       open.style.textDecoration = "none";
       open.style.pointerEvents = src ? "auto" : "none";
       open.style.opacity = src ? "1" : "0.6";
@@ -452,7 +447,7 @@ const renderGrid = (items, opts) => {
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = "contain";
-      img.style.padding = "8px";
+      img.style.padding = isMobile ? "6px" : "8px";
       img.style.boxSizing = "border-box";
       media.appendChild(img);
       if (src) {
@@ -471,17 +466,16 @@ const renderGrid = (items, opts) => {
     }
 
     const meta = document.createElement("div");
-    meta.style.padding = mobile ? "9px" : "10px";
+    meta.style.padding = isMobile ? (isTiny ? "8px" : "9px") : "10px";
     meta.style.display = "flex";
     meta.style.flexDirection = "column";
-    meta.style.gap = "8px";
+    meta.style.gap = isMobile ? "7px" : "8px";
 
     const top = document.createElement("div");
     top.style.display = "flex";
-    top.style.alignItems = mobile ? "flex-start" : "center";
+    top.style.alignItems = "center";
     top.style.justifyContent = "space-between";
-    top.style.gap = "10px";
-    top.style.flexWrap = "wrap";
+    top.style.gap = isMobile ? "8px" : "10px";
 
     const fileName = String(it.originalFilename || it.publicId || "").trim();
     const ext = (() => {
@@ -506,7 +500,7 @@ const renderGrid = (items, opts) => {
     const name = document.createElement("div");
     name.style.flex = "1 1 auto";
     name.style.minWidth = "0";
-    name.style.fontSize = "13px";
+    name.style.fontSize = isMobile ? "12px" : "13px";
     name.style.fontWeight = "950";
     name.style.color = "#fff";
     name.style.overflow = "hidden";
@@ -523,12 +517,11 @@ const renderGrid = (items, opts) => {
     badge.style.flex = "0 0 auto";
     badge.style.fontSize = "11px";
     badge.style.fontWeight = "950";
-    badge.style.padding = "5px 8px";
+    badge.style.padding = isMobile ? "4px 7px" : "5px 8px";
     badge.style.borderRadius = "999px";
     badge.style.border = "1px solid rgba(24,181,213,.35)";
     badge.style.background = "rgba(24,181,213,.10)";
     badge.style.color = "#18b5d5";
-    if (mobile && !isArabic()) badge.style.marginLeft = "auto";
     badge.textContent = (() => {
       const rtKey = String(rt || "").trim().toLowerCase();
       if (fmt) return fmt;
@@ -606,6 +599,8 @@ const renderGrid = (items, opts) => {
 };
 
 const renderPager = ({ page, total, limit, onPage, loading }) => {
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const p = Math.max(1, Number(page || 1) || 1);
   const l = Math.max(1, Number(limit || 12) || 12);
   const t = Math.max(0, Number(total || 0) || 0);
@@ -616,7 +611,7 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
-  wrap.style.gap = "8px";
+  wrap.style.gap = isMobile ? "6px" : "8px";
   wrap.style.flexWrap = "wrap";
   wrap.style.paddingTop = "6px";
 
@@ -628,11 +623,11 @@ const renderPager = ({ page, total, limit, onPage, loading }) => {
     b.style.border = active ? "1px solid rgba(24,181,213,.55)" : "1px solid rgba(255,255,255,.10)";
     b.style.background = active ? "rgba(24,181,213,.18)" : "#373737";
     b.style.color = active ? "#18b5d5" : "#fff";
-    b.style.padding = "8px 10px";
+    b.style.padding = isMobile ? (isTiny ? "7px 8px" : "8px 9px") : "8px 10px";
     b.style.borderRadius = "6px";
-    b.style.minWidth = "36px";
+    b.style.minWidth = isMobile ? "32px" : "36px";
     b.style.textAlign = "center";
-    b.style.fontSize = "12px";
+    b.style.fontSize = isMobile ? "11px" : "12px";
     b.style.fontWeight = "950";
     b.style.cursor = disabled ? "not-allowed" : "pointer";
     b.style.opacity = disabled ? "0.6" : "1";

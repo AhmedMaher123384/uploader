@@ -3,14 +3,8 @@ module.exports = [
 const renderUploadHero = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const store = d.store && typeof d.store === "object" ? d.store : {};
-  const mobile = (() => {
-    try {
-      const w = Number(window.innerWidth || 0) || 0;
-      return w > 0 && w < 420;
-    } catch {
-      return false;
-    }
-  })();
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
 
   const sanitizeHttpUrl = (raw) => {
     const s0 = String(raw || "").trim();
@@ -34,23 +28,23 @@ const renderUploadHero = (dash) => {
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "space-between";
-  wrap.style.gap = "12px";
+  wrap.style.gap = isMobile ? "10px" : "12px";
   wrap.style.flexWrap = "wrap";
-  wrap.style.padding = mobile ? "12px" : "14px";
-  wrap.style.borderRadius = "16px";
+  wrap.style.padding = isMobile ? (isTiny ? "10px" : "12px") : "14px";
+  wrap.style.borderRadius = isMobile ? (isTiny ? "14px" : "15px") : "16px";
   wrap.style.border = "1px solid rgba(255,255,255,.10)";
   wrap.style.background = "#373737";
 
   const left = document.createElement("div");
   left.style.display = "flex";
   left.style.alignItems = "center";
-  left.style.gap = "12px";
+  left.style.gap = isMobile ? "10px" : "12px";
   left.style.minWidth = "0";
 
   const avatar = document.createElement("div");
-  avatar.style.width = mobile ? "40px" : "44px";
-  avatar.style.height = mobile ? "40px" : "44px";
-  avatar.style.borderRadius = "14px";
+  avatar.style.width = isMobile ? "40px" : "44px";
+  avatar.style.height = isMobile ? "40px" : "44px";
+  avatar.style.borderRadius = isMobile ? "13px" : "14px";
   avatar.style.overflow = "hidden";
   avatar.style.flex = "0 0 auto";
   avatar.style.border = "1px solid rgba(255,255,255,.18)";
@@ -73,7 +67,7 @@ const renderUploadHero = (dash) => {
     avatar.appendChild(img);
   } else {
     const t = document.createElement("div");
-    t.style.fontSize = "14px";
+    t.style.fontSize = isMobile ? "12px" : "14px";
     t.textContent = "BA";
     avatar.appendChild(t);
   }
@@ -81,32 +75,26 @@ const renderUploadHero = (dash) => {
   const meta = document.createElement("div");
   meta.style.display = "flex";
   meta.style.flexDirection = "column";
-  meta.style.gap = "4px";
+  meta.style.gap = isMobile ? "3px" : "4px";
   meta.style.minWidth = "0";
 
   const hello = document.createElement("div");
-  hello.style.fontSize = mobile ? "15px" : "17px";
+  hello.style.fontSize = isMobile ? (isTiny ? "13px" : "14px") : "17px";
   hello.style.fontWeight = "900";
   hello.style.color = "rgba(255,255,255,.82)";
   hello.textContent = isArabic() ? "أهلاً بك في رفع الملفات" : "Welcome to Upload Center";
 
   const name = document.createElement("div");
-  name.style.fontSize = mobile ? "19px" : "22px";
+  name.style.fontSize = isMobile ? (isTiny ? "15px" : "16px") : "22px";
   name.style.fontWeight = "950";
   name.style.color = "#fff";
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
-  name.style.whiteSpace = mobile ? "normal" : "nowrap";
-  if (mobile) {
-    name.style.display = "-webkit-box";
-    name.style.webkitBoxOrient = "vertical";
-    name.style.webkitLineClamp = "2";
-    name.style.lineHeight = "1.25";
-  }
+  name.style.whiteSpace = "nowrap";
   name.textContent = String(store.name || d.storeName || "") || (isArabic() ? "متجرك" : "Your store");
 
   const domain = document.createElement("div");
-  domain.style.fontSize = "12px";
+  domain.style.fontSize = isMobile ? "11px" : "12px";
   domain.style.fontWeight = "900";
   domain.style.color = "rgba(24,181,213,.95)";
   domain.style.overflow = "hidden";
@@ -124,21 +112,21 @@ const renderUploadHero = (dash) => {
   const right = document.createElement("div");
   right.style.display = "flex";
   right.style.alignItems = "center";
-  right.style.gap = "10px";
+  right.style.gap = isMobile ? "8px" : "10px";
   right.style.flexWrap = "wrap";
   right.style.justifyContent = "flex-end";
 
   const plan = document.createElement("div");
-  plan.style.padding = "8px 12px";
+  plan.style.padding = isMobile ? (isTiny ? "6px 8px" : "7px 10px") : "8px 12px";
   plan.style.borderRadius = "999px";
   plan.style.border = "1px solid rgba(24,181,213,.35)";
   plan.style.background = "rgba(24,181,213,.12)";
   plan.style.color = "#18b5d5";
   plan.style.fontWeight = "950";
-  plan.style.fontSize = "12px";
+  plan.style.fontSize = isMobile ? "11px" : "12px";
   plan.style.display = "inline-flex";
   plan.style.alignItems = "center";
-  plan.style.gap = "8px";
+  plan.style.gap = isMobile ? "6px" : "8px";
 
   const planKey = String(d.planKey || "").trim().toLowerCase();
   const planIconClass = planKey === "business" ? "sicon-award-ribbon" : planKey === "pro" ? "sicon-star-o" : "sicon-user";
@@ -146,12 +134,12 @@ const renderUploadHero = (dash) => {
   planIcon.className = planIconClass;
   planIcon.setAttribute("aria-hidden", "true");
   planIcon.style.display = "block";
-  planIcon.style.fontSize = "14px";
+  planIcon.style.fontSize = isMobile ? "12px" : "14px";
   planIcon.style.lineHeight = "1";
   planIcon.style.color = "currentColor";
 
   const planTxt = document.createElement("span");
-  planTxt.style.whiteSpace = mobile ? "normal" : "nowrap";
+  planTxt.style.whiteSpace = "nowrap";
   planTxt.textContent = (isArabic() ? "" : "Plan: ") + planLabel(d.planKey);
 
   plan.appendChild(planIcon);
@@ -168,12 +156,12 @@ const renderUploadHero = (dash) => {
   visit.style.alignItems = "center";
   visit.style.justifyContent = "center";
   visit.style.gap = "8px";
-  visit.style.padding = "10px 12px";
-  visit.style.borderRadius = "12px";
+  visit.style.padding = isMobile ? (isTiny ? "8px 10px" : "9px 10px") : "10px 12px";
+  visit.style.borderRadius = isMobile ? "11px" : "12px";
   visit.style.border = "1px solid rgba(255,255,255,.12)";
   visit.style.background = "#303030";
   visit.style.color = "#fff";
-  visit.style.fontSize = "13px";
+  visit.style.fontSize = isMobile ? "12px" : "13px";
   visit.style.fontWeight = "950";
   visit.style.textDecoration = "none";
   visit.style.pointerEvents = url ? "auto" : "none";
@@ -191,7 +179,7 @@ const renderUploadHero = (dash) => {
   arrow.setAttribute("aria-hidden", "true");
   arrow.textContent = "↖";
   arrow.style.display = "block";
-  arrow.style.fontSize = "14px";
+  arrow.style.fontSize = isMobile ? "12px" : "14px";
   arrow.style.lineHeight = "1";
   arrow.style.color = "rgba(255,255,255,.80)";
   arrow.style.transform = "translateY(-1px)";
@@ -208,23 +196,25 @@ const renderUploadHero = (dash) => {
 `,
   `
 const statCard = (label, value) => {
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const c = document.createElement("div");
   c.style.border = "1px solid rgba(255,255,255,.10)";
-  c.style.borderRadius = "14px";
+  c.style.borderRadius = isMobile ? "12px" : "14px";
   c.style.background = "#373737";
-  c.style.padding = "12px";
+  c.style.padding = isMobile ? (isTiny ? "9px" : "10px") : "12px";
   c.style.display = "flex";
   c.style.flexDirection = "column";
-  c.style.gap = "8px";
+  c.style.gap = isMobile ? "6px" : "8px";
 
   const l = document.createElement("div");
-  l.style.fontSize = "13px";
+  l.style.fontSize = isMobile ? "12px" : "13px";
   l.style.fontWeight = "900";
   l.style.color = "rgba(255,255,255,.78)";
   l.textContent = String(label || "");
 
   const v = document.createElement("div");
-  v.style.fontSize = "18px";
+  v.style.fontSize = isMobile ? (isTiny ? "14px" : "15px") : "18px";
   v.style.fontWeight = "950";
   v.style.color = "#fff";
   v.textContent = String(value == null ? "" : value);
@@ -423,19 +413,11 @@ const renderUploadRow = (rec, opts) => {
   const o = opts && typeof opts === "object" ? opts : {};
   const busy = Boolean(o.busy);
   const onRemove = typeof o.onRemove === "function" ? o.onRemove : null;
-  const mobile = (() => {
-    try {
-      const w = Number(window.innerWidth || 0) || 0;
-      return w > 0 && w < 420;
-    } catch {
-      return false;
-    }
-  })();
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.gap = "8px";
-  wrap.style.padding = mobile ? "12px 10px 10px" : "14px 12px 10px";
+  wrap.style.padding = "14px 12px 10px";
   wrap.style.borderRadius = "18px";
   wrap.style.border = "1px solid rgba(24,181,213,.45)";
   wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
@@ -456,11 +438,9 @@ const renderUploadRow = (rec, opts) => {
 
   const row = document.createElement("div");
   row.style.display = "flex";
-  row.style.alignItems = mobile ? "flex-start" : "center";
+  row.style.alignItems = "center";
   row.style.justifyContent = "flex-start";
   row.style.gap = "12px";
-  row.style.rowGap = "8px";
-  row.style.flexWrap = mobile ? "wrap" : "nowrap";
   row.style.minWidth = "0";
 
   const left = document.createElement("div");
@@ -468,7 +448,6 @@ const renderUploadRow = (rec, opts) => {
   left.style.display = "flex";
   left.style.alignItems = "center";
   left.style.gap = "10px";
-  if (mobile) left.style.flex = "1 1 100%";
 
   const dot = document.createElement("div");
   dot.style.width = "10px";
@@ -497,13 +476,7 @@ const renderUploadRow = (rec, opts) => {
   name.style.color = "#fff";
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
-  name.style.whiteSpace = mobile ? "normal" : "nowrap";
-  if (mobile) {
-    name.style.display = "-webkit-box";
-    name.style.webkitBoxOrient = "vertical";
-    name.style.webkitLineClamp = "2";
-    name.style.lineHeight = "1.25";
-  }
+  name.style.whiteSpace = "nowrap";
   name.textContent = String(rec.name || "");
 
   const sub = document.createElement("div");
@@ -728,7 +701,7 @@ const renderUploadRow = (rec, opts) => {
   footer.style.justifyContent = "space-between";
   footer.style.gap = "12px";
   footer.style.minWidth = "0";
-  footer.style.flexWrap = mobile ? "wrap" : "nowrap";
+  footer.style.flexWrap = "nowrap";
   footer.style.width = "100%";
   footer.style.direction = "ltr";
 
@@ -736,7 +709,7 @@ const renderUploadRow = (rec, opts) => {
   leftGroup.style.display = "flex";
   leftGroup.style.alignItems = "center";
   leftGroup.style.gap = "10px";
-  leftGroup.style.flex = mobile ? "1 1 100%" : "0 0 auto";
+  leftGroup.style.flex = "0 0 auto";
   leftGroup.style.flexWrap = "wrap";
   leftGroup.style.justifyContent = "flex-start";
 
@@ -755,13 +728,13 @@ const renderUploadRow = (rec, opts) => {
     link.style.color = "rgba(255,255,255,.62)";
     link.style.textDecoration = "none";
     link.style.direction = "ltr";
-    link.style.whiteSpace = mobile ? "normal" : "nowrap";
+    link.style.whiteSpace = "nowrap";
     link.style.overflow = "hidden";
     link.style.textOverflow = "ellipsis";
     link.style.padding = "0 2px";
     link.style.minWidth = "0";
-    link.style.flex = mobile ? "1 1 100%" : "1 1 auto";
-    link.style.textAlign = mobile ? "left" : "right";
+    link.style.flex = "1 1 auto";
+    link.style.textAlign = "right";
     link.textContent = displayUrl || cleanUrl;
     link.onmouseenter = () => {
       try {

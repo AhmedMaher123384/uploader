@@ -16,3 +16,5 @@
 .bundle-app-bottomsheet__hero-title{padding:10px 10px 0;font-size:13px;font-weight:950;color:#0b1220}
 .bundle-app-bottomsheet__hero-price{padding:6px 10px 10px;font-size:12px;font-weight:950;color:#0b1220;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
 .bundle-app-bottomsheet__hero-old{text-decoration:line-through;opacity:.65;font-weight:850}
+@media (max-width:640px){.bundle-app-bottomsheet{padding:8px}.bundle-app-bottomsheet__panel{border-radius:14px}.bundle-app-bottomsheet__head{padding:12px 12px 10px}.bundle-app-bottomsheet__title{font-size:14px}.bundle-app-bottomsheet__content{padding:0 12px 10px}.bundle-app-bottomsheet__cta{padding:10px 12px 12px}.bundle-app-bottomsheet__btn{padding:10px 10px;font-size:12px}}
+@media (max-width:380px){.bundle-app-bottomsheet{padding:6px}.bundle-app-bottomsheet__head{padding:10px 10px 8px}.bundle-app-bottomsheet__title{font-size:13px}}

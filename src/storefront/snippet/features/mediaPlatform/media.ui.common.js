@@ -15,21 +15,42 @@ const findFooterEl = () => {
 };
 `,
   `
+const uiViewportMin = () => {
+  try {
+    const w = Number(window.innerWidth || 0) || 0;
+    const h = Number(window.innerHeight || 0) || 0;
+    const m = Math.min(w || 0, h || 0);
+    return m || w || h || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const uiIsMobile = () => {
+  try {
+    if (window.matchMedia && window.matchMedia("(max-width: 640px)").matches) return true;
+  } catch {}
+  const m = uiViewportMin();
+  return Boolean(m && m <= 640);
+};
+
+const uiIsTinyMobile = () => {
+  const m = uiViewportMin();
+  return Boolean(m && m <= 380);
+};
+
+const uiPick = (desktop, mobile, tiny) => {
+  if (uiIsTinyMobile()) return tiny == null ? mobile : tiny;
+  if (uiIsMobile()) return mobile;
+  return desktop;
+};
+`,
+  `
 const setFabVisible = (btn, on) => {
   try {
     btn.style.opacity = on ? "1" : "0";
     btn.style.pointerEvents = on ? "auto" : "none";
   } catch {}
-};
-`,
-  `
-const isMobile = (bp = 520) => {
-  try {
-    const w = Number(window && window.innerWidth) || 0;
-    return w > 0 && w <= Number(bp || 520);
-  } catch {
-    return false;
-  }
 };
 `,
   `
@@ -582,29 +603,30 @@ const buildLegalFooter = () => {
 };
 
 const buildSheet = () => {
-  const mobile = typeof isMobile === "function" && isMobile();
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
+
   const overlay = document.createElement("div");
   overlay.className = "bundle-app-bottomsheet";
-  overlay.style.alignItems = mobile ? "flex-end" : "center";
+  overlay.style.alignItems = "center";
   overlay.style.justifyContent = "center";
-  overlay.style.padding = mobile ? "0" : "14px";
-  if (mobile) overlay.style.paddingBottom = "calc(env(safe-area-inset-bottom, 0px) + 0px)";
+  overlay.style.padding = isMobile ? (isTiny ? "6px" : "8px") : "14px";
   overlay.style.zIndex = "100003";
 
   const panel = document.createElement("div");
   panel.className = "bundle-app-bottomsheet__panel";
-  panel.style.width = mobile ? "100%" : "min(760px,100%)";
-  panel.style.height = mobile ? "min(92vh, calc(100vh - env(safe-area-inset-top, 0px)))" : "85vh";
+  panel.style.width = isMobile ? "100%" : "min(760px,100%)";
+  panel.style.height = isMobile ? (isTiny ? "94vh" : "92vh") : "85vh";
   panel.style.overflow = "hidden";
   panel.style.background = "#303030";
-  panel.style.borderRadius = mobile ? "16px 16px 0 0" : "16px";
+  panel.style.borderRadius = isMobile ? (isTiny ? "14px" : "15px") : "16px";
   panel.style.border = "1px solid rgba(24,181,213,.18)";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
 
   const head = document.createElement("div");
   head.className = "bundle-app-bottomsheet__head";
-  head.style.padding = mobile ? "12px 12px" : "14px 14px";
+  head.style.padding = isMobile ? (isTiny ? "10px 10px" : "12px 12px") : "14px 14px";
   head.style.display = "flex";
   head.style.alignItems = "center";
   head.style.justifyContent = "space-between";
@@ -615,7 +637,7 @@ const buildSheet = () => {
   const title = document.createElement("div");
   title.className = "bundle-app-bottomsheet__title";
   title.textContent = isArabic() ? "ملاك ابلودر" : "Malak Uploader";
-  title.style.fontSize = mobile ? "17px" : "19px";
+  title.style.fontSize = isMobile ? (isTiny ? "15px" : "16px") : "19px";
   title.style.fontWeight = "900";
   title.style.color = "#18b5d5";
   title.style.letterSpacing = ".2px";
@@ -634,8 +656,8 @@ const buildSheet = () => {
   close.style.border = "0";
   close.style.background = "transparent";
   close.style.padding = "0";
-  close.style.width = mobile ? "44px" : "36px";
-  close.style.height = mobile ? "44px" : "36px";
+  close.style.width = isMobile ? "32px" : "36px";
+  close.style.height = isMobile ? "32px" : "36px";
   close.style.display = "grid";
   close.style.placeItems = "center";
   close.style.color = "#fff";
@@ -644,7 +666,7 @@ const buildSheet = () => {
   closeIcon.className = "sicon-cancel";
   closeIcon.setAttribute("aria-hidden", "true");
   closeIcon.style.display = "block";
-  closeIcon.style.fontSize = mobile ? "20px" : "18px";
+  closeIcon.style.fontSize = isMobile ? "16px" : "18px";
   closeIcon.style.lineHeight = "1";
   closeIcon.style.pointerEvents = "none";
   close.appendChild(closeIcon);
@@ -662,7 +684,7 @@ const buildSheet = () => {
   head.appendChild(headRight);
 
   const body = document.createElement("div");
-  body.style.padding = mobile ? "0 12px 12px" : "0 14px 14px";
+  body.style.padding = isMobile ? "0 10px 10px" : "0 14px 14px";
   body.style.display = "flex";
   body.style.flexDirection = "column";
   body.style.flex = "1 1 auto";
@@ -673,14 +695,14 @@ const buildSheet = () => {
   topRow.style.display = "flex";
   topRow.style.alignItems = "center";
   topRow.style.justifyContent = "space-between";
-  topRow.style.gap = "10px";
+  topRow.style.gap = isMobile ? "8px" : "10px";
   topRow.style.flexWrap = "wrap";
-  topRow.style.padding = mobile ? "10px 0" : "12px 0";
+  topRow.style.padding = isMobile ? "8px 0" : "12px 0";
 
   const tabs = document.createElement("div");
   tabs.style.display = "grid";
-  tabs.style.gridTemplateColumns = mobile ? "repeat(auto-fit,minmax(110px,1fr))" : "repeat(auto-fit,minmax(140px,1fr))";
-  tabs.style.gap = mobile ? "8px" : "10px";
+  tabs.style.gridTemplateColumns = isMobile ? "repeat(auto-fit,minmax(110px,1fr))" : "repeat(auto-fit,minmax(140px,1fr))";
+  tabs.style.gap = isMobile ? "8px" : "10px";
   tabs.style.width = "100%";
 
   const actions = document.createElement("div");
@@ -694,16 +716,16 @@ const buildSheet = () => {
   const uploads = document.createElement("div");
   uploads.style.display = "none";
   uploads.style.flexDirection = "column";
-  uploads.style.gap = "8px";
+  uploads.style.gap = isMobile ? "6px" : "8px";
   uploads.style.marginBottom = "10px";
-  uploads.style.maxHeight = mobile ? "min(240px, 30vh)" : "min(360px, 42vh)";
+  uploads.style.maxHeight = "min(360px, 42vh)";
   uploads.style.overflow = "auto";
   uploads.style.padding = "2px";
 
   const content = document.createElement("div");
   content.style.display = "flex";
   content.style.flexDirection = "column";
-  content.style.gap = "12px";
+  content.style.gap = isMobile ? "10px" : "12px";
   content.style.flex = "1 1 auto";
   content.style.minHeight = "0";
   content.style.overflow = "auto";
@@ -724,8 +746,9 @@ const buildSheet = () => {
 `,
   `
 const pill = (label, active) => {
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const b = document.createElement("button");
-  const mobile = typeof isMobile === "function" && isMobile();
   b.type = "button";
   b.className = "bundleapp-tab";
   b.textContent = label;
@@ -735,44 +758,51 @@ const pill = (label, active) => {
   b.style.border = active ? "1px solid rgba(24,181,213,.5)" : "1px solid rgba(255,255,255,.1)";
   b.style.background = active ? "#18b5d5" : "#373737";
   b.style.color = active ? "#303030" : "#fff";
-  b.style.padding = mobile ? "12px 10px" : "10px 14px";
-  b.style.borderRadius = "10px";
-  b.style.fontSize = mobile ? "13px" : "14px";
+  b.style.padding = isMobile ? (isTiny ? "7px 8px" : "8px 10px") : "10px 14px";
+  b.style.borderRadius = isMobile ? "9px" : "10px";
+  b.style.fontSize = isMobile ? (isTiny ? "11px" : "12px") : "14px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
   b.style.width = "100%";
+  b.style.whiteSpace = "nowrap";
+  b.style.overflow = "hidden";
+  b.style.textOverflow = "ellipsis";
   return b;
 };
 `,
   `
 const btnPrimary = (label) => {
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = label;
   b.style.border = "0";
   b.style.cursor = "pointer";
-  b.style.padding = "10px 12px";
-  b.style.borderRadius = "12px";
+  b.style.padding = isMobile ? (isTiny ? "8px 10px" : "9px 10px") : "10px 12px";
+  b.style.borderRadius = isMobile ? "11px" : "12px";
   b.style.background = "#18b5d5";
   b.style.color = "#303030";
   b.style.fontWeight = "900";
-  b.style.fontSize = "13px";
+  b.style.fontSize = isMobile ? "12px" : "13px";
   return b;
 };
 `,
   `
 const btnGhost = (label) => {
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = label;
   b.style.border = "1px solid rgba(24,181,213,.3)";
   b.style.cursor = "pointer";
-  b.style.padding = "10px 12px";
-  b.style.borderRadius = "12px";
+  b.style.padding = isMobile ? (isTiny ? "8px 10px" : "9px 10px") : "10px 12px";
+  b.style.borderRadius = isMobile ? "11px" : "12px";
   b.style.background = "#373737";
   b.style.color = "#18b5d5";
   b.style.fontWeight = "900";
-  b.style.fontSize = "13px";
+  b.style.fontSize = isMobile ? "12px" : "13px";
   return b;
 };
 `,

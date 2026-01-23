@@ -13,16 +13,18 @@ const renderCompressionPlatform = (opts) => {
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
   const busy = Boolean(state.compressRunning);
   const selected = Array.isArray(state.compressFiles) ? state.compressFiles : [];
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
 
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
     box.style.border = "1px solid rgba(255,255,255,.08)";
-    box.style.borderRadius = "14px";
+    box.style.borderRadius = isMobile ? "12px" : "14px";
     box.style.background = "#373737";
-    box.style.padding = "12px";
+    box.style.padding = isMobile ? (isTiny ? "9px" : "10px") : "12px";
     box.style.display = "flex";
     box.style.flexDirection = "column";
-    box.style.gap = "10px";
+    box.style.gap = isMobile ? "8px" : "10px";
 
     const head = document.createElement("div");
     head.style.display = "flex";
@@ -40,7 +42,7 @@ const renderCompressionPlatform = (opts) => {
     const t = document.createElement("div");
     t.style.display = "flex";
     t.style.alignItems = "center";
-    t.style.gap = "8px";
+    t.style.gap = isMobile ? "6px" : "8px";
 
     const num = document.createElement("div");
     num.textContent = String(n || "");
@@ -54,11 +56,11 @@ const renderCompressionPlatform = (opts) => {
     num.style.background = "rgba(24,181,213,.10)";
     num.style.color = "#18b5d5";
     num.style.fontWeight = "950";
-    num.style.fontSize = "12px";
+    num.style.fontSize = isMobile ? "11px" : "12px";
 
     const title = document.createElement("div");
     title.style.color = "rgba(255,255,255,.95)";
-    title.style.fontSize = "18px";
+    title.style.fontSize = isMobile ? (isTiny ? "13px" : "14px") : "18px";
     title.style.fontWeight = "950";
     title.textContent = String(titleText || "");
 
@@ -70,7 +72,7 @@ const renderCompressionPlatform = (opts) => {
     if (subText) {
       const sub = document.createElement("div");
       sub.style.color = "rgba(255,255,255,.55)";
-      sub.style.fontSize = "13px";
+      sub.style.fontSize = isMobile ? "12px" : "13px";
       sub.style.fontWeight = "900";
       sub.style.lineHeight = "1.6";
       sub.textContent = String(subText || "");
@@ -86,7 +88,7 @@ const renderCompressionPlatform = (opts) => {
     const wrap = document.createElement("div");
     wrap.style.display = "flex";
     wrap.style.flexDirection = "column";
-    wrap.style.gap = "6px";
+    wrap.style.gap = isMobile ? "5px" : "6px";
 
     const l = document.createElement("div");
     l.style.color = "rgba(255,255,255,.75)";
@@ -97,8 +99,8 @@ const renderCompressionPlatform = (opts) => {
     const s = document.createElement("select");
     s.disabled = Boolean(disabled);
     s.style.width = "100%";
-    s.style.padding = "10px 12px";
-    s.style.borderRadius = "12px";
+    s.style.padding = isMobile ? "9px 10px" : "10px 12px";
+    s.style.borderRadius = isMobile ? "11px" : "12px";
     s.style.border = "1px solid rgba(255,255,255,.08)";
     s.style.background = "#303030";
     s.style.color = "rgba(255,255,255,.90)";
@@ -131,12 +133,12 @@ const renderCompressionPlatform = (opts) => {
 
   const card = document.createElement("div");
   card.style.border = "1px solid rgba(255,255,255,.08)";
-  card.style.borderRadius = "16px";
+  card.style.borderRadius = isMobile ? "14px" : "16px";
   card.style.background = "#303030";
-  card.style.padding = "14px";
+  card.style.padding = isMobile ? (isTiny ? "10px" : "12px") : "14px";
   card.style.display = "flex";
   card.style.flexDirection = "column";
-  card.style.gap = "12px";
+  card.style.gap = isMobile ? "10px" : "12px";
 
   const head = document.createElement("div");
   head.style.display = "flex";
@@ -153,13 +155,13 @@ const renderCompressionPlatform = (opts) => {
 
   const title = document.createElement("div");
   title.style.color = "rgba(255,255,255,.95)";
-  title.style.fontSize = "20px";
+  title.style.fontSize = isMobile ? (isTiny ? "15px" : "16px") : "20px";
   title.style.fontWeight = "950";
   title.textContent = isArabic() ? "ضغط الصور" : "Image Compression Platform";
 
   const hint = document.createElement("div");
   hint.style.color = "rgba(255,255,255,.55)";
-  hint.style.fontSize = "13px";
+  hint.style.fontSize = isMobile ? "12px" : "13px";
   hint.style.fontWeight = "900";
   hint.style.lineHeight = "1.6";
   const limText = maxFiles ? String(maxFiles) : "—";
@@ -190,7 +192,7 @@ const renderCompressionPlatform = (opts) => {
   const stepWrap = document.createElement("div");
   stepWrap.style.display = "flex";
   stepWrap.style.flexDirection = "column";
-  stepWrap.style.gap = "10px";
+  stepWrap.style.gap = isMobile ? "8px" : "10px";
 
   const s1 = mkStep(
     1,
@@ -336,8 +338,8 @@ const renderCompressionPlatform = (opts) => {
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
       name.style.minWidth = "0";
-      name.style.flex = "1 1 auto";
-      name.style.maxWidth = "100%";
+      name.style.flex = "0 1 320px";
+      name.style.maxWidth = "420px";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
       name.style.whiteSpace = "nowrap";
