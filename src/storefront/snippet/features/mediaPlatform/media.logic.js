@@ -877,10 +877,33 @@ const mount = () => {
   try {
     let mountRoot = null;
     const themeTarget = getThemeSlotTarget();
-    const shouldWaitForThemeSlot = isThemeEditor && !themeTarget;
+    const shouldWaitForThemeSlot = (() => {
+      try {
+        if (themeTarget) return false;
+        if (isModalMount) return false;
+        if (!g || !g.BundleApp) return false;
+        if (g.BundleApp.__themeSlotWaitExpired) return false;
+        const rs = String((document && document.readyState) || "");
+        return isThemeEditor || rs !== "complete";
+      } catch {
+        return false;
+      }
+    })();
 
     if (shouldWaitForThemeSlot) {
       startThemeSlotObserver(mount);
+      try {
+        if (!g.BundleApp.__themeSlotWaitTimer) {
+          g.BundleApp.__themeSlotWaitTimer = setTimeout(() => {
+            try {
+              g.BundleApp.__themeSlotWaitExpired = true;
+            } catch {}
+            try {
+              mount();
+            } catch {}
+          }, 1200);
+        }
+      } catch {}
       return;
     }
 
