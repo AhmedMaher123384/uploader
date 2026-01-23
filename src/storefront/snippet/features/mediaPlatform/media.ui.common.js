@@ -700,9 +700,21 @@ const buildSheet = () => {
   topRow.style.padding = isMobile ? "8px 0" : "12px 0";
 
   const tabs = document.createElement("div");
-  tabs.style.display = "grid";
-  tabs.style.gridTemplateColumns = isMobile ? "repeat(auto-fit,minmax(110px,1fr))" : "repeat(auto-fit,minmax(140px,1fr))";
-  tabs.style.gap = isMobile ? "8px" : "10px";
+  tabs.style.display = isMobile ? "flex" : "grid";
+  if (isMobile) {
+    tabs.style.alignItems = "stretch";
+    tabs.style.justifyContent = "space-between";
+    tabs.style.gap = "6px";
+    tabs.style.flexWrap = "nowrap";
+    tabs.style.overflowX = "auto";
+    tabs.style.overflowY = "hidden";
+    tabs.style.webkitOverflowScrolling = "touch";
+    tabs.style.scrollbarWidth = "none";
+    tabs.style.msOverflowStyle = "none";
+  } else {
+    tabs.style.gridTemplateColumns = "repeat(auto-fit,minmax(140px,1fr))";
+    tabs.style.gap = "10px";
+  }
   tabs.style.width = "100%";
 
   const actions = document.createElement("div");
@@ -763,7 +775,9 @@ const pill = (label, active) => {
   b.style.fontSize = isMobile ? (isTiny ? "11px" : "12px") : "14px";
   b.style.fontWeight = "900";
   b.style.cursor = "pointer";
-  b.style.width = "100%";
+  b.style.width = isMobile ? "auto" : "100%";
+  b.style.flex = isMobile ? "1 1 0" : "0 0 auto";
+  b.style.minWidth = isMobile ? "0" : "";
   b.style.whiteSpace = "nowrap";
   b.style.overflow = "hidden";
   b.style.textOverflow = "ellipsis";
