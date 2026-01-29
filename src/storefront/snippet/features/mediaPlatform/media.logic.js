@@ -2009,10 +2009,13 @@ const mount = () => {
             }
           }
 
+          const qInt = quality != null && Number.isFinite(quality) ? Math.round(quality) : null;
+          const qParam = qInt != null && qInt >= 1 && qInt <= 100 ? String(qInt) : "";
+
           const url = buildUrl(isVideo ? "/api/proxy/tools/convert-video" : "/api/proxy/tools/convert", {
             format,
             speed,
-            quality: quality != null && Number.isFinite(quality) ? String(Math.round(quality)) : "",
+            quality: qParam,
             name,
             preset: isVideo ? "" : preset,
             width: isVideo ? "" : width,

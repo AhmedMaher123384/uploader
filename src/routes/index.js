@@ -3455,7 +3455,7 @@ function createApiRouter(config) {
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
     format: Joi.string().trim().valid("mp4", "webm", "mpeg").default("mp4"),
-    quality: Joi.number().integer().min(1).max(100),
+    quality: Joi.number().integer().min(0).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
     name: Joi.string().trim().min(1).max(180).allow("")
   })
