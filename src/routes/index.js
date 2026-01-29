@@ -15,6 +15,7 @@ const crypto = require("crypto");
 const axios = require("axios");
 const sharp = require("sharp");
 const zlib = require("zlib");
+const { PassThrough } = require("stream");
 const {
   S3Client,
   PutObjectCommand,
@@ -1408,15 +1409,23 @@ function createApiRouter(config) {
 
           let stderr = "";
           const proc = spawn(ffmpegBin, args, { stdio: ["pipe", "pipe", "pipe", "pipe"] });
-
-          proc.on("spawn", () => {
+          let started = false;
+          const out = new PassThrough();
+          try {
+            proc.stdout.pipe(out);
+          } catch (e) {
+            void e;
+          }
+          out.once("data", (first) => {
+            started = true;
             try {
               if (setSessionCookie) res.setHeader("Set-Cookie", setSessionCookie);
               res.setHeader("Cache-Control", "private, no-store, max-age=0");
               res.setHeader("Vary", "Origin, Referer, Cookie");
               res.status(200);
               res.setHeader("Content-Type", "video/mp4");
-              proc.stdout.pipe(res);
+              res.write(first);
+              out.pipe(res);
             } catch (e) {
               void e;
             }
@@ -1442,7 +1451,10 @@ function createApiRouter(config) {
           });
           proc.on("close", (code) => {
             const c = Number(code || 0) || 0;
-            if (c === 0) return;
+            if (c === 0) {
+              if (!started) return next(new ApiError(400, "Watermark failed", { code: "WATERMARK_FAILED", details: { message: (stderr || "Empty output").trim().slice(0, 1200) } }));
+              return;
+            }
             try {
               if (!res.headersSent) return next(new ApiError(400, "Watermark failed", { code: "WATERMARK_FAILED", details: { message: stderr.trim().slice(0, 1200) } }));
               try {
@@ -3644,7 +3656,15 @@ function createApiRouter(config) {
 
       let stderr = "";
       const proc = spawn(ffmpegBin, args, { stdio: ["pipe", "pipe", "pipe"] });
-      proc.on("spawn", () => {
+      let started = false;
+      const out = new PassThrough();
+      try {
+        proc.stdout.pipe(out);
+      } catch (e) {
+        void e;
+      }
+      out.once("data", (first) => {
+        started = true;
         try {
           res.status(200);
           res.setHeader("Content-Type", contentType);
@@ -3654,7 +3674,8 @@ function createApiRouter(config) {
           res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
           res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
           res.setHeader("X-Converted-Format", ext);
-          proc.stdout.pipe(res);
+          res.write(first);
+          out.pipe(res);
         } catch (e) {
           void e;
         }
@@ -3680,7 +3701,10 @@ function createApiRouter(config) {
       });
       proc.on("close", (code) => {
         const c = Number(code || 0) || 0;
-        if (c === 0) return;
+        if (c === 0) {
+          if (!started) return next(new ApiError(400, "Convert failed", { code: "CONVERT_FAILED", details: { message: (stderr || "Empty output").trim().slice(0, 1200) } }));
+          return;
+        }
         try {
           if (!res.headersSent) return next(new ApiError(400, "Convert failed", { code: "CONVERT_FAILED", details: { message: stderr.trim().slice(0, 1200) } }));
           try {
