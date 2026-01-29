@@ -3733,6 +3733,8 @@ const mount = () => {
                 sheet.uploads.style.minHeight = "0";
                 sheet.uploads.style.maxHeight = "";
                 sheet.uploads.style.overflow = "auto";
+
+                sheet.footer.style.marginTop = "auto";
               } catch {}
             } else {
               try {
@@ -3744,6 +3746,8 @@ const mount = () => {
                 sheet.uploads.style.minHeight = "";
                 sheet.uploads.style.maxHeight = "min(360px, 42vh)";
                 sheet.uploads.style.overflow = "auto";
+
+                sheet.footer.style.marginTop = "";
               } catch {}
             }
 
