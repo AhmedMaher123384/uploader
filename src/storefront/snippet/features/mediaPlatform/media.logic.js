@@ -2093,9 +2093,17 @@ const mount = () => {
                 }
                 if (j && (j.message || j.error)) {
                   const baseMsg = String(j.message || j.error || "");
-                  const det = Array.isArray(j.details) ? j.details : [];
-                  const firstDet = det.length ? (det[0] && det[0].message ? String(det[0].message) : String(det[0] || "")) : "";
-                  const msg = firstDet && firstDet !== baseMsg ? (baseMsg + " (" + firstDet + ")") : baseMsg;
+                  let detMsg = "";
+                  try {
+                    if (Array.isArray(j.details) && j.details.length) {
+                      detMsg = j.details[0] && j.details[0].message ? String(j.details[0].message) : String(j.details[0] || "");
+                    } else if (j.details && typeof j.details === "object") {
+                      if (j.details.message) detMsg = String(j.details.message || "");
+                      else if (j.details.details && typeof j.details.details === "object" && j.details.details.message) detMsg = String(j.details.details.message || "");
+                    }
+                  } catch {}
+                  detMsg = String(detMsg || "").trim();
+                  const msg = detMsg && detMsg !== baseMsg ? (baseMsg + " (" + detMsg + ")") : baseMsg;
                   reject(new Error(msg || ("HTTP " + String(status))));
                 } else {
                   reject(new Error(String(t || ("HTTP " + String(status)))));
