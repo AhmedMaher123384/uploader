@@ -308,6 +308,58 @@ function createApiRouter(config) {
     }
   });
 
+  router.get("/storefront/ffmpeg/:version/:file", async (req, res, next) => {
+    try {
+      const version = String(req.params.version || "").trim();
+      const file = String(req.params.file || "").trim();
+      const allowedVersions = new Set(["0.12.10", "0.10.0"]);
+      const allowedFiles = new Set([
+        "ffmpeg.min.js",
+        "ffmpeg-core.js",
+        "ffmpeg-core.wasm",
+        "ffmpeg-core.worker.js"
+      ]);
+      if (!allowedVersions.has(version) || !allowedFiles.has(file)) {
+        res.status(404);
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        return res.end("Not found");
+      }
+
+      const isFfmpegLib = file === "ffmpeg.min.js";
+      const pkg = isFfmpegLib ? "@ffmpeg/ffmpeg" : "@ffmpeg/core";
+      const dir = version === "0.12.10" ? "dist/umd" : "dist";
+      const srcUrl = `https://cdn.jsdelivr.net/npm/${pkg}@${encodeURIComponent(version)}/${dir}/${file}`;
+
+      const upstream = await axios.get(srcUrl, {
+        responseType: "stream",
+        timeout: 30_000,
+        validateStatus: () => true
+      });
+
+      const status = Number(upstream.status || 0) || 0;
+      if (status < 200 || status >= 300) {
+        res.status(502);
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        return res.end("Upstream fetch failed");
+      }
+
+      res.status(200);
+      if (file.endsWith(".wasm")) res.setHeader("Content-Type", "application/wasm");
+      else res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      if (upstream.headers && upstream.headers["content-length"]) {
+        res.setHeader("Content-Length", String(upstream.headers["content-length"]));
+      }
+
+      upstream.data.on("error", (e) => next(e));
+      return upstream.data.pipe(res);
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.use("/oauth/salla", createOAuthRouter(config));
 
   function getMediaFolderPrefix() {

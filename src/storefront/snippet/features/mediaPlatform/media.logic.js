@@ -1757,6 +1757,7 @@ const mount = () => {
 
         let ffmpegWasmKit = null;
         let ffmpegWasmKitLoading = null;
+        const ffmpegWasmScriptCache = new Set();
 
         const loadFfmpegWasmKit = async () => {
           if (ffmpegWasmKit) return ffmpegWasmKit;
@@ -1766,10 +1767,21 @@ const mount = () => {
             const loadScript = (src) =>
               new Promise((resolve, reject) => {
                 try {
+                  const u = String(src || "");
+                  if (!u) throw new Error("Missing script URL");
+                  if (ffmpegWasmScriptCache.has(u)) {
+                    resolve(true);
+                    return;
+                  }
                   const s = document.createElement("script");
                   s.async = true;
-                  s.src = String(src || "");
-                  s.onload = () => resolve(true);
+                  s.src = u;
+                  s.onload = () => {
+                    try {
+                      ffmpegWasmScriptCache.add(u);
+                    } catch {}
+                    resolve(true);
+                  };
                   s.onerror = () => reject(new Error("Failed to load FFmpeg"));
                   document.head.appendChild(s);
                 } catch (e) {
@@ -1777,27 +1789,58 @@ const mount = () => {
                 }
               });
 
-            try {
-              if (!(window.FFmpeg && window.FFmpeg.createFFmpeg && window.FFmpeg.fetchFile)) {
-                await loadScript("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js");
+            const origin = (() => {
+              try {
+                return getBackendOrigin() || "";
+              } catch {
+                return "";
               }
-            } catch (e) {
-              throw e;
+            })();
+            const base = origin ? origin + "/api/storefront/ffmpeg" : "";
+
+            const candidates = [
+              base
+                ? {
+                    ffmpegUmd: base + "/0.10.0/ffmpeg.min.js",
+                    corePath: base + "/0.10.0/ffmpeg-core.js"
+                  }
+                : null,
+              base
+                ? {
+                    ffmpegUmd: base + "/0.12.10/ffmpeg.min.js",
+                    corePath: base + "/0.12.10/ffmpeg-core.js"
+                  }
+                : null,
+              {
+                ffmpegUmd: "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js",
+                corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js"
+              },
+              {
+                ffmpegUmd: "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js",
+                corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
+              }
+            ].filter(Boolean);
+
+            let lastErr = null;
+            for (let i = 0; i < candidates.length; i += 1) {
+              const c = candidates[i];
+              try {
+                await loadScript(c.ffmpegUmd);
+                const lib = window.FFmpeg || null;
+                const createFFmpeg = lib && typeof lib.createFFmpeg === "function" ? lib.createFFmpeg : null;
+                const fetchFile = lib && typeof lib.fetchFile === "function" ? lib.fetchFile : null;
+                if (!createFFmpeg || !fetchFile) throw new Error("FFmpeg.wasm not available");
+
+                const ffmpeg = createFFmpeg({ log: false, corePath: c.corePath });
+                await ffmpeg.load();
+                ffmpegWasmKit = { ffmpeg, fetchFile };
+                return ffmpegWasmKit;
+              } catch (e) {
+                lastErr = e;
+              }
             }
 
-            const lib = window.FFmpeg || null;
-            const createFFmpeg = lib && typeof lib.createFFmpeg === "function" ? lib.createFFmpeg : null;
-            const fetchFile = lib && typeof lib.fetchFile === "function" ? lib.fetchFile : null;
-            if (!createFFmpeg || !fetchFile) throw new Error("FFmpeg.wasm not available");
-
-            const ffmpeg = createFFmpeg({
-              log: false,
-              corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
-            });
-            await ffmpeg.load();
-
-            ffmpegWasmKit = { ffmpeg, fetchFile };
-            return ffmpegWasmKit;
+            throw lastErr || new Error("FFmpeg.wasm not available");
           })();
 
           return await ffmpegWasmKitLoading;

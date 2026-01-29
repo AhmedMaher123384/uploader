@@ -1174,7 +1174,11 @@ const renderConversionPlatform = (opts) => {
               : status === "done"
                 ? (outFmt ? outFmt + " · " : "") + fmtBytes(outBytes)
                 : status === "error"
-                  ? (isArabic() ? "فشل التحويل" : "Conversion failed")
+                  ? (() => {
+                      const errText = String((it && it.error) || "").trim();
+                      if (errText) return (isArabic() ? "فشل التحويل: " : "Conversion failed: ") + errText;
+                      return isArabic() ? "فشل التحويل" : "Conversion failed";
+                    })()
                   : "";
 
         sub.textContent = msg;
