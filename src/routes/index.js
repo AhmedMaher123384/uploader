@@ -332,6 +332,9 @@ function createApiRouter(config) {
 
       const upstream = await axios.get(srcUrl, {
         responseType: "stream",
+        headers: {
+          "Accept-Encoding": "identity"
+        },
         timeout: 30_000,
         validateStatus: () => true
       });
