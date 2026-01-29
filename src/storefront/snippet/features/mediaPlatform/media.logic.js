@@ -2641,7 +2641,7 @@ const mount = () => {
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
                 const normalizedTarget = (() => {
-                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
+                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" || safeTarget === "mpeg" ? safeTarget : "";
                   return safeTarget;
                 })();
                 const targetFmt = isVideo ? (normalizedTarget || "mp4") : (normalizedTarget || "keep");
@@ -2653,23 +2653,26 @@ const mount = () => {
                     render();
                   } catch {}
                 };
-                const out = isVideo
-                  ? await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg)
-                  : await convertOnBackend(
-                      f,
-                      {
-                        format: safeTarget || "keep",
-                        speed: state.convertSpeed,
-                        quality: q,
-                        name: it.name,
-                        preset: String((it && it.targetPreset) || state.convertPreset || "original"),
-                        width: "",
-                        height: "",
-                        mode: "fit",
-                        position: ""
-                      },
-                      onProg
-                    );
+                const out =
+                  isVideo
+                    ? (targetFmt === "mpeg"
+                        ? await convertOnBackend(f, { format: "mpeg", speed: state.convertSpeed, quality: q, name: it.name }, onProg)
+                        : await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg))
+                    : await convertOnBackend(
+                        f,
+                        {
+                          format: safeTarget || "keep",
+                          speed: state.convertSpeed,
+                          quality: q,
+                          name: it.name,
+                          preset: String((it && it.targetPreset) || state.convertPreset || "original"),
+                          width: "",
+                          height: "",
+                          mode: "fit",
+                          position: ""
+                        },
+                        onProg
+                      );
                 const b = out && out.blob ? out.blob : null;
                 if (!b || !b.size) throw new Error("Empty response");
                 const obj = URL.createObjectURL(b);

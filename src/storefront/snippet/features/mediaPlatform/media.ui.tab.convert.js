@@ -558,6 +558,7 @@ const renderConversionPlatform = (opts) => {
             { value: "mp4", label: "MP4" },
             { value: "webm", label: "WebM (VP9)" },
             { value: "webm_local", label: "WebM" },
+            { value: "mpeg", label: "MPEG" },
           ]
         : [
             { value: "keep", label: isArabic() ? "الصيغة" : "Format" },
@@ -1299,13 +1300,14 @@ const renderConversionPlatform = (opts) => {
       ""
     );
     const hasCustom = Array.isArray(state.convertFileFormatCustom) ? state.convertFileFormatCustom.some(Boolean) : false;
-    const fmtSelect = mkSelect(
+      const fmtSelect = mkSelect(
       isArabic() ? "صيغة الناتج (افتراضي)" : "Output format (default)",
       String(state.convertFormat || "mp4"),
       [
         { value: "mp4", label: isArabic() ? "MP4 (H.264) " : "MP4 (H.264) " },
         { value: "webm", label: isArabic() ? "WebM (VP9)" : "WebM (VP9)" },
         { value: "webm_local", label: isArabic() ? "WebM " : "WebM " },
+        { value: "mpeg", label: "MPEG" },
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {
