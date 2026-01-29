@@ -31,6 +31,14 @@ const mountMediaPlatform = require("../storefront/snippet/features/mediaPlatform
 const MediaAsset = require("../models/MediaAsset");
 const Merchant = require("../models/Merchant");
 
+let ffmpegBin = process.env.FFMPEG_PATH ? String(process.env.FFMPEG_PATH) : "ffmpeg";
+try {
+  const p = require("ffmpeg-static");
+  if (p) ffmpegBin = String(p);
+} catch (e) {
+  void e;
+}
+
 function createApiRouter(config) {
   const router = express.Router();
   const publicCache = new Map();
@@ -1399,7 +1407,7 @@ function createApiRouter(config) {
           ];
 
           let stderr = "";
-          const proc = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe", "pipe"] });
+          const proc = spawn(ffmpegBin, args, { stdio: ["pipe", "pipe", "pipe", "pipe"] });
 
           proc.on("spawn", () => {
             try {
@@ -3635,7 +3643,7 @@ function createApiRouter(config) {
       const fileName = (baseNoExt || "converted") + "." + ext;
 
       let stderr = "";
-      const proc = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+      const proc = spawn(ffmpegBin, args, { stdio: ["pipe", "pipe", "pipe"] });
       proc.on("spawn", () => {
         try {
           res.status(200);
