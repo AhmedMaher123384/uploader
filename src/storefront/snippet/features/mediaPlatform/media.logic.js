@@ -3723,6 +3723,30 @@ const mount = () => {
             sheet.content.innerHTML = "";
             sheet.footer.innerHTML = "";
 
+            if (state.view === "upload") {
+              try {
+                sheet.content.style.overflow = "visible";
+                sheet.content.style.flex = "0 0 auto";
+                sheet.content.style.minHeight = "auto";
+
+                sheet.uploads.style.flex = "1 1 auto";
+                sheet.uploads.style.minHeight = "0";
+                sheet.uploads.style.maxHeight = "";
+                sheet.uploads.style.overflow = "auto";
+              } catch {}
+            } else {
+              try {
+                sheet.content.style.overflow = "auto";
+                sheet.content.style.flex = "1 1 auto";
+                sheet.content.style.minHeight = "0";
+
+                sheet.uploads.style.flex = "0 0 auto";
+                sheet.uploads.style.minHeight = "";
+                sheet.uploads.style.maxHeight = "min(360px, 42vh)";
+                sheet.uploads.style.overflow = "auto";
+              } catch {}
+            }
+
             const appendLegalFooter = () => {
               try {
                 sheet.footer.appendChild(buildLegalFooter());

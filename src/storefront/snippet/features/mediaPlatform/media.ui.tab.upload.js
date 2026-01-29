@@ -411,6 +411,7 @@ const renderSmartStats = (dash) => {
   `
 const renderUploadRow = (rec, opts) => {
   const o = opts && typeof opts === "object" ? opts : {};
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const busy = Boolean(o.busy);
   const onRemove = typeof o.onRemove === "function" ? o.onRemove : null;
   const wrap = document.createElement("div");
@@ -419,7 +420,9 @@ const renderUploadRow = (rec, opts) => {
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "space-between";
   wrap.style.gap = "10px";
+  wrap.style.position = "relative";
   wrap.style.padding = "10px 10px";
+  wrap.style.paddingLeft = onRemove ? "46px" : "10px";
   wrap.style.borderRadius = "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.45)";
   wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
@@ -487,9 +490,7 @@ const renderUploadRow = (rec, opts) => {
     rec.status === "uploading"
       ? (isArabic() ? "جاري الرفع " : "Uploading ") + String(pct) + "%"
       : rec.status === "done"
-        ? isArabic()
-          ? "تم الرفع"
-          : "Uploaded"
+        ? ""
         : rec.status === "rejected"
           ? (isArabic() ? "مرفوض" : "Rejected")
         : rec.status === "error"
@@ -604,12 +605,7 @@ const renderUploadRow = (rec, opts) => {
     const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
     copy.onclick = () => {
       try {
-        copyText(cleanUrl, (ok) => {
-          try {
-            if (!ok) return;
-            if (typeof toastSuccess === "function") toastSuccess(isArabic() ? "تم النسخ" : "Copied");
-          } catch {}
-        });
+        copyText(cleanUrl);
       } catch {}
     };
     const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
@@ -623,6 +619,74 @@ const renderUploadRow = (rec, opts) => {
     actions.appendChild(openBtn);
     actions.appendChild(copy);
   }
+
+  const mkMiniLink = (u) => {
+    const href = String(u || "").trim();
+    if (!href) return null;
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.style.display = "inline-flex";
+    a.style.alignItems = "center";
+    a.style.justifyContent = "center";
+    a.style.gap = "6px";
+    a.style.border = "1px solid rgba(255,255,255,.10)";
+    a.style.background = "rgba(255,255,255,.06)";
+    a.style.borderRadius = "999px";
+    a.style.padding = "6px 10px";
+    a.style.color = "rgba(255,255,255,.82)";
+    a.style.fontSize = "10px";
+    a.style.fontWeight = "950";
+    a.style.lineHeight = "1";
+    a.style.textDecoration = "none";
+    a.style.maxWidth = isTiny ? "120px" : "150px";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+    a.style.whiteSpace = "nowrap";
+    a.style.direction = "ltr";
+    a.style.cursor = "pointer";
+
+    const shorten = (raw) => {
+      try {
+        const x = new URL(String(raw || ""), window.location.origin);
+        const host = String(x.hostname || "").trim();
+        const parts = String(x.pathname || "").split("/").filter(Boolean);
+        const tailRaw = String(parts[parts.length - 1] || "").trim();
+        const tail = tailRaw.length > 14 ? (tailRaw.slice(0, 7) + "…" + tailRaw.slice(-5)) : tailRaw;
+        const best = (host ? host + "/" : "") + (tail || "");
+        return best || String(raw || "");
+      } catch {
+        const s = String(raw || "");
+        return s.length > 28 ? (s.slice(0, 14) + "…" + s.slice(-12)) : s;
+      }
+    };
+
+    const ic = document.createElement("i");
+    ic.className = "sicon-share";
+    ic.setAttribute("aria-hidden", "true");
+    ic.style.display = "block";
+    ic.style.fontSize = "12px";
+    ic.style.lineHeight = "1";
+    ic.style.opacity = "0.9";
+
+    const txt = document.createElement("span");
+    txt.textContent = shorten(displayUrl || href);
+
+    a.appendChild(ic);
+    a.appendChild(txt);
+    a.onmouseenter = () => {
+      try {
+        a.style.background = "rgba(255,255,255,.09)";
+      } catch {}
+    };
+    a.onmouseleave = () => {
+      try {
+        a.style.background = "rgba(255,255,255,.06)";
+      } catch {}
+    };
+    return a;
+  };
 
   const sizeChip = document.createElement("div");
   sizeChip.style.fontSize = "11px";
@@ -646,6 +710,10 @@ const renderUploadRow = (rec, opts) => {
     }
   })();
   sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
+
+  const miniLink = !isTiny && cleanUrl && rec.status === "done" ? mkMiniLink(cleanUrl) : null;
+
+  if (miniLink) right.appendChild(miniLink);
   if (actions.childNodes && actions.childNodes.length) right.appendChild(actions);
   if (sizeChip.textContent) right.appendChild(sizeChip);
 
@@ -654,13 +722,17 @@ const renderUploadRow = (rec, opts) => {
     rm.disabled = busy || rec.status === "uploading";
     rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
     rm.style.opacity = rm.disabled ? "0.55" : "1";
+    rm.style.position = "absolute";
+    rm.style.left = "10px";
+    rm.style.top = "50%";
+    rm.style.transform = "translateY(-50%)";
     rm.onclick = () => {
       try {
         if (rm.disabled) return;
         onRemove(String((rec && rec.id) || ""));
       } catch {}
     };
-    right.appendChild(rm);
+    wrap.appendChild(rm);
   }
 
   wrap.appendChild(left);
