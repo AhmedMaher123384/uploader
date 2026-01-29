@@ -556,10 +556,11 @@ const buildAllowedFormatsPopover = (planKey) => {
   `
 const guessResourceType = (file) => {
   const t = String((file && file.type) || "").toLowerCase();
+  if (t === "video/mpeg") return "raw";
   if (t.indexOf("video/") === 0) return "video";
   if (t.indexOf("image/") === 0) return "image";
   const ext = getExt(file && file.name);
-  if (["mp4", "webm", "mov", "avi", "m4v", "mkv", "mpeg", "mpg"].indexOf(ext) >= 0) return "video";
+  if (["mp4", "webm", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
   if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
   return "raw";
 };
@@ -1019,7 +1020,7 @@ const mount = () => {
         const convertInput = document.createElement("input");
         convertInput.type = "file";
         convertInput.multiple = true;
-        convertInput.accept = "image/*,video/mp4,video/webm,video/mpeg";
+        convertInput.accept = "image/*,video/mp4,video/webm";
         convertInput.style.display = "none";
         document.body.appendChild(convertInput);
 
@@ -1706,14 +1707,6 @@ const mount = () => {
               "video/mp4;codecs=avc1",
               "video/mp4"
             ];
-          } else if (f === "mpeg") {
-            candidates = [
-              "video/mpeg",
-              "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
-              "video/mp4;codecs=avc1,mp4a.40.2",
-              "video/mp4;codecs=avc1",
-              "video/mp4"
-            ];
           } else if (f === "webm_local") {
             candidates = [
               "video/webm;codecs=vp8,opus",
@@ -1766,7 +1759,7 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "mpeg") throw new Error("Unsupported format");
+          if (format !== "webm" && format !== "webm_local" && format !== "mp4") throw new Error("Unsupported format");
 
           let srcUrl = "";
           let video = null;
@@ -1829,11 +1822,7 @@ const mount = () => {
             const mimeType = pickBestRecorderMime(format);
             if (!mimeType) {
               if (format === "mp4") throw new Error("MP4 local conversion is not supported in this browser");
-              if (format === "mpeg") throw new Error("MPEG local conversion is not supported in this browser");
               throw new Error("MediaRecorder not supported");
-            }
-            if (format === "mpeg" && String(mimeType).toLowerCase().indexOf("mpeg") < 0) {
-              throw new Error("MPEG local conversion is not supported in this browser");
             }
 
             srcUrl = URL.createObjectURL(f);
@@ -1961,18 +1950,14 @@ const mount = () => {
 
             const outType =
               String(mimeType || "").split(";")[0] ||
-              (format === "mp4" ? "video/mp4" : format === "mpeg" ? "video/mpeg" : "video/webm");
+              (format === "mp4" ? "video/mp4" : "video/webm");
             const out = new Blob(chunks, { type: outType });
             if (!out || !out.size) throw new Error("Empty response");
             try {
               if (typeof onProgress === "function") onProgress(100);
             } catch {}
             const derivedFmt =
-              outType.indexOf("mpeg") >= 0
-                ? "mpeg"
-                : outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0
-                  ? "mp4"
-                  : "webm";
+              outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0 ? "mp4" : "webm";
             return { blob: out, format: derivedFmt };
           } finally {
             cleanup();
@@ -2655,7 +2640,11 @@ const mount = () => {
                 const isVideo = guessResourceType(f) === "video";
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
-                const targetFmt = isVideo ? (safeTarget || "mp4") : (safeTarget || "keep");
+                const normalizedTarget = (() => {
+                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
+                  return safeTarget;
+                })();
+                const targetFmt = isVideo ? (normalizedTarget || "mp4") : (normalizedTarget || "keep");
                 const onProg = (p) => {
                   try {
                     const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
@@ -2665,9 +2654,7 @@ const mount = () => {
                   } catch {}
                 };
                 const out = isVideo
-                  ? (targetFmt === "mpeg"
-                      ? await convertOnBackend(f, { format: "mpeg", speed: state.convertSpeed, quality: q, name: it.name }, onProg)
-                      : await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg))
+                  ? await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg)
                   : await convertOnBackend(
                       f,
                       {
@@ -2769,8 +2756,6 @@ const mount = () => {
                 : "") ||
               (fmt === "mp4"
                 ? "mp4"
-                : fmt === "mpeg"
-                  ? "mpeg"
                   : fmt === "webm" || fmt === "webm_local"
                     ? "webm"
                     : fmt === "avif"
@@ -2786,8 +2771,6 @@ const mount = () => {
             const mime =
               ext === "mp4"
                 ? "video/mp4"
-                : ext === "mpeg" || ext === "mpg"
-                  ? "video/mpeg"
                   : ext === "webm"
                     ? "video/webm"
                     : ext === "png"
@@ -2965,8 +2948,6 @@ const mount = () => {
                 (rf ? rf : "") ||
                 (fmt === "mp4"
                   ? "mp4"
-                  : fmt === "mpeg"
-                    ? "mpeg"
                     : fmt === "webm" || fmt === "webm_local"
                       ? "webm"
                       : fmt === "avif"
@@ -3035,7 +3016,7 @@ const mount = () => {
           if (next === state.convertKind) return;
           state.convertKind = next;
           try {
-            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.mpeg,.mpg,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
+            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
           } catch {}
           if (next === "video") {
             state.convertFormat = "mp4";
@@ -4367,7 +4348,7 @@ const mount = () => {
             const other = [];
 
             const imgSet = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "tif", "tiff", "bmp", "heic", "heif"]);
-            const vidSet = new Set(["mp4", "webm", "mov", "avi", "m4v", "mkv", "mpeg", "mpg", "3gp", "3gpp", "3g2"]);
+            const vidSet = new Set(["mp4", "webm", "mov", "avi", "m4v", "mkv", "3gp", "3gpp", "3g2"]);
             const docSet = new Set(["pdf"]);
             const arcSet = new Set(["zip"]);
             const fontSet = new Set(["woff", "woff2", "ttf", "otf", "eot"]);
