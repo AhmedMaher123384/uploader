@@ -147,7 +147,7 @@ const renderConversionPlatform = (opts) => {
       if (pickBtn.disabled) return;
       const isVid = String(state.convertKind || "image") === "video";
       try {
-        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
+        convertInput.accept = isVid ? "video/*,.mp4,.webm,.mpeg,.mpg,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
       } catch {}
       convertInput.click();
     } catch {}
@@ -558,6 +558,7 @@ const renderConversionPlatform = (opts) => {
             { value: "mp4", label: "MP4" },
             { value: "webm", label: "WebM (VP9)" },
             { value: "webm_local", label: "WebM" },
+            { value: "mpeg", label: "MPEG" },
           ]
         : [
             { value: "keep", label: isArabic() ? "الصيغة" : "Format" },
@@ -1302,6 +1303,7 @@ const renderConversionPlatform = (opts) => {
         { value: "mp4", label: isArabic() ? "MP4 (H.264) " : "MP4 (H.264) " },
         { value: "webm", label: isArabic() ? "WebM (VP9)" : "WebM (VP9)" },
         { value: "webm_local", label: isArabic() ? "WebM " : "WebM " },
+        { value: "mpeg", label: "MPEG" },
       ],
       Boolean(state.converting) || planBlocked,
       (v) => {

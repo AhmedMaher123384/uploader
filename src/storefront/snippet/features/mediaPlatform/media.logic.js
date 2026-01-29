@@ -527,7 +527,7 @@ const buildAllowedFormatsPopover = (planKey) => {
       if (!ext) continue;
 
       if (["jpg", "jpeg", "png", "gif", "webp", "avif", "tif", "tiff", "svg"].indexOf(ext) >= 0) groups.images.push(ext);
-      else if (["mp4", "webm"].indexOf(ext) >= 0) groups.videos.push(ext);
+      else if (["mp4", "webm", "mpeg", "mpg"].indexOf(ext) >= 0) groups.videos.push(ext);
       else if (["pdf", "json"].indexOf(ext) >= 0) groups.docs.push(ext);
       else if (["woff", "woff2", "ttf", "otf", "eot"].indexOf(ext) >= 0) groups.fonts.push(ext);
       else if (["css"].indexOf(ext) >= 0) groups.web.push(ext);
@@ -556,11 +556,11 @@ const buildAllowedFormatsPopover = (planKey) => {
   `
 const guessResourceType = (file) => {
   const t = String((file && file.type) || "").toLowerCase();
-  if (t === "video/mpeg") return "raw";
+  if (t === "video/mpeg") return "video";
   if (t.indexOf("video/") === 0) return "video";
   if (t.indexOf("image/") === 0) return "image";
   const ext = getExt(file && file.name);
-  if (["mp4", "webm", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
+  if (["mp4", "webm", "mpeg", "mpg", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
   if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
   return "raw";
 };
@@ -1755,11 +1755,137 @@ const mount = () => {
           return { videoBitsPerSecond, audioBitsPerSecond };
         };
 
+        let ffmpegWasmKit = null;
+        let ffmpegWasmKitLoading = null;
+
+        const loadFfmpegWasmKit = async () => {
+          if (ffmpegWasmKit) return ffmpegWasmKit;
+          if (ffmpegWasmKitLoading) return await ffmpegWasmKitLoading;
+
+          ffmpegWasmKitLoading = (async () => {
+            const loadScript = (src) =>
+              new Promise((resolve, reject) => {
+                try {
+                  const s = document.createElement("script");
+                  s.async = true;
+                  s.src = String(src || "");
+                  s.onload = () => resolve(true);
+                  s.onerror = () => reject(new Error("Failed to load FFmpeg"));
+                  document.head.appendChild(s);
+                } catch (e) {
+                  reject(e);
+                }
+              });
+
+            try {
+              if (!(window.FFmpeg && window.FFmpeg.createFFmpeg && window.FFmpeg.fetchFile)) {
+                await loadScript("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js");
+              }
+            } catch (e) {
+              throw e;
+            }
+
+            const lib = window.FFmpeg || null;
+            const createFFmpeg = lib && typeof lib.createFFmpeg === "function" ? lib.createFFmpeg : null;
+            const fetchFile = lib && typeof lib.fetchFile === "function" ? lib.fetchFile : null;
+            if (!createFFmpeg || !fetchFile) throw new Error("FFmpeg.wasm not available");
+
+            const ffmpeg = createFFmpeg({
+              log: false,
+              corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
+            });
+            await ffmpeg.load();
+
+            ffmpegWasmKit = { ffmpeg, fetchFile };
+            return ffmpegWasmKit;
+          })();
+
+          return await ffmpegWasmKitLoading;
+        };
+
+        const convertVideoToMpegOnClient = async (file, opts, onProgress) => {
+          const f = file || null;
+          if (!f) throw new Error("Missing file");
+
+          const kit = await loadFfmpegWasmKit();
+          const ffmpeg = kit && kit.ffmpeg ? kit.ffmpeg : null;
+          const fetchFile = kit && kit.fetchFile ? kit.fetchFile : null;
+          if (!ffmpeg || !fetchFile) throw new Error("FFmpeg.wasm not available");
+
+          const sp = String((opts && opts.speed) || "fast").trim().toLowerCase();
+          const qRaw = opts && opts.quality != null ? Number(opts.quality) : null;
+          const q = qRaw != null && Number.isFinite(qRaw) ? Math.max(1, Math.min(100, Math.round(qRaw))) : 70;
+          const qscale = Math.max(2, Math.min(31, 32 - Math.round((q / 100) * 28)));
+
+          const rawName = String((opts && opts.name) || (f && f.name) || "input").trim();
+          const ext = getExt(rawName) || "mp4";
+          const inName = "input." + ext;
+          const outName = "output.mpeg";
+
+          let last = 0;
+          try {
+            try {
+              if (typeof ffmpeg.setProgress === "function") {
+                ffmpeg.setProgress((p) => {
+                  try {
+                    if (typeof onProgress !== "function") return;
+                    const ratio = p && p.ratio != null ? Number(p.ratio) : null;
+                    const pct = ratio != null && Number.isFinite(ratio) ? Math.max(0, Math.min(99, Math.round(ratio * 99))) : 0;
+                    if (pct >= last) {
+                      last = pct;
+                      onProgress(pct);
+                    }
+                  } catch {}
+                });
+              }
+            } catch {}
+
+            ffmpeg.FS("writeFile", inName, await fetchFile(f));
+            await ffmpeg.run(
+              "-hide_banner",
+              "-loglevel",
+              "error",
+              "-i",
+              inName,
+              "-map_metadata",
+              "-1",
+              "-c:v",
+              "mpeg1video",
+              "-qscale:v",
+              String(qscale),
+              "-c:a",
+              "mp2",
+              "-b:a",
+              sp === "small" ? "128k" : "192k",
+              "-f",
+              "mpeg",
+              outName
+            );
+            const data = ffmpeg.FS("readFile", outName);
+            if (!data || !data.length) throw new Error("Empty response");
+            try {
+              if (typeof onProgress === "function") onProgress(100);
+            } catch {}
+            return { blob: new Blob([data], { type: "video/mpeg" }), format: "mpeg" };
+          } finally {
+            try {
+              ffmpeg.FS("unlink", inName);
+            } catch {}
+            try {
+              ffmpeg.FS("unlink", outName);
+            } catch {}
+            try {
+              if (typeof ffmpeg.setProgress === "function") ffmpeg.setProgress(() => {});
+            } catch {}
+          }
+        };
+
         const convertVideoOnClient = async (file, opts, onProgress) => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm" && format !== "webm_local" && format !== "mp4") throw new Error("Unsupported format");
+          if (format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "mpeg") throw new Error("Unsupported format");
+          if (format === "mpeg") return await convertVideoToMpegOnClient(f, opts, onProgress);
 
           let srcUrl = "";
           let video = null;
@@ -2641,7 +2767,7 @@ const mount = () => {
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
                 const normalizedTarget = (() => {
-                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
+                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" || safeTarget === "mpeg" ? safeTarget : "";
                   return safeTarget;
                 })();
                 const targetFmt = isVideo ? (normalizedTarget || "mp4") : (normalizedTarget || "keep");
@@ -2754,25 +2880,29 @@ const mount = () => {
               (fmt === "keep"
                 ? (extFromName === "jpg" ? "jpeg" : extFromName)
                 : "") ||
-              (fmt === "mp4"
-                ? "mp4"
-                  : fmt === "webm" || fmt === "webm_local"
-                    ? "webm"
-                    : fmt === "avif"
-                      ? "avif"
-                      : fmt === "webp"
-                        ? "webp"
-                        : fmt === "jpeg"
-                          ? "jpeg"
-                          : fmt === "png"
-                            ? "png"
-                            : "webp");
+              (fmt === "mpeg"
+                ? "mpeg"
+                  : fmt === "mp4"
+                    ? "mp4"
+                    : fmt === "webm" || fmt === "webm_local"
+                      ? "webm"
+                      : fmt === "avif"
+                        ? "avif"
+                        : fmt === "webp"
+                          ? "webp"
+                          : fmt === "jpeg"
+                            ? "jpeg"
+                            : fmt === "png"
+                              ? "png"
+                              : "webp");
 
             const mime =
               ext === "mp4"
                 ? "video/mp4"
                   : ext === "webm"
                     ? "video/webm"
+                    : ext === "mpeg" || ext === "mpg"
+                      ? "video/mpeg"
                     : ext === "png"
                       ? "image/png"
                     : ext === "jpeg" || ext === "jpg"
