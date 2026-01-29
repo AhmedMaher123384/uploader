@@ -1279,11 +1279,11 @@ const renderError = (msg) => {
   `
 const renderLoading = () => {
   const wrap = document.createElement("div");
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.justifyContent = "center";
+  wrap.style.display = "grid";
+  wrap.style.placeItems = "center";
   wrap.style.flex = "1 1 auto";
   wrap.style.minHeight = "0";
+  wrap.style.height = "100%";
   wrap.style.width = "100%";
   wrap.style.padding = "24px";
 

@@ -3934,28 +3934,30 @@ const mount = () => {
 
             if (state.view === "convert") {
               if (state.dashLoading) sheet.content.appendChild(renderLoading());
-              const planBlocked = !allowConvert;
-              const planKey2 = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
-              const maxFiles = maxConvertFilesForPlan(planKey2 || "basic");
-              try {
-                convertInput.multiple = maxFiles > 1;
-              } catch {}
-              const card = renderConversionPlatform({
-                state,
-                planBlocked,
-                maxFiles,
-                convertInput,
-                onRender: render,
-                onRunConvert: runConvert,
-                onUploadItem: uploadConvertedById,
-                onUploadAll: uploadAllConverted,
-                onDownloadAll: downloadAllConverted,
-                onOpenFiles: openFilesFromConvert,
-                onSetConvertFiles: setConvertFiles,
-                onSetKind: setConvertKind,
-                onReset: resetConvert
-              });
-              if (card) sheet.content.appendChild(card);
+              if (!state.dashLoading) {
+                const planBlocked = !allowConvert;
+                const planKey2 = String((state.dash && state.dash.planKey) || "").trim().toLowerCase();
+                const maxFiles = maxConvertFilesForPlan(planKey2 || "basic");
+                try {
+                  convertInput.multiple = maxFiles > 1;
+                } catch {}
+                const card = renderConversionPlatform({
+                  state,
+                  planBlocked,
+                  maxFiles,
+                  convertInput,
+                  onRender: render,
+                  onRunConvert: runConvert,
+                  onUploadItem: uploadConvertedById,
+                  onUploadAll: uploadAllConverted,
+                  onDownloadAll: downloadAllConverted,
+                  onOpenFiles: openFilesFromConvert,
+                  onSetConvertFiles: setConvertFiles,
+                  onSetKind: setConvertKind,
+                  onReset: resetConvert
+                });
+                if (card) sheet.content.appendChild(card);
+              }
               appendLegalFooter();
               return;
             }
