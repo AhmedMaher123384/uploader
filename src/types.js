@@ -20,7 +20,8 @@
  *   clientId: string|undefined,
  *   clientSecret: string|undefined,
  *   redirectUri: string|undefined,
- *   webhookSecret: string|undefined
+ *   webhookSecret: string|undefined,
+ *   appId: string|undefined
  * }} salla
  * @property {{
  *   tokenRefreshSkewSeconds: number,

@@ -34,6 +34,23 @@ async function getStoreInfo(sallaConfig, accessToken) {
   }
 }
 
+async function getAppSubscriptions(sallaConfig, accessToken, appId) {
+  const id = String(appId || "").trim();
+  if (!id) throw new ApiError(500, "Salla app id is not configured", { code: "SALLA_APP_ID_MISSING" });
+  try {
+    const client = createSallaApiClient(sallaConfig, accessToken);
+    const response = await client.get(`/admin/v2/apps/${encodeURIComponent(id)}/subscriptions`);
+    return response.data;
+  } catch (error) {
+    const status = error?.response?.status;
+    const details = error?.response?.data || error?.message;
+    throw new ApiError(status || 503, "Failed to fetch app subscriptions from Salla", {
+      code: "SALLA_APP_SUBSCRIPTIONS_FAILED",
+      details
+    });
+  }
+}
+
 async function createCoupon(sallaConfig, accessToken, payload) {
   try {
     const client = createSallaApiClient(sallaConfig, accessToken);
@@ -263,6 +280,7 @@ async function getOrderById(sallaConfig, accessToken, orderId, params) {
 
 module.exports = {
   getStoreInfo,
+  getAppSubscriptions,
   createCoupon,
   createSpecialOffer,
   updateSpecialOffer,

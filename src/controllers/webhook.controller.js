@@ -3,6 +3,7 @@ const { hmacSha256Hex, timingSafeEqualHex, sha256Hex } = require("../utils/hash"
 const WebhookLog = require("../models/WebhookLog");
 const { findMerchantByMerchantId, markMerchantUninstalled, upsertInstalledMerchant } = require("../services/merchant.service");
 const { Buffer } = require("buffer");
+const crypto = require("crypto");
 
 function extractEvent(req, payload) {
   const headerEvent = req.headers["x-salla-event"] || req.headers["x-salla-topic"] || req.headers["x-event"];
@@ -44,6 +45,122 @@ function extractDeliveryId(req, payload) {
   return null;
 }
 
+function parseDateValue(v) {
+  if (v == null) return null;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+    const ms = v > 2_000_000_000_000 ? v : v * 1000;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(v || "").trim();
+  if (!s) return null;
+  const asNum = Number(s);
+  if (Number.isFinite(asNum) && asNum > 0) return parseDateValue(asNum);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function normalizePlanKey(v) {
+  const s = String(v || "").trim().toLowerCase();
+  if (!s) return null;
+  if (s === "basic" || s === "pro" || s === "business") return s;
+  if (s.includes("business")) return "business";
+  if (s.includes("pro")) return "pro";
+  if (s.includes("basic")) return "basic";
+  return null;
+}
+
+function extractSubscription(payload) {
+  const data = payload && payload.data ? payload.data : null;
+  const sub = data && typeof data === "object" ? data.subscription || data.sub || null : null;
+  const root = sub && typeof sub === "object" ? sub : data;
+  if (!root || typeof root !== "object") return null;
+
+  const planCandidates = [
+    root.planKey,
+    root.plan_key,
+    root.plan && root.plan.key,
+    root.plan && root.plan.slug,
+    root.plan && root.plan.code,
+    root.plan && root.plan.name,
+    root.plan_name
+  ];
+
+  const planKey = planCandidates.map(normalizePlanKey).find(Boolean) || null;
+
+  const endCandidates = [
+    root.current_period_end,
+    root.currentPeriodEnd,
+    root.end_date,
+    root.endDate,
+    root.ends_at,
+    root.endsAt,
+    root.expires_at,
+    root.expiresAt,
+    root.expired_at,
+    root.expiredAt,
+    root.renew_at,
+    root.renewAt,
+    root.renewed_at,
+    root.renewedAt
+  ];
+  const currentPeriodEnd = endCandidates.map(parseDateValue).find(Boolean) || null;
+
+  const statusCandidates = [root.status, root.state, root.subscription_status, root.subscriptionStatus];
+  const status = statusCandidates.map((x) => String(x || "").trim().toLowerCase()).find(Boolean) || null;
+
+  const idCandidates = [root.id, root.subscription_id, root.subscriptionId];
+  const subscriptionId = idCandidates.map((x) => String(x || "").trim()).find(Boolean) || null;
+
+  return { planKey, currentPeriodEnd, status, subscriptionId, raw: root };
+}
+
+function normalizeSignatureCandidates(signatureValue) {
+  const raw = String(signatureValue || "").trim();
+  if (!raw) return [];
+  const parts = raw.split(/\s+/g).filter(Boolean);
+  const out = [];
+  for (const p of parts) {
+    const s = String(p || "").trim();
+    if (!s) continue;
+    const cleaned = s.toLowerCase().startsWith("sha256=") ? s.slice("sha256=".length).trim() : s;
+    if (cleaned) out.push(cleaned.toLowerCase());
+  }
+  return out;
+}
+
+function matchesSignature(sig, expected) {
+  const a = String(sig || "").trim().toLowerCase();
+  const b = String(expected || "").trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a.length === b.length) return timingSafeEqualHex(a, b);
+  if (a.length < b.length && b.startsWith(a)) return timingSafeEqualHex(a, b.slice(0, a.length));
+  if (b.length < a.length && a.startsWith(b)) return timingSafeEqualHex(a.slice(0, b.length), b);
+  return false;
+}
+
+function verifySallaSignature(secret, rawBody, signatureHeader) {
+  const sigs = normalizeSignatureCandidates(signatureHeader);
+  if (!sigs.length) return false;
+
+  const secretBuf = Buffer.from(String(secret || ""), "utf8");
+  const bodyBuf = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(String(rawBody || ""), "utf8");
+
+  const expected = [
+    hmacSha256Hex(secret, bodyBuf),
+    crypto.createHash("sha256").update(Buffer.concat([secretBuf, bodyBuf])).digest("hex"),
+    crypto.createHash("sha256").update(Buffer.concat([bodyBuf, secretBuf])).digest("hex")
+  ].map((x) => String(x || "").trim().toLowerCase());
+
+  for (const sig of sigs) {
+    for (const exp of expected) {
+      if (matchesSignature(sig, exp)) return true;
+    }
+  }
+  return false;
+}
+
 function createWebhookController(config) {
   async function sallaWebhook(req, res) {
     const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
@@ -55,8 +172,7 @@ function createWebhookController(config) {
     if (!secret) throw new ApiError(500, "Webhook secret is not configured", { code: "SALLA_WEBHOOK_SECRET_MISSING" });
 
     if (signature) {
-      const computed = hmacSha256Hex(secret, rawBody);
-      if (!timingSafeEqualHex(signature, computed)) {
+      if (!verifySallaSignature(secret, rawBody, signature)) {
         throw new ApiError(401, "Invalid webhook signature", { code: "SALLA_WEBHOOK_SIGNATURE_INVALID" });
       }
     } else if (securityStrategy === "token") {
@@ -122,6 +238,46 @@ function createWebhookController(config) {
           refreshToken,
           tokenExpiresAt
         });
+      }
+
+      if (event.startsWith("app.subscription.") || event.startsWith("app.trial.")) {
+        if (!merchantIdString) throw new ApiError(400, "Missing merchant id", { code: "MERCHANT_ID_MISSING" });
+        if (!merchant) merchant = await findMerchantByMerchantId(merchantIdString);
+        if (merchant) {
+          const sub = extractSubscription(payload);
+          const prevMeta = merchant.planMeta && typeof merchant.planMeta === "object" ? merchant.planMeta : {};
+          const prevSub = prevMeta.subscription && typeof prevMeta.subscription === "object" ? prevMeta.subscription : {};
+
+          const isExpiredEvent =
+            event === "app.subscription.expired" ||
+            event === "app.subscription.canceled" ||
+            event === "app.subscription.cancelled" ||
+            event === "app.trial.expired" ||
+            event === "app.trial.canceled" ||
+            event === "app.trial.cancelled";
+
+          const nextPlanKey = isExpiredEvent ? "basic" : normalizePlanKey(sub && sub.planKey);
+
+          merchant.planMeta = {
+            ...prevMeta,
+            subscription: {
+              ...prevSub,
+              event,
+              subscriptionId: sub ? sub.subscriptionId : prevSub.subscriptionId || null,
+              status: sub ? sub.status : prevSub.status || null,
+              currentPeriodEnd: sub && sub.currentPeriodEnd ? sub.currentPeriodEnd : prevSub.currentPeriodEnd || null,
+              updatedAt: new Date(),
+              raw: sub ? sub.raw : prevSub.raw || null
+            }
+          };
+
+          if (nextPlanKey && nextPlanKey !== merchant.planKey) {
+            merchant.planKey = nextPlanKey;
+            merchant.planUpdatedAt = new Date();
+          }
+
+          await merchant.save();
+        }
       }
 
       if (event === "app.installed" && merchant && merchant.appStatus !== "installed") {

@@ -28,7 +28,8 @@ function loadConfig() {
       clientId: process.env.SALLA_CLIENT_ID,
       clientSecret: process.env.SALLA_CLIENT_SECRET,
       redirectUri: process.env.SALLA_REDIRECT_URI || process.env.SALLA_WEBHOOK_URI,
-      webhookSecret: process.env.SALLA_WEBHOOK_SECRET
+      webhookSecret: process.env.SALLA_WEBHOOK_SECRET,
+      appId: process.env.SALLA_APP_ID
     },
     security: {
       tokenRefreshSkewSeconds: Number(process.env.TOKEN_REFRESH_SKEW_SECONDS || 30),

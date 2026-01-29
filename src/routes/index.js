@@ -3,7 +3,7 @@ const Joi = require("joi");
 const { merchantAuth } = require("../middlewares/merchantAuth.middleware");
 const { createOAuthRouter } = require("./oauth.routes");
 const { validate } = require("../middlewares/validate.middleware");
-const { listProducts, getProductById, getProductVariant, getStoreInfo } = require("../services/sallaApi.service");
+const { listProducts, getProductById, getProductVariant, getStoreInfo, getAppSubscriptions } = require("../services/sallaApi.service");
 const { refreshAccessToken } = require("../services/sallaOAuth.service");
 const { ApiError } = require("../utils/apiError");
 const { fetchVariantsSnapshotReport } = require("../services/sallaCatalog.service");
@@ -2202,6 +2202,48 @@ function createApiRouter(config) {
     if (!timingSafeEqualString(provided, configured)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
   }
 
+  function parseDateValue(v) {
+    if (v == null) return null;
+    if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+      const ms = v > 2_000_000_000_000 ? v : v * 1000;
+      const d = new Date(ms);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const s = String(v || "").trim();
+    if (!s) return null;
+    const asNum = Number(s);
+    if (Number.isFinite(asNum) && asNum > 0) return parseDateValue(asNum);
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function normalizePlanKey(v) {
+    const s = String(v || "").trim().toLowerCase();
+    if (!s) return null;
+    if (s === "basic" || s === "pro" || s === "business") return s;
+    if (s.includes("business")) return "business";
+    if (s.includes("pro")) return "pro";
+    if (s.includes("basic")) return "basic";
+    return null;
+  }
+
+  function pickLatestSubscription(items) {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) return null;
+    let best = list[0];
+    let bestEnd = parseDateValue(best?.end_date);
+    for (let i = 1; i < list.length; i += 1) {
+      const it = list[i];
+      const end = parseDateValue(it?.end_date);
+      if (end && (!bestEnd || end.getTime() > bestEnd.getTime())) {
+        best = it;
+        bestEnd = end;
+      }
+    }
+    return best;
+  }
+
   router.get("/public/media/assets/:id/blob", validate(mediaDeleteParamsSchema, "params"), async (req, res, next) => {
     try {
       requireMediaAdminKey(req);
@@ -2306,6 +2348,104 @@ function createApiRouter(config) {
             planKey: merchant.planKey,
             planUpdatedAt: merchant.planUpdatedAt ? new Date(merchant.planUpdatedAt).toISOString() : null,
             appStatus: merchant.appStatus
+          }
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.post(
+    "/public/admin/merchants/:merchantId/subscription/sync",
+    validate(adminSetMerchantPlanParamsSchema, "params"),
+    async (req, res, next) => {
+      try {
+        requireMediaAdminKey(req);
+
+        const merchantId = String(req.params.merchantId);
+        const merchant = await Merchant.findOne({ merchantId }).select("+accessToken +refreshToken");
+        if (!merchant) throw new ApiError(404, "Merchant not found", { code: "MERCHANT_NOT_FOUND" });
+
+        const appId = String(config?.salla?.appId || "").trim();
+        if (!appId) throw new ApiError(500, "Salla app id is not configured", { code: "SALLA_APP_ID_MISSING" });
+
+        await ensureMerchantTokenFresh(merchant);
+        const payload = await getAppSubscriptions(config.salla, merchant.accessToken, appId);
+        const items = Array.isArray(payload?.data) ? payload.data : [];
+        const best = pickLatestSubscription(items);
+
+        const prevPlanKey = String(merchant.planKey || "basic");
+
+        const endDate = parseDateValue(best?.end_date);
+        const startDate = parseDateValue(best?.start_date);
+        const subscriptionId =
+          best?.subscription_id != null
+            ? String(best.subscription_id)
+            : best?.id != null
+              ? String(best.id)
+              : best?.subscriptionId != null
+                ? String(best.subscriptionId)
+                : null;
+        const status = best?.status != null ? String(best.status).trim().toLowerCase() : best?.state != null ? String(best.state).trim().toLowerCase() : null;
+        const planName = best?.plan_name != null ? String(best.plan_name) : null;
+        const planType = best?.plan_type != null ? String(best.plan_type) : null;
+        const planCandidates = [
+          best?.plan_key,
+          best?.planKey,
+          best?.plan?.key,
+          best?.plan?.slug,
+          best?.plan?.code,
+          best?.plan?.name,
+          best?.plan_name
+        ];
+        const nextPlanKeyRaw = planCandidates.map(normalizePlanKey).find(Boolean) || null;
+
+        let nextPlanKey = nextPlanKeyRaw || "basic";
+        if (status && (status === "expired" || status === "canceled" || status === "cancelled")) nextPlanKey = "basic";
+        if (endDate && endDate.getTime() <= Date.now()) nextPlanKey = "basic";
+
+        const prevMeta = merchant.planMeta && typeof merchant.planMeta === "object" ? merchant.planMeta : {};
+        const prevSub = prevMeta.subscription && typeof prevMeta.subscription === "object" ? prevMeta.subscription : {};
+
+        merchant.planMeta = {
+          ...prevMeta,
+          subscription: {
+            ...prevSub,
+            source: "apps_api",
+            appId,
+            subscriptionId,
+            status,
+            planName,
+            planType,
+            startDate: startDate || null,
+            currentPeriodEnd: endDate || null,
+            syncedAt: new Date(),
+            raw: best || null
+          }
+        };
+
+        if (nextPlanKey !== merchant.planKey) {
+          merchant.planKey = nextPlanKey;
+          merchant.planUpdatedAt = new Date();
+        }
+
+        await merchant.save();
+
+        return res.json({
+          ok: true,
+          merchant: {
+            merchantId: merchant.merchantId,
+            prevPlanKey,
+            planKey: merchant.planKey,
+            planUpdatedAt: merchant.planUpdatedAt ? new Date(merchant.planUpdatedAt).toISOString() : null,
+            appStatus: merchant.appStatus,
+            subscription: {
+              planName,
+              planType,
+              startDate: startDate ? startDate.toISOString() : null,
+              endDate: endDate ? endDate.toISOString() : null
+            }
           }
         });
       } catch (err) {
