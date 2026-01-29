@@ -415,14 +415,15 @@ const renderUploadRow = (rec, opts) => {
   const onRemove = typeof o.onRemove === "function" ? o.onRemove : null;
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
-  wrap.style.flexDirection = "column";
-  wrap.style.gap = "8px";
-  wrap.style.padding = "14px 12px 10px";
-  wrap.style.borderRadius = "18px";
+  wrap.style.flexDirection = "row";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "space-between";
+  wrap.style.gap = "10px";
+  wrap.style.padding = "10px 10px";
+  wrap.style.borderRadius = "14px";
   wrap.style.border = "1px solid rgba(24,181,213,.45)";
   wrap.style.boxShadow = "0 0 0 1px rgba(24,181,213,.12) inset";
   wrap.style.background = "#303030";
-  wrap.style.position = "relative";
   wrap.onmouseenter = () => {
     try {
       wrap.style.border = "1px solid rgba(24,181,213,.70)";
@@ -436,18 +437,12 @@ const renderUploadRow = (rec, opts) => {
     } catch {}
   };
 
-  const row = document.createElement("div");
-  row.style.display = "flex";
-  row.style.alignItems = "center";
-  row.style.justifyContent = "flex-start";
-  row.style.gap = "12px";
-  row.style.minWidth = "0";
-
   const left = document.createElement("div");
   left.style.minWidth = "0";
   left.style.display = "flex";
   left.style.alignItems = "center";
   left.style.gap = "10px";
+  left.style.flex = "1 1 auto";
 
   const dot = document.createElement("div");
   dot.style.width = "10px";
@@ -461,14 +456,8 @@ const renderUploadRow = (rec, opts) => {
       : rec.status === "uploading"
         ? "#18b5d5"
         : rec.status === "done"
-          ? "#18b5d5"
-          : "rgba(255,255,255,.45)";
-
-  const text = document.createElement("div");
-  text.style.minWidth = "0";
-  text.style.display = "flex";
-  text.style.flexDirection = "column";
-  text.style.gap = "3px";
+      ? "#18b5d5"
+      : "rgba(255,255,255,.45)";
 
   const name = document.createElement("div");
   name.style.fontSize = "12px";
@@ -477,6 +466,8 @@ const renderUploadRow = (rec, opts) => {
   name.style.overflow = "hidden";
   name.style.textOverflow = "ellipsis";
   name.style.whiteSpace = "nowrap";
+  name.style.minWidth = "0";
+  name.style.flex = "1 1 auto";
   name.textContent = String(rec.name || "");
 
   const sub = document.createElement("div");
@@ -503,15 +494,17 @@ const renderUploadRow = (rec, opts) => {
           ? (isArabic() ? "مرفوض" : "Rejected")
         : rec.status === "error"
           ? (isArabic() ? "فشل" : "Failed")
-          : isArabic()
-            ? "في الانتظار"
-            : "Queued";
-
-  text.appendChild(name);
-  text.appendChild(sub);
+        : isArabic()
+          ? "في الانتظار"
+          : "Queued";
 
   left.appendChild(dot);
-  left.appendChild(text);
+  left.appendChild(name);
+  if (sub.textContent) {
+    sub.style.flex = "0 0 auto";
+    sub.style.whiteSpace = "nowrap";
+    left.appendChild(sub);
+  }
 
   const mkIconBtn = (label, tone, iconClass) => {
     const el = document.createElement("button");
@@ -564,60 +557,13 @@ const renderUploadRow = (rec, opts) => {
     return el;
   };
 
-  let rm = null;
-  if (onRemove) {
-    rm = mkIconBtn(isArabic() ? "إزالة" : "Remove", "neutral", "sicon-cancel");
-    rm.disabled = busy || rec.status === "uploading";
-    rm.style.position = "absolute";
-    rm.style.top = "8px";
-    if (typeof isRtl === "function" && isRtl()) {
-      rm.style.left = "8px";
-    } else {
-      rm.style.right = "8px";
-    }
-    rm.style.width = "26px";
-    rm.style.height = "26px";
-    rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
-    rm.style.opacity = rm.disabled ? "0.55" : "1";
-    rm.style.border = "1px solid rgba(255,255,255,.12)";
-    rm.style.background = "rgba(255,255,255,.06)";
-    rm.style.color = "rgba(255,255,255,.75)";
-    try {
-      const ic = rm.querySelector("i");
-      if (ic) ic.style.fontSize = "14px";
-    } catch {}
-    rm.onmouseenter = () => {
-      try {
-        if (rm.disabled) return;
-        rm.style.background = "rgba(239,68,68,.14)";
-        rm.style.border = "1px solid rgba(239,68,68,.30)";
-        rm.style.color = "#ef4444";
-      } catch {}
-    };
-    rm.onmouseleave = () => {
-      try {
-        rm.style.background = "rgba(255,255,255,.06)";
-        rm.style.border = "1px solid rgba(255,255,255,.12)";
-        rm.style.color = "rgba(255,255,255,.75)";
-      } catch {}
-    };
-    rm.onclick = () => {
-      try {
-        if (rm.disabled) return;
-        onRemove(String((rec && rec.id) || ""));
-      } catch {}
-    };
-    wrap.appendChild(rm);
-  }
-
-  const bottom = document.createElement("div");
-  bottom.style.display = "flex";
-  bottom.style.alignItems = "center";
-  bottom.style.justifyContent = "flex-start";
-  bottom.style.gap = "10px";
-  bottom.style.flexWrap = "wrap";
-  bottom.style.minWidth = "0";
-  bottom.style.width = "100%";
+  const right = document.createElement("div");
+  right.style.display = "flex";
+  right.style.alignItems = "center";
+  right.style.gap = "8px";
+  right.style.flex = "0 0 auto";
+  right.style.flexWrap = "nowrap";
+  right.style.direction = "ltr";
 
   const actions = document.createElement("div");
   actions.style.display = "flex";
@@ -658,7 +604,12 @@ const renderUploadRow = (rec, opts) => {
     const copy = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
     copy.onclick = () => {
       try {
-        copyText(cleanUrl, () => {});
+        copyText(cleanUrl, (ok) => {
+          try {
+            if (!ok) return;
+            if (typeof toastSuccess === "function") toastSuccess(isArabic() ? "تم النسخ" : "Copied");
+          } catch {}
+        });
       } catch {}
     };
     const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
@@ -695,92 +646,25 @@ const renderUploadRow = (rec, opts) => {
     }
   })();
   sizeChip.textContent = rec.status === "uploading" ? (String(pct) + "%") : sizeTxt;
-  const footer = document.createElement("div");
-  footer.style.display = "flex";
-  footer.style.alignItems = "center";
-  footer.style.justifyContent = "space-between";
-  footer.style.gap = "12px";
-  footer.style.minWidth = "0";
-  footer.style.flexWrap = "nowrap";
-  footer.style.width = "100%";
-  footer.style.direction = "ltr";
+  if (actions.childNodes && actions.childNodes.length) right.appendChild(actions);
+  if (sizeChip.textContent) right.appendChild(sizeChip);
 
-  const leftGroup = document.createElement("div");
-  leftGroup.style.display = "flex";
-  leftGroup.style.alignItems = "center";
-  leftGroup.style.gap = "10px";
-  leftGroup.style.flex = "0 0 auto";
-  leftGroup.style.flexWrap = "wrap";
-  leftGroup.style.justifyContent = "flex-start";
-
-  if (actions.childNodes && actions.childNodes.length) leftGroup.appendChild(actions);
-  if (sizeChip.textContent) leftGroup.appendChild(sizeChip);
-
-  let link = null;
-  if (cleanUrl && rec.status === "done") {
-    link = document.createElement("a");
-    link.href = cleanUrl;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.style.display = "block";
-    link.style.fontSize = "10px";
-    link.style.fontWeight = "900";
-    link.style.color = "rgba(255,255,255,.62)";
-    link.style.textDecoration = "none";
-    link.style.direction = "ltr";
-    link.style.whiteSpace = "nowrap";
-    link.style.overflow = "hidden";
-    link.style.textOverflow = "ellipsis";
-    link.style.padding = "0 2px";
-    link.style.minWidth = "0";
-    link.style.flex = "1 1 auto";
-    link.style.textAlign = "right";
-    link.textContent = displayUrl || cleanUrl;
-    link.onmouseenter = () => {
+  if (onRemove) {
+    const rm = mkIconBtn(isArabic() ? "إزالة" : "Remove", "danger", "sicon-cancel");
+    rm.disabled = busy || rec.status === "uploading";
+    rm.style.cursor = rm.disabled ? "not-allowed" : "pointer";
+    rm.style.opacity = rm.disabled ? "0.55" : "1";
+    rm.onclick = () => {
       try {
-        link.style.color = "rgba(24,181,213,.95)";
-        link.style.textDecoration = "underline";
-        link.style.textDecorationThickness = "1px";
-        link.style.textUnderlineOffset = "2px";
-      } catch {} 
-    };
-    link.onmouseleave = () => {
-      try {
-        link.style.color = "rgba(255,255,255,.62)";
-        link.style.textDecoration = "none";
+        if (rm.disabled) return;
+        onRemove(String((rec && rec.id) || ""));
       } catch {}
     };
+    right.appendChild(rm);
   }
 
-  row.appendChild(left);
-  wrap.appendChild(row);
-  if ((link || (leftGroup.childNodes && leftGroup.childNodes.length)) && rec.status !== "uploading") {
-    if (leftGroup.childNodes && leftGroup.childNodes.length) footer.appendChild(leftGroup);
-    if (link) footer.appendChild(link);
-    bottom.appendChild(footer);
-  } else if (leftGroup.childNodes && leftGroup.childNodes.length) {
-    bottom.appendChild(leftGroup);
-  }
-  if (bottom.childNodes && bottom.childNodes.length) wrap.appendChild(bottom);
-
-  if (rec.status === "uploading") {
-    const bar = document.createElement("div");
-    bar.style.height = "6px";
-    bar.style.borderRadius = "999px";
-    bar.style.background = "rgba(255,255,255,.08)";
-    bar.style.border = "1px solid rgba(255,255,255,.10)";
-    bar.style.overflow = "hidden";
-    bar.style.position = "relative";
-
-    const fill = document.createElement("div");
-    fill.style.height = "100%";
-    fill.style.width = String(pct) + "%";
-    fill.style.borderRadius = "999px";
-    fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.35) 0%, rgba(24,181,213,.95) 50%, rgba(255,255,255,.55) 100%)";
-
-    bar.appendChild(fill);
-    wrap.appendChild(bar);
-  }
+  wrap.appendChild(left);
+  wrap.appendChild(right);
 
   return wrap;
 };

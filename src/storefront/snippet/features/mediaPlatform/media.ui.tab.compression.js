@@ -10,6 +10,9 @@ const renderCompressionPlatform = (opts) => {
   const onSetFiles = typeof o.onSetFiles === "function" ? o.onSetFiles : null;
   const onRunCompress = typeof o.onRunCompress === "function" ? o.onRunCompress : null;
   const onDownloadAll = typeof o.onDownloadAll === "function" ? o.onDownloadAll : null;
+  const onUploadItem = typeof o.onUploadItem === "function" ? o.onUploadItem : null;
+  const onUploadAll = typeof o.onUploadAll === "function" ? o.onUploadAll : null;
+  const onOpenFiles = typeof o.onOpenFiles === "function" ? o.onOpenFiles : null;
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
   const busy = Boolean(state.compressRunning);
   const selected = Array.isArray(state.compressFiles) ? state.compressFiles : [];
@@ -517,6 +520,7 @@ const renderCompressionPlatform = (opts) => {
   const doneCount = doneItems.length;
 
   let dlAllBtn = null;
+  let upAllBtn = null;
   const runBtn = btnPrimary(isArabic() ? "ضغط الآن" : "Compress now");
   runBtn.disabled = busy || !selected.length || !onRunCompress;
   runBtn.style.opacity = runBtn.disabled ? "0.65" : "1";
@@ -543,6 +547,22 @@ const renderCompressionPlatform = (opts) => {
       } catch {}
     };
     dlAllBtn = dlAll;
+
+    const anyCanUpload = doneItems.some((x) => x && !x.uploadUrl && !x.uploading);
+    const upAllLabel = Boolean(state.compressUploadingAll)
+      ? (isArabic() ? "جاري الرفع…" : "Uploading…")
+      : (isArabic() ? "رفع الكل على المنصه" : "Upload all to platform");
+    const upAll = btnPrimary(upAllLabel);
+    upAll.disabled = busy || !onUploadAll || Boolean(state.compressUploadingAll) || !anyCanUpload;
+    upAll.style.opacity = upAll.disabled ? "0.65" : "1";
+    upAll.style.cursor = upAll.disabled ? "not-allowed" : "pointer";
+    upAll.onclick = () => {
+      try {
+        if (upAll.disabled) return;
+        onUploadAll();
+      } catch {}
+    };
+    upAllBtn = upAll;
   }
 
   const resetBtn = btnGhost(isArabic() ? "تفريغ" : "Reset");
@@ -559,6 +579,20 @@ const renderCompressionPlatform = (opts) => {
   actions.appendChild(runBtn);
   actions.appendChild(resetBtn);
   s3.appendChild(actions);
+
+  if (busy || Number(state.compressOverallProgress || 0) > 0) {
+    const prog = document.createElement("div");
+    prog.style.border = "1px solid rgba(255,255,255,.08)";
+    prog.style.borderRadius = "14px";
+    prog.style.background = "#373737";
+    prog.style.overflow = "hidden";
+    const bar = document.createElement("div");
+    bar.style.height = "10px";
+    bar.style.width = Math.max(0, Math.min(100, Number(state.compressOverallProgress || 0) || 0)) + "%";
+    bar.style.background = "#18b5d5";
+    prog.appendChild(bar);
+    s3.appendChild(prog);
+  }
 
   if (items.length) {
     const list = document.createElement("div");
@@ -787,6 +821,15 @@ const renderCompressionPlatform = (opts) => {
         } else {
           sub.textContent = fmtBytes(inB);
         }
+        const upErr = String((it && it.uploadError) || "");
+        if (upErr) {
+          const err = document.createElement("div");
+          err.style.color = "#ef4444";
+          err.style.fontSize = "12px";
+          err.style.fontWeight = "900";
+          err.textContent = upErr;
+          sub.appendChild(err);
+        }
       }
 
       left.appendChild(nameRow);
@@ -795,7 +838,7 @@ const renderCompressionPlatform = (opts) => {
       const right = document.createElement("div");
       right.style.display = "flex";
       right.style.alignItems = "center";
-      right.style.gap = "8px";
+      right.style.gap = "10px";
       right.style.flexWrap = "wrap";
       right.style.flex = "0 0 auto";
       const resUrl = String((it && it.resultUrl) || "");
@@ -818,6 +861,50 @@ const renderCompressionPlatform = (opts) => {
           } catch {}
         };
         right.appendChild(dl);
+
+        const uploadedUrl = String((it && it.uploadUrl) || "");
+        const upLabel = (it && it.uploading)
+          ? (isArabic() ? "جاري الرفع…" : "Uploading…")
+          : uploadedUrl
+            ? (isArabic() ? "تم الرفع" : "Uploaded")
+            : (isArabic() ? "رفع على المنصة" : "Upload to platform");
+
+        const up = btnGhost(upLabel);
+        up.disabled = Boolean(it && it.uploading) || Boolean(uploadedUrl) || !onUploadItem;
+        up.style.opacity = up.disabled ? "0.7" : "1";
+        up.style.cursor = up.disabled ? "not-allowed" : "pointer";
+        up.onclick = () => {
+          try {
+            if (up.disabled) return;
+            onUploadItem(String((it && it.id) || ""));
+          } catch {}
+        };
+        right.appendChild(up);
+
+        if (uploadedUrl) {
+          const openFilesBtn = btnGhost(isArabic() ? "فتح في ملفاتك" : "Open in My files");
+          openFilesBtn.disabled = !onOpenFiles;
+          openFilesBtn.style.opacity = openFilesBtn.disabled ? "0.7" : "1";
+          openFilesBtn.style.cursor = openFilesBtn.disabled ? "not-allowed" : "pointer";
+          openFilesBtn.onclick = () => {
+            try {
+              if (openFilesBtn.disabled) return;
+              onOpenFiles();
+            } catch {}
+          };
+          right.appendChild(openFilesBtn);
+
+          const openLinkBtn = btnPrimary(isArabic() ? "فتح الرابط" : "Open link");
+          openLinkBtn.style.padding = "10px 12px";
+          openLinkBtn.onclick = () => {
+            try {
+              const u = String(uploadedUrl || "").trim();
+              if (!u) return;
+              window.open(u, "_blank", "noopener,noreferrer");
+            } catch {}
+          };
+          right.appendChild(openLinkBtn);
+        }
       }
 
       top.appendChild(left);
@@ -847,12 +934,13 @@ const renderCompressionPlatform = (opts) => {
 
     s3.appendChild(list);
 
-    if (dlAllBtn) {
+    if (dlAllBtn || upAllBtn) {
       const bulk = document.createElement("div");
       bulk.style.display = "flex";
       bulk.style.gap = "10px";
       bulk.style.flexWrap = "wrap";
-      bulk.appendChild(dlAllBtn);
+      if (dlAllBtn) bulk.appendChild(dlAllBtn);
+      if (upAllBtn) bulk.appendChild(upAllBtn);
       s3.appendChild(bulk);
     }
   }

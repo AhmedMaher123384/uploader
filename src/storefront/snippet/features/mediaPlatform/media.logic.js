@@ -1124,7 +1124,9 @@ const mount = () => {
           compressOverallProgress: 0,
           compressError: "",
           compressItems: [],
-          compressUploadingAny: false
+          compressUploadingAny: false,
+          compressUploadingAll: false,
+          compressDownloadingAll: false
         };
 
         let toastSeq = 0;
@@ -3127,6 +3129,7 @@ const mount = () => {
           state.compressRunning = false;
           state.compressOverallProgress = 0;
           state.compressUploadingAny = false;
+          state.compressUploadingAll = false;
           state.compressDownloadingAll = false;
           render();
         };
@@ -3173,6 +3176,7 @@ const mount = () => {
           state.compressRunning = false;
           state.compressOverallProgress = 0;
           state.compressUploadingAny = false;
+          state.compressUploadingAll = false;
           state.compressError = "";
           if (ignoredByType > 0) toastWarn(isArabic() ? "تم تجاهل " + String(ignoredByType) + " ملف لأنه ليس صورة" : "Ignored " + String(ignoredByType) + " non-image file(s)");
           if (ignoredByLimit > 0) {
@@ -3432,16 +3436,17 @@ const mount = () => {
           } catch {}
         };
 
-        const uploadCompressedById = async (id) => {
+        const uploadCompressedById = async (id, opts) => {
           const targetId = String(id || "").trim();
           if (!targetId) return;
+          const silent = Boolean(opts && opts.silent);
           const items = Array.isArray(state.compressItems) ? state.compressItems : [];
           const it = items.find((x) => x && String(x.id || "") === targetId) || null;
           if (!it || it.uploading || it.uploadUrl || !it.resultUrl) return;
           if (isSandbox) {
             it.uploadError = isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled";
             render();
-            toastError(it.uploadError);
+            if (!silent) toastError(it.uploadError);
             return;
           }
 
@@ -3451,7 +3456,7 @@ const mount = () => {
           state.compressUploadingAny = true;
           render();
 
-          const toastId = toastLoading(isArabic() ? "جاري رفع الصورة المضغوطة..." : "Uploading compressed image...");
+          const toastId = silent ? "" : toastLoading(isArabic() ? "جاري رفع الصورة المضغوطة..." : "Uploading compressed image...");
           try {
             const raw = String(it.name || "compressed");
             let baseName = raw;
@@ -3582,17 +3587,60 @@ const mount = () => {
             it.uploadError = "";
             state.compressUploadingAny = items.some((x) => x && x.uploading);
             render();
-            toastClose(toastId);
-            toastSuccess(isArabic() ? "تم رفع الصورة إلى ملفاتك" : "Uploaded to My files");
+            if (!silent) {
+              toastClose(toastId);
+              toastSuccess(isArabic() ? "تم رفع الصورة إلى ملفاتك" : "Uploaded to My files");
+            }
           } catch (e) {
             it.uploading = false;
             it.uploadProgress = 0;
             it.uploadError = friendlyApiErrorMessage(e);
             state.compressUploadingAny = items.some((x) => x && x.uploading);
             render();
-            toastClose(toastId);
-            toastError(it.uploadError);
+            if (!silent) {
+              toastClose(toastId);
+              toastError(it.uploadError);
+            }
           }
+        };
+
+        const uploadAllCompressed = async () => {
+          if (state.compressUploadingAll) return;
+          const items = Array.isArray(state.compressItems) ? state.compressItems : [];
+          const todo = items.filter((x) => x && String(x.status || "") === "done" && x.resultUrl && !x.uploadUrl && !x.uploading);
+          if (!todo.length) return;
+          if (isSandbox) {
+            toastError(isArabic() ? "وضع Sandbox: الرفع غير متاح" : "Sandbox mode: upload disabled");
+            return;
+          }
+          state.compressUploadingAll = true;
+          render();
+          const toastId = toastLoading(isArabic() ? "جاري رفع الصور..." : "Uploading images...");
+          let ok = 0;
+          let fail = 0;
+          try {
+            for (let i = 0; i < todo.length; i += 1) {
+              const it = todo[i];
+              if (!it) continue;
+              await uploadCompressedById(String(it.id || ""), { silent: true });
+              try {
+                const uploaded = items.find((x) => x && String(x.id || "") === String(it.id || "")) || null;
+                if (uploaded && uploaded.uploadUrl) ok += 1;
+                else fail += 1;
+              } catch {
+                fail += 1;
+              }
+            }
+          } finally {
+            toastClose(toastId);
+            state.compressUploadingAll = false;
+            render();
+          }
+          try {
+            if (ok && !fail) toastSuccess(isArabic() ? ("تم رفع " + String(ok) + " صورة") : ("Uploaded " + String(ok) + " images"));
+            else if (ok && fail) toastWarn(isArabic() ? ("اكتمل الرفع مع أخطاء (" + String(ok) + " ناجح / " + String(fail) + " فشل)") : ("Upload finished with errors (" + String(ok) + " ok / " + String(fail) + " failed)"));
+            else if (fail) toastError(isArabic() ? "فشل رفع الصور" : "Failed to upload images");
+          } catch {}
         };
 
         const downloadAllCompressed = async () => {
@@ -3911,6 +3959,7 @@ const mount = () => {
                   compressInput,
                   onRender: render,
                   onDownloadAll: downloadAllCompressed,
+                  onUploadAll: uploadAllCompressed,
                   onPick: () => {
                     try {
                       if (!compressInput) return;

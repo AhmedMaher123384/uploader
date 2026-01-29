@@ -746,8 +746,8 @@ const buildSheet = () => {
   footer.style.flex = "0 0 auto";
 
   body.appendChild(topRow);
-  body.appendChild(uploads);
   body.appendChild(content);
+  body.appendChild(uploads);
   body.appendChild(footer);
   panel.appendChild(head);
   panel.appendChild(body);
