@@ -1755,7 +1755,7 @@ const mount = () => {
                   : 1_600_000;
 
           const speedFactor = s === "small" ? 0.55 : s === "balanced" ? 0.75 : 1.0;
-          const qualityFactor = q == null ? 1.0 : 0.55 + (q / 100) * 0.9;
+          const qualityFactor = q == null ? 1.0 : 0.30 + (q / 100) * 1.40;
 
           const videoBitsPerSecond = Math.max(350_000, Math.round(base * speedFactor * qualityFactor));
           const audioBitsPerSecond = s === "small" ? 48_000 : s === "balanced" ? 80_000 : 96_000;

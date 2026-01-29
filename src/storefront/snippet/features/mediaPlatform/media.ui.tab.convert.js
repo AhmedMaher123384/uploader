@@ -831,7 +831,7 @@ const renderConversionPlatform = (opts) => {
     qLabel.style.color = "rgba(255,255,255,.75)";
     qLabel.style.fontSize = "12px";
     qLabel.style.fontWeight = "950";
-    qLabel.textContent = isArabic() ? "الجودة" : "Quality";
+    qLabel.textContent = convertIsVideo ? (isArabic() ? "الجودة (Bitrate)" : "Quality (Bitrate)") : (isArabic() ? "الجودة" : "Quality");
 
     const qVal = document.createElement("div");
     qVal.style.color = "#18b5d5";
@@ -839,11 +839,20 @@ const renderConversionPlatform = (opts) => {
     qVal.style.fontWeight = "950";
     const first = (Array.isArray(state.convertFiles) && state.convertFiles[0]) ? state.convertFiles[0] : null;
     const mime = String((first && first.type) || "").trim().toLowerCase();
-    const maxQuality = 80;
-    const qDefault = Math.min(maxQuality, mime === "image/png" ? 90 : 82);
+    const maxQuality = convertIsVideo ? 100 : 80;
+    const qDefault = convertIsVideo ? 70 : Math.min(maxQuality, mime === "image/png" ? 90 : 82);
     const clampQ = (x) => Math.max(1, Math.min(maxQuality, Math.round(Number(x) || qDefault)));
     const qNum = state.convertQuality ? Number(state.convertQuality) : qDefault;
-    qVal.textContent = String(clampQ(qNum));
+    const qClean = clampQ(qNum);
+    const qualityToMbps = (q) => {
+      const qq = Math.max(1, Math.min(100, Math.round(Number(q) || 70)));
+      const minMbps = 0.8;
+      const maxMbps = 12.0;
+      const t = (qq - 1) / 99;
+      const mbps = minMbps + t * (maxMbps - minMbps);
+      return Math.max(minMbps, Math.min(maxMbps, mbps));
+    };
+    qVal.textContent = convertIsVideo ? (qualityToMbps(qClean).toFixed(1) + " Mbps") : String(qClean);
 
     qHead.appendChild(qLabel);
     qHead.appendChild(qVal);
@@ -851,20 +860,22 @@ const renderConversionPlatform = (opts) => {
     const range = document.createElement("input");
     range.type = "range";
     range.min = "1";
-    range.max = "80";
+    range.max = String(maxQuality);
     range.step = "1";
-    range.value = String(qVal.textContent || qDefault);
+    range.value = String(qClean);
     range.disabled = Boolean(state.converting) || planBlocked;
     range.oninput = () => {
       try {
         state.convertQuality = String(range.value || "");
-        qVal.textContent = String(clampQ(range.value));
+        const vv = clampQ(range.value);
+        qVal.textContent = convertIsVideo ? (qualityToMbps(vv).toFixed(1) + " Mbps") : String(vv);
       } catch {}
     };
     range.onchange = () => {
       try {
         state.convertQuality = String(range.value || "");
-        qVal.textContent = String(clampQ(range.value));
+        const vv = clampQ(range.value);
+        qVal.textContent = convertIsVideo ? (qualityToMbps(vv).toFixed(1) + " Mbps") : String(vv);
         if (onRender) onRender();
       } catch {}
     };
