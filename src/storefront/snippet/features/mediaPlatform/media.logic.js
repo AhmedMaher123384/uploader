@@ -559,7 +559,7 @@ const guessResourceType = (file) => {
   if (t.indexOf("video/") === 0) return "video";
   if (t.indexOf("image/") === 0) return "image";
   const ext = getExt(file && file.name);
-  if (["mp4", "webm", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
+  if (["mp4", "webm", "mov", "avi", "m4v", "mkv", "mpeg", "mpg"].indexOf(ext) >= 0) return "video";
   if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
   return "raw";
 };
@@ -1019,7 +1019,7 @@ const mount = () => {
         const convertInput = document.createElement("input");
         convertInput.type = "file";
         convertInput.multiple = true;
-        convertInput.accept = "image/*,video/mp4,video/webm";
+        convertInput.accept = "image/*,video/mp4,video/webm,video/mpeg";
         convertInput.style.display = "none";
         document.body.appendChild(convertInput);
 
@@ -1706,9 +1706,9 @@ const mount = () => {
               "video/mp4;codecs=avc1",
               "video/mp4"
             ];
-          } else if (f === "mov") {
+          } else if (f === "mpeg") {
             candidates = [
-              "video/quicktime",
+              "video/mpeg",
               "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
               "video/mp4;codecs=avc1,mp4a.40.2",
               "video/mp4;codecs=avc1",
@@ -1766,7 +1766,7 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "mov") throw new Error("Unsupported format");
+          if (format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "mpeg") throw new Error("Unsupported format");
 
           let srcUrl = "";
           let video = null;
@@ -1829,7 +1829,7 @@ const mount = () => {
             const mimeType = pickBestRecorderMime(format);
             if (!mimeType) {
               if (format === "mp4") throw new Error("MP4 local conversion is not supported in this browser");
-              if (format === "mov") throw new Error("MOV local conversion is not supported in this browser");
+              if (format === "mpeg") throw new Error("MPEG local conversion is not supported in this browser");
               throw new Error("MediaRecorder not supported");
             }
 
@@ -1952,15 +1952,21 @@ const mount = () => {
             } catch {}
             await ended;
 
-            const outType = String(mimeType || "").split(";")[0] || (format === "mp4" || format === "mov" ? "video/mp4" : "video/webm");
+            const outType =
+              String(mimeType || "").split(";")[0] ||
+              (format === "mp4" ? "video/mp4" : format === "mpeg" ? "video/mpeg" : "video/webm");
             const out = new Blob(chunks, { type: outType });
             if (!out || !out.size) throw new Error("Empty response");
             try {
               if (typeof onProgress === "function") onProgress(100);
             } catch {}
-            const derivedFmt = outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0 ? "mp4" : "webm";
-            const fmt = format === "mov" ? "mov" : derivedFmt;
-            return { blob: out, format: fmt };
+            const derivedFmt =
+              outType.indexOf("mpeg") >= 0
+                ? "mpeg"
+                : outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0
+                  ? "mp4"
+                  : "webm";
+            return { blob: out, format: format === "mpeg" ? "mpeg" : derivedFmt };
           } finally {
             cleanup();
           }
@@ -2753,8 +2759,8 @@ const mount = () => {
                 : "") ||
               (fmt === "mp4"
                 ? "mp4"
-                : fmt === "mov"
-                  ? "mov"
+                : fmt === "mpeg"
+                  ? "mpeg"
                   : fmt === "webm" || fmt === "webm_local"
                     ? "webm"
                     : fmt === "avif"
@@ -2770,13 +2776,13 @@ const mount = () => {
             const mime =
               ext === "mp4"
                 ? "video/mp4"
-                : ext === "mov"
-                  ? "video/quicktime"
+                : ext === "mpeg" || ext === "mpg"
+                  ? "video/mpeg"
                   : ext === "webm"
                     ? "video/webm"
                     : ext === "png"
                       ? "image/png"
-                      : ext === "jpeg" || ext === "jpg"
+                    : ext === "jpeg" || ext === "jpg"
                         ? "image/jpeg"
                         : ext === "avif"
                           ? "image/avif"
@@ -2949,8 +2955,8 @@ const mount = () => {
                 (rf ? rf : "") ||
                 (fmt === "mp4"
                   ? "mp4"
-                  : fmt === "mov"
-                    ? "mov"
+                  : fmt === "mpeg"
+                    ? "mpeg"
                     : fmt === "webm" || fmt === "webm_local"
                       ? "webm"
                       : fmt === "avif"
@@ -3019,7 +3025,7 @@ const mount = () => {
           if (next === state.convertKind) return;
           state.convertKind = next;
           try {
-            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
+            convertInput.accept = next === "video" ? "video/*,.mp4,.webm,.mov,.mpeg,.mpg,.avi,.m4v,.mkv,.3gp,.3gpp,.3g2" : "image/*";
           } catch {}
           if (next === "video") {
             state.convertFormat = "mp4";
@@ -3724,14 +3730,15 @@ const mount = () => {
             sheet.footer.innerHTML = "";
 
             if (state.view === "upload") {
+              const dashLoading = Boolean(state.dashLoading);
               try {
-                sheet.content.style.overflow = "visible";
-                sheet.content.style.flex = "0 0 auto";
-                sheet.content.style.minHeight = "auto";
+                sheet.content.style.overflow = dashLoading ? "hidden" : "visible";
+                sheet.content.style.flex = dashLoading ? "1 1 auto" : "0 0 auto";
+                sheet.content.style.minHeight = dashLoading ? "0" : "auto";
 
-                sheet.uploads.style.flex = "1 1 auto";
-                sheet.uploads.style.minHeight = "0";
-                sheet.uploads.style.maxHeight = "";
+                sheet.uploads.style.flex = dashLoading ? "0 0 auto" : "1 1 auto";
+                sheet.uploads.style.minHeight = dashLoading ? "" : "0";
+                sheet.uploads.style.maxHeight = dashLoading ? "min(360px, 42vh)" : "";
                 sheet.uploads.style.overflow = "auto";
 
                 sheet.footer.style.marginTop = "auto";
@@ -4350,7 +4357,7 @@ const mount = () => {
             const other = [];
 
             const imgSet = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "tif", "tiff", "bmp", "heic", "heif"]);
-            const vidSet = new Set(["mp4", "webm", "mov", "avi", "m4v", "mkv", "3gp", "3gpp", "3g2"]);
+            const vidSet = new Set(["mp4", "webm", "mov", "avi", "m4v", "mkv", "mpeg", "mpg", "3gp", "3gpp", "3g2"]);
             const docSet = new Set(["pdf"]);
             const arcSet = new Set(["zip"]);
             const fontSet = new Set(["woff", "woff2", "ttf", "otf", "eot"]);
