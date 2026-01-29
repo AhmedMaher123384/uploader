@@ -3454,7 +3454,7 @@ function createApiRouter(config) {
     token: Joi.string().trim().min(10),
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
-    format: Joi.string().trim().valid("mp4", "webm").default("mp4"),
+    format: Joi.string().trim().valid("mp4", "webm", "mpeg").default("mp4"),
     quality: Joi.number().integer().min(1).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
     name: Joi.string().trim().min(1).max(180).allow("")
@@ -3566,6 +3566,37 @@ function createApiRouter(config) {
           speed === "small" ? "96k" : "128k",
           "-f",
           "webm",
+          "pipe:1"
+        ];
+      } else if (targetFormat === "mpeg") {
+        ext = "mpeg";
+        contentType = "video/mpeg";
+        const baseQ = 32 - Math.round(((quality - 1) * 29) / 99);
+        const qv = Math.max(2, Math.min(31, baseQ));
+        args = [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          "pipe:0",
+          "-map_metadata",
+          "-1",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:v",
+          "mpeg2video",
+          "-q:v",
+          String(qv),
+          "-c:a",
+          "mp2",
+          "-b:a",
+          speed === "small" ? "96k" : "128k",
+          "-ac",
+          "2",
+          "-ar",
+          "48000",
+          "-f",
+          "mpeg",
           "pipe:1"
         ];
       } else {

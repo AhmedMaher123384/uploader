@@ -1832,6 +1832,9 @@ const mount = () => {
               if (format === "mpeg") throw new Error("MPEG local conversion is not supported in this browser");
               throw new Error("MediaRecorder not supported");
             }
+            if (format === "mpeg" && String(mimeType).toLowerCase().indexOf("mpeg") < 0) {
+              throw new Error("MPEG local conversion is not supported in this browser");
+            }
 
             srcUrl = URL.createObjectURL(f);
             video = document.createElement("video");
@@ -2642,19 +2645,18 @@ const mount = () => {
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
                 const targetFmt = isVideo ? (safeTarget || "mp4") : (safeTarget || "keep");
+                const onProg = (p) => {
+                  try {
+                    const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
+                    it.progress = pct;
+                    state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
+                    render();
+                  } catch {}
+                };
                 const out = isVideo
-                  ? await convertVideoOnClient(
-                      f,
-                      { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name },
-                      (p) => {
-                        try {
-                          const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
-                          it.progress = pct;
-                          state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
-                          render();
-                        } catch {}
-                      }
-                    )
+                  ? (targetFmt === "mpeg"
+                      ? await convertOnBackend(f, { format: "mpeg", speed: state.convertSpeed, quality: q, name: it.name }, onProg)
+                      : await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg))
                   : await convertOnBackend(
                       f,
                       {
@@ -2668,14 +2670,7 @@ const mount = () => {
                         mode: "fit",
                         position: ""
                       },
-                      (p) => {
-                        try {
-                          const pct = Math.max(0, Math.min(100, Number(p || 0) || 0));
-                          it.progress = pct;
-                          state.convertOverallProgress = Math.round(((i + pct / 100) / items.length) * 100);
-                          render();
-                        } catch {}
-                      }
+                      onProg
                     );
                 const b = out && out.blob ? out.blob : null;
                 if (!b || !b.size) throw new Error("Empty response");
