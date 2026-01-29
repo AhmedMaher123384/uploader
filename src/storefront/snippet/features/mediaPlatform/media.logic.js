@@ -1863,7 +1863,7 @@ const mount = () => {
 
             const sp = String((opts && opts.speed) || "fast").trim().toLowerCase();
             try {
-              video.playbackRate = sp === "fast" ? 4 : sp === "balanced" ? 2 : 1;
+              video.playbackRate = 1;
             } catch {}
 
             const cap = video.captureStream ? video.captureStream.bind(video) : video.mozCaptureStream ? video.mozCaptureStream.bind(video) : null;
@@ -2624,7 +2624,7 @@ const mount = () => {
           state.convertItems = items;
           render();
 
-          const q = state.convertQuality ? Number(state.convertQuality) : null;
+          const q = state.convertQuality != null ? Number(state.convertQuality) : null;
           try {
             for (let i = 0; i < items.length; i += 1) {
               const it = items[i];
