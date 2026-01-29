@@ -1863,7 +1863,11 @@ const mount = () => {
 
             const sp = String((opts && opts.speed) || "fast").trim().toLowerCase();
             try {
+              video.defaultPlaybackRate = 1;
               video.playbackRate = 1;
+            } catch {}
+            try {
+              video.currentTime = 0;
             } catch {}
 
             const cap = video.captureStream ? video.captureStream.bind(video) : video.mozCaptureStream ? video.mozCaptureStream.bind(video) : null;
@@ -1924,7 +1928,7 @@ const mount = () => {
               recorder.onstop = () => resolve(true);
             });
 
-            recorder.start(250);
+            recorder.start();
 
             const tick = () => {
               try {
@@ -1966,7 +1970,7 @@ const mount = () => {
                 : outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0
                   ? "mp4"
                   : "webm";
-            return { blob: out, format: format === "mpeg" ? "mpeg" : derivedFmt };
+            return { blob: out, format: derivedFmt };
           } finally {
             cleanup();
           }
