@@ -170,39 +170,6 @@ const renderUploadHero = (dash) => {
     try {
       document.removeEventListener("keydown", onPlanKeyDown, true);
     } catch {}
-    try {
-      window.removeEventListener("scroll", positionPlanPop, true);
-    } catch {}
-    try {
-      window.removeEventListener("resize", positionPlanPop, true);
-    } catch {}
-  };
-
-  const positionPlanPop = () => {
-    try {
-      if (!planPop) return;
-      const r = plan.getBoundingClientRect();
-      const vw = Math.max(0, Number(window && window.innerWidth) || 0);
-      const vh = Math.max(0, Number(window && window.innerHeight) || 0);
-      const pad = 10;
-      const maxW = Math.max(240, Math.min(380, vw - pad * 2));
-      planPop.style.maxWidth = String(maxW) + "px";
-      planPop.style.width = "max-content";
-      const pw = Math.min(maxW, Math.max(240, Number(planPop.offsetWidth || 0) || 0));
-      const ph = Math.max(0, Number(planPop.offsetHeight || 0) || 0);
-
-      let left = isArabic() ? (r.right - pw) : r.left;
-      left = Math.max(pad, Math.min(left, vw - pw - pad));
-
-      const belowTop = r.bottom + 8;
-      const aboveTop = r.top - ph - 8;
-      let top = belowTop;
-      if (belowTop + ph > vh - pad && aboveTop >= pad) top = aboveTop;
-      top = Math.max(pad, Math.min(top, vh - ph - pad));
-
-      planPop.style.left = String(Math.round(left)) + "px";
-      planPop.style.top = String(Math.round(top)) + "px";
-    } catch {}
   };
 
   const onPlanDocDown = (e) => {
@@ -222,20 +189,37 @@ const renderUploadHero = (dash) => {
   };
 
   const buildPlanPop = () => {
-    const pop = document.createElement("div");
-    pop.style.position = "fixed";
-    pop.style.zIndex = "100010";
-    pop.style.borderRadius = "14px";
-    pop.style.border = "1px solid rgba(255,255,255,.12)";
-    pop.style.background = "#303030";
-    pop.style.boxShadow = "0 18px 60px rgba(0,0,0,.45)";
-    pop.style.padding = "12px";
-    pop.style.opacity = "0";
-    pop.style.transform = "translateY(-6px)";
-    pop.style.transition = "opacity .14s ease, transform .14s ease";
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.left = "0";
+    overlay.style.right = "0";
+    overlay.style.top = "0";
+    overlay.style.bottom = "0";
+    overlay.style.zIndex = "100010";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.padding = "14px";
+    overlay.style.background = "rgba(0,0,0,.55)";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.webkitBackdropFilter = "blur(6px)";
+    overlay.style.opacity = "0";
+    overlay.style.transition = "opacity .14s ease";
     try {
-      pop.dir = isArabic() ? "rtl" : "ltr";
+      overlay.dir = isArabic() ? "rtl" : "ltr";
     } catch {}
+
+    const panel = document.createElement("div");
+    panel.style.width = "min(620px, 100%)";
+    panel.style.maxHeight = "85vh";
+    panel.style.overflow = "auto";
+    panel.style.borderRadius = "18px";
+    panel.style.border = "1px solid rgba(255,255,255,.14)";
+    panel.style.background = "#303030";
+    panel.style.boxShadow = "0 26px 90px rgba(0,0,0,.55)";
+    panel.style.padding = "14px";
+    panel.style.transform = "translateY(6px)";
+    panel.style.transition = "transform .14s ease";
 
     const key = String(planKey || "basic").trim().toLowerCase() || "basic";
     const name = planLabel(key);
@@ -280,16 +264,16 @@ const renderUploadHero = (dash) => {
     head.style.alignItems = "center";
     head.style.justifyContent = "space-between";
     head.style.gap = "10px";
-    head.style.marginBottom = "8px";
+    head.style.marginBottom = "10px";
 
     const title = document.createElement("div");
-    title.style.fontSize = "12px";
+    title.style.fontSize = "13px";
     title.style.fontWeight = "950";
     title.style.color = "#fff";
     title.style.whiteSpace = "nowrap";
     title.style.overflow = "hidden";
     title.style.textOverflow = "ellipsis";
-    title.textContent = isArabic() ? ("تفاصيل باقة " + name) : (name + " plan details");
+    title.textContent = isArabic() ? ("تفاصيل باقة " + name) : (name + " Plan Details");
 
     const x = document.createElement("button");
     x.type = "button";
@@ -313,54 +297,144 @@ const renderUploadHero = (dash) => {
 
     head.appendChild(title);
     head.appendChild(x);
-    pop.appendChild(head);
+    panel.appendChild(head);
 
-    const mkRow = (kLabel, val) => {
-      const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.alignItems = "baseline";
-      row.style.justifyContent = "space-between";
-      row.style.gap = "12px";
-      row.style.padding = "6px 0";
-      row.style.borderTop = "1px solid rgba(255,255,255,.07)";
+    const sub = document.createElement("div");
+    sub.style.fontSize = "11px";
+    sub.style.fontWeight = "800";
+    sub.style.color = "rgba(255,255,255,.70)";
+    sub.style.marginBottom = "10px";
+    sub.textContent =
+      key === "business"
+        ? (isArabic() ? "أقصى مرونة للمشاريع الكبيرة" : "Maximum flexibility for large teams")
+        : key === "pro"
+          ? (isArabic() ? "المميزات المتقدمة لصنّاع المحتوى" : "Advanced features for creators")
+          : (isArabic() ? "أساسيات الرفع والاستخدام اليومي" : "Essentials for daily use");
+    panel.appendChild(sub);
+
+    const grid = document.createElement("div");
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+    grid.style.gap = "10px";
+    try {
+      const vw = Number(window && window.innerWidth) || 0;
+      if (vw && vw < 520) grid.style.gridTemplateColumns = "repeat(1, minmax(0, 1fr))";
+    } catch {}
+
+    const mkStat = (label, value) => {
+      const box = document.createElement("div");
+      box.style.border = "1px solid rgba(255,255,255,.10)";
+      box.style.background = "rgba(255,255,255,.04)";
+      box.style.borderRadius = "14px";
+      box.style.padding = "10px";
+      box.style.display = "flex";
+      box.style.flexDirection = "column";
+      box.style.gap = "6px";
 
       const a = document.createElement("div");
       a.style.fontSize = "11px";
       a.style.fontWeight = "900";
-      a.style.color = "rgba(255,255,255,.72)";
-      a.style.whiteSpace = "nowrap";
-      a.textContent = String(kLabel || "");
+      a.style.color = "rgba(255,255,255,.70)";
+      a.textContent = String(label || "");
 
       const b = document.createElement("div");
-      b.style.fontSize = "11px";
-      b.style.fontWeight = "900";
+      b.style.fontSize = "13px";
+      b.style.fontWeight = "950";
       b.style.color = "#fff";
-      b.style.minWidth = "0";
-      b.style.textAlign = isArabic() ? "left" : "right";
       b.style.direction = "ltr";
       b.style.whiteSpace = "nowrap";
       b.style.overflow = "hidden";
       b.style.textOverflow = "ellipsis";
-      b.textContent = String(val || "—");
+      b.textContent = String(value || "—");
 
-      row.appendChild(a);
-      row.appendChild(b);
-      return row;
+      box.appendChild(a);
+      box.appendChild(b);
+      return box;
     };
 
-    pop.appendChild(mkRow(isArabic() ? "مساحة التخزين" : "Storage", maxStorage || "—"));
-    pop.appendChild(mkRow(isArabic() ? "حد حجم الملف" : "Max file size", maxFile || "—"));
-    if (uploadPerRun != null) pop.appendChild(mkRow(isArabic() ? "رفع دفعة واحدة" : "Upload per run", String(uploadPerRun)));
-    if (compressPerRun != null) pop.appendChild(mkRow(isArabic() ? "ضغط صور دفعة واحدة" : "Compress per run", String(compressPerRun)));
-    pop.appendChild(
-      mkRow(
+    grid.appendChild(mkStat(isArabic() ? "مساحة التخزين" : "Storage", maxStorage || "—"));
+    grid.appendChild(mkStat(isArabic() ? "حد حجم الملف" : "Max file", maxFile || "—"));
+    if (uploadPerRun != null) grid.appendChild(mkStat(isArabic() ? "رفع دفعة واحدة" : "Upload per run", String(uploadPerRun)));
+    if (compressPerRun != null) grid.appendChild(mkStat(isArabic() ? "ضغط صور دفعة واحدة" : "Compress per run", String(compressPerRun)));
+    grid.appendChild(
+      mkStat(
         isArabic() ? "تحويل الصيغ" : "Conversion",
-        convertPerRun && Number(convertPerRun) > 0 ? (isArabic() ? ("متاح (حتى " + String(convertPerRun) + ")") : ("Available (up to " + String(convertPerRun) + ")")) : (isArabic() ? "غير متاح" : "Not available")
+        convertPerRun && Number(convertPerRun) > 0
+          ? (isArabic() ? ("متاح (حتى " + String(convertPerRun) + " ملف)") : ("Available (up to " + String(convertPerRun) + " files)"))
+          : (isArabic() ? "غير متاح" : "Not available")
       )
     );
-    pop.appendChild(mkRow(isArabic() ? "الصيغ" : "Formats", formatsSummary));
+    grid.appendChild(mkStat(isArabic() ? "الصيغ" : "Formats", formatsSummary));
+    panel.appendChild(grid);
 
-    return pop;
+    const featsTitle = document.createElement("div");
+    featsTitle.style.marginTop = "12px";
+    featsTitle.style.fontSize = "12px";
+    featsTitle.style.fontWeight = "950";
+    featsTitle.style.color = "#fff";
+    featsTitle.textContent = isArabic() ? "المميزات" : "Features";
+    panel.appendChild(featsTitle);
+
+    const feats = document.createElement("div");
+    feats.style.display = "flex";
+    feats.style.flexDirection = "column";
+    feats.style.gap = "6px";
+    feats.style.marginTop = "8px";
+
+    const list = (() => {
+      if (key === "business")
+        return isArabic()
+          ? ["رفع عدد كبير من الملفات دفعة واحدة", "تحويل صيغ متقدم", "ضغط صور دفعات", "مرونة صيغ أوسع", "حدود أعلى للاستخدام"]
+          : ["Upload large batches", "Advanced conversion", "Batch image compression", "Wider formats support", "Higher limits"];
+      if (key === "pro")
+        return isArabic()
+          ? ["رفع حتى 10 ملفات دفعة واحدة", "تحويل صيغ حتى 10 ملفات", "ضغط صور حتى 10 ملفات", "صيغ إضافية (SVG/Fonts/ZIP/JSON/CSS)"]
+          : ["Upload up to 10 files per run", "Convert up to 10 files", "Compress up to 10 images", "Extra formats (SVG/Fonts/ZIP/JSON/CSS)"];
+      return isArabic()
+        ? ["رفع ملف واحد في المرة", "ضغط صورة واحدة", "بدون تحويل صيغ", "صيغ أساسية للرفع"]
+        : ["Upload 1 file per run", "Compress 1 image", "No conversion", "Basic upload formats"];
+    })();
+
+    const mkFeat = (t) => {
+      const r = document.createElement("div");
+      r.style.display = "flex";
+      r.style.alignItems = "flex-start";
+      r.style.gap = "8px";
+      r.style.padding = "8px 10px";
+      r.style.borderRadius = "14px";
+      r.style.border = "1px solid rgba(255,255,255,.08)";
+      r.style.background = "rgba(255,255,255,.03)";
+
+      const dot = document.createElement("div");
+      dot.setAttribute("aria-hidden", "true");
+      dot.style.width = "8px";
+      dot.style.height = "8px";
+      dot.style.borderRadius = "999px";
+      dot.style.marginTop = "5px";
+      dot.style.background = "rgba(24,181,213,.95)";
+
+      const txt = document.createElement("div");
+      txt.style.fontSize = "11px";
+      txt.style.fontWeight = "850";
+      txt.style.color = "rgba(255,255,255,.82)";
+      txt.style.lineHeight = "1.4";
+      txt.textContent = String(t || "");
+
+      r.appendChild(dot);
+      r.appendChild(txt);
+      return r;
+    };
+
+    for (let i = 0; i < list.length; i += 1) feats.appendChild(mkFeat(list[i]));
+    panel.appendChild(feats);
+
+    overlay.appendChild(panel);
+    overlay.onclick = (e) => {
+      try {
+        if (e && e.target === overlay) closePlanPop();
+      } catch {}
+    };
+    return overlay;
   };
 
   const openPlanPop = () => {
@@ -371,13 +445,15 @@ const renderUploadHero = (dash) => {
       }
       planPop = buildPlanPop();
       document.body.appendChild(planPop);
-      positionPlanPop();
       try {
         requestAnimationFrame(() => {
           try {
             if (!planPop) return;
             planPop.style.opacity = "1";
-            planPop.style.transform = "translateY(0)";
+            const panel = planPop.querySelector ? planPop.querySelector("div") : null;
+            try {
+              if (panel && panel.style) panel.style.transform = "translateY(0)";
+            } catch {}
           } catch {}
         });
       } catch {}
@@ -386,12 +462,6 @@ const renderUploadHero = (dash) => {
       } catch {}
       try {
         document.addEventListener("keydown", onPlanKeyDown, true);
-      } catch {}
-      try {
-        window.addEventListener("scroll", positionPlanPop, true);
-      } catch {}
-      try {
-        window.addEventListener("resize", positionPlanPop, true);
       } catch {}
     } catch {}
   };
@@ -581,7 +651,7 @@ const renderSmartStats = (dash) => {
     const list = document.createElement("div");
     list.style.display = "flex";
     list.style.flexDirection = "column";
-    list.style.gap = isMobile ? "5px" : "6px";
+    list.style.gap = isMobile ? "4px" : "5px";
 
     const mkRow = (dotColor, label, count) => {
       const row = document.createElement("div");
@@ -589,10 +659,10 @@ const renderSmartStats = (dash) => {
       row.style.alignItems = "center";
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
-      row.style.padding = "5px 7px";
-      row.style.border = "1px solid rgba(255,255,255,.08)";
-      row.style.background = "rgba(255,255,255,.04)";
-      row.style.borderRadius = "11px";
+      row.style.padding = "4px 6px";
+      row.style.border = "1px solid rgba(255,255,255,.06)";
+      row.style.background = "rgba(255,255,255,.03)";
+      row.style.borderRadius = "10px";
 
       const left = document.createElement("div");
       left.style.display = "flex";
@@ -602,14 +672,14 @@ const renderSmartStats = (dash) => {
 
       const dot = document.createElement("span");
       dot.setAttribute("aria-hidden", "true");
-      dot.style.width = "6px";
-      dot.style.height = "6px";
+      dot.style.width = "5px";
+      dot.style.height = "5px";
       dot.style.borderRadius = "999px";
       dot.style.background = String(dotColor || "#18b5d5");
       dot.style.boxShadow = "0 0 0 3px rgba(255,255,255,.03)";
 
       const txt = document.createElement("div");
-      txt.style.fontSize = isMobile ? "9px" : "10px";
+      txt.style.fontSize = isMobile ? "8px" : "9px";
       txt.style.fontWeight = "900";
       txt.style.color = "rgba(255,255,255,.78)";
       txt.style.whiteSpace = "nowrap";
@@ -621,7 +691,7 @@ const renderSmartStats = (dash) => {
       left.appendChild(txt);
 
       const val = document.createElement("div");
-      val.style.fontSize = isMobile ? "9px" : "10px";
+      val.style.fontSize = isMobile ? "8px" : "9px";
       val.style.fontWeight = "950";
       val.style.color = "#fff";
       val.style.whiteSpace = "nowrap";
@@ -633,8 +703,8 @@ const renderSmartStats = (dash) => {
     };
 
     list.appendChild(mkRow("rgba(24,181,213,.95)", isArabic() ? "الصور" : "Images", imagesCount));
-    list.appendChild(mkRow("rgba(167,139,250,.95)", isArabic() ? "الفيديو" : "Videos", videosCount));
-    list.appendChild(mkRow("rgba(255,255,255,.55)", isArabic() ? "أخرى" : "Other", otherCount));
+    list.appendChild(mkRow("rgba(167,139,250,.95)", isArabic() ? "الفيديوهات" : "Videos", videosCount));
+    list.appendChild(mkRow("rgba(255,255,255,.55)", isArabic() ? "ملفات أخرى" : "Other files", otherCount));
 
     c.appendChild(top);
     c.appendChild(list);
@@ -693,18 +763,14 @@ const renderSmartStats = (dash) => {
     line.style.textAlign = "left";
     line.style.letterSpacing = ".1px";
     const over = Math.max(0, usedBytes - maxBytes);
-    const pctLabel =
-      usedBytes > 0 && pctPrecise > 0 && pctPrecise < 1
-        ? (isArabic() ? "أقل من 1%" : "<1%")
-        : String(pct) + "%";
     line.textContent =
       over > 0
         ? (isArabic()
-            ? (fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain) + " • " + pctLabel + " • زيادة " + fmtBytes(over))
-            : (fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left • " + pctLabel + " • over " + fmtBytes(over)))
+            ? ("تم استخدام " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • تجاوز +" + fmtBytes(over))
+            : ("Used " + fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • over +" + fmtBytes(over)))
         : (isArabic()
-            ? (fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain) + " • " + pctLabel)
-            : (fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left • " + pctLabel));
+            ? ("تم استخدام " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain))
+            : ("Used " + fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left"));
 
     const bar = document.createElement("div");
     bar.style.height = "8px";
