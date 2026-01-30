@@ -581,7 +581,7 @@ const renderSmartStats = (dash) => {
     const list = document.createElement("div");
     list.style.display = "flex";
     list.style.flexDirection = "column";
-    list.style.gap = isMobile ? "6px" : "7px";
+    list.style.gap = isMobile ? "5px" : "6px";
 
     const mkRow = (dotColor, label, count) => {
       const row = document.createElement("div");
@@ -589,10 +589,10 @@ const renderSmartStats = (dash) => {
       row.style.alignItems = "center";
       row.style.justifyContent = "space-between";
       row.style.gap = "10px";
-      row.style.padding = "6px 8px";
+      row.style.padding = "5px 7px";
       row.style.border = "1px solid rgba(255,255,255,.08)";
       row.style.background = "rgba(255,255,255,.04)";
-      row.style.borderRadius = "12px";
+      row.style.borderRadius = "11px";
 
       const left = document.createElement("div");
       left.style.display = "flex";
@@ -602,14 +602,14 @@ const renderSmartStats = (dash) => {
 
       const dot = document.createElement("span");
       dot.setAttribute("aria-hidden", "true");
-      dot.style.width = "7px";
-      dot.style.height = "7px";
+      dot.style.width = "6px";
+      dot.style.height = "6px";
       dot.style.borderRadius = "999px";
       dot.style.background = String(dotColor || "#18b5d5");
       dot.style.boxShadow = "0 0 0 3px rgba(255,255,255,.03)";
 
       const txt = document.createElement("div");
-      txt.style.fontSize = isMobile ? "10px" : "11px";
+      txt.style.fontSize = isMobile ? "9px" : "10px";
       txt.style.fontWeight = "900";
       txt.style.color = "rgba(255,255,255,.78)";
       txt.style.whiteSpace = "nowrap";
@@ -621,7 +621,7 @@ const renderSmartStats = (dash) => {
       left.appendChild(txt);
 
       const val = document.createElement("div");
-      val.style.fontSize = isMobile ? "10px" : "11px";
+      val.style.fontSize = isMobile ? "9px" : "10px";
       val.style.fontWeight = "950";
       val.style.color = "#fff";
       val.style.whiteSpace = "nowrap";
@@ -655,7 +655,9 @@ const renderSmartStats = (dash) => {
     const maxBytes = maxStorageBytesForPlan();
     const usedBytes = Math.max(0, totalBytes);
     const safeMax = Math.max(1, maxBytes);
-    const pct = Math.max(0, Math.min(100, Math.round((usedBytes / safeMax) * 100)));
+    const pctPrecise = Math.max(0, Math.min(100, (usedBytes / safeMax) * 100));
+    const pct = Math.max(0, Math.min(100, Math.round(pctPrecise)));
+    const remain = Math.max(0, maxBytes - usedBytes);
 
     const c = document.createElement("div");
     c.style.border = "1px solid rgba(255,255,255,.10)";
@@ -682,7 +684,7 @@ const renderSmartStats = (dash) => {
 
     const line = document.createElement("div");
     line.style.fontSize = isMobile ? "10px" : "11px";
-    line.style.fontWeight = "800";
+    line.style.fontWeight = "700";
     line.style.color = "rgba(255,255,255,.82)";
     line.style.whiteSpace = "nowrap";
     line.style.overflow = "hidden";
@@ -691,17 +693,40 @@ const renderSmartStats = (dash) => {
     line.style.textAlign = "left";
     line.style.letterSpacing = ".1px";
     const over = Math.max(0, usedBytes - maxBytes);
+    const pctLabel =
+      usedBytes > 0 && pctPrecise > 0 && pctPrecise < 1
+        ? (isArabic() ? "أقل من 1%" : "<1%")
+        : String(pct) + "%";
     line.textContent =
       over > 0
         ? (isArabic()
-            ? ("مستخدم " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • " + String(pct) + "% • زيادة " + fmtBytes(over))
-            : (fmtBytes(usedBytes) + " used of " + fmtBytes(maxBytes) + " • " + String(pct) + "% • over " + fmtBytes(over)))
+            ? (fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain) + " • " + pctLabel + " • زيادة " + fmtBytes(over))
+            : (fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left • " + pctLabel + " • over " + fmtBytes(over)))
         : (isArabic()
-            ? ("مستخدم " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • " + String(pct) + "%")
-            : (fmtBytes(usedBytes) + " used of " + fmtBytes(maxBytes) + " • " + String(pct) + "%"));
+            ? (fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain) + " • " + pctLabel)
+            : (fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left • " + pctLabel));
+
+    const bar = document.createElement("div");
+    bar.style.height = "8px";
+    bar.style.borderRadius = "999px";
+    bar.style.background = "rgba(255,255,255,.08)";
+    bar.style.border = "1px solid rgba(255,255,255,.10)";
+    bar.style.overflow = "hidden";
+
+    const fill = document.createElement("div");
+    fill.style.height = "100%";
+    const fillPct = usedBytes > 0 && pctPrecise > 0 && pctPrecise < 1 ? 1 : pctPrecise;
+    fill.style.width = String(Math.max(0, Math.min(100, fillPct))) + "%";
+    fill.style.borderRadius = "999px";
+    fill.style.background =
+      over > 0
+        ? "linear-gradient(90deg, rgba(239,68,68,.95), rgba(239,68,68,.55))"
+        : "linear-gradient(90deg, rgba(24,181,213,.95), rgba(24,181,213,.55))";
+    bar.appendChild(fill);
 
     c.appendChild(head);
     c.appendChild(line);
+    c.appendChild(bar);
     return c;
   };
 
