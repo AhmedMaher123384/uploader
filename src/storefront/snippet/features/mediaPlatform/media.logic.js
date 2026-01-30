@@ -195,6 +195,17 @@ const buildUrl = (path, params = {}) => {
   u.searchParams.set("token", token);
   return u.toString();
 };
+
+const buildPublicUrl = (path, params = {}) => {
+  const origin = getBackendOrigin();
+  if (!origin) return null;
+  const u = new URL(origin + path);
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v == null || String(v) === "") continue;
+    u.searchParams.set(String(k), String(v));
+  }
+  return u.toString();
+};
 `,
   `
 const fetchJson = async (url, opts = {}) => {
@@ -1816,6 +1827,10 @@ const mount = () => {
               "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js",
               "https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"
             ];
+            try {
+              const u = buildPublicUrl("/api/storefront/ffmpeg/ffmpeg.min.js");
+              if (u) ffmpegUmd.push(u);
+            } catch {}
             let ffmpegUmdOk = false;
             for (let i = 0; i < ffmpegUmd.length; i += 1) {
               try {
@@ -1833,6 +1848,10 @@ const mount = () => {
               "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js",
               "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
             ];
+            try {
+              const u = buildPublicUrl("/api/storefront/ffmpeg/ffmpeg-core.js");
+              if (u) coreCandidates.push(u);
+            } catch {}
             const pickCore = async () => {
               for (let i = 0; i < coreCandidates.length; i += 1) {
                 const u = coreCandidates[i];
