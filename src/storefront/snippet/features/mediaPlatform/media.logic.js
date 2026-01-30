@@ -1812,13 +1812,41 @@ const mount = () => {
             if (window.__bundleAppFfmpegWasmPromise) return await window.__bundleAppFfmpegWasmPromise;
           } catch {}
           const p = (async () => {
-            await loadScriptOnce("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js", "ffmpeg@0.12.10");
+            const ffmpegUmd = [
+              "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js",
+              "https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"
+            ];
+            let ffmpegUmdOk = false;
+            for (let i = 0; i < ffmpegUmd.length; i += 1) {
+              try {
+                await loadScriptOnce(ffmpegUmd[i], "ffmpeg@0.12.10");
+                ffmpegUmdOk = true;
+                break;
+              } catch {}
+            }
+            if (!ffmpegUmdOk) throw new Error("FFmpeg wasm not available");
             const mod = (typeof window !== "undefined" && window.FFmpeg) ? window.FFmpeg : null;
             const createFFmpeg = mod && typeof mod.createFFmpeg === "function" ? mod.createFFmpeg : null;
             if (!createFFmpeg) throw new Error("FFmpeg wasm not available");
+
+            const coreCandidates = [
+              "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js",
+              "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
+            ];
+            const pickCore = async () => {
+              for (let i = 0; i < coreCandidates.length; i += 1) {
+                const u = coreCandidates[i];
+                try {
+                  const resp = await fetch(u, { method: "HEAD", cache: "force-cache" });
+                  if (resp && resp.ok) return u;
+                } catch {}
+              }
+              return coreCandidates[0];
+            };
+
             const ffmpeg = createFFmpeg({
               log: false,
-              corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/ffmpeg-core.js"
+              corePath: await pickCore()
             });
             try {
               await ffmpeg.load();
