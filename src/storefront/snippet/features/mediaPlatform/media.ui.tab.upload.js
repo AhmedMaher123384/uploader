@@ -228,6 +228,8 @@ const statCard = (label, value) => {
 const renderSmartStats = (dash) => {
   const d = dash && typeof dash === "object" ? dash : {};
   const s = d.summary && typeof d.summary === "object" ? d.summary : {};
+  const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+  const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
   const lastAsset = (() => {
     try {
       return d.lastAsset && typeof d.lastAsset === "object" ? d.lastAsset : {};
@@ -267,7 +269,91 @@ const renderSmartStats = (dash) => {
   const totalFiles = Number(s.total || 0) || 0;
   const totalBytes = Number(s.totalBytes || 0) || 0;
   const lastAt = String(s.lastAt || "").trim();
-  grid.appendChild(statCard(isArabic() ? "إجمالي الملفات" : "Total files", String(totalFiles)));
+
+  const imagesCount = Math.max(0, Number(s.images || 0) || 0);
+  const videosCount = Math.max(0, Number(s.videos || 0) || 0);
+  const otherCount = Math.max(0, totalFiles - imagesCount - videosCount);
+
+  const renderTotalFilesCard = () => {
+    const c = document.createElement("div");
+    c.style.border = "1px solid rgba(255,255,255,.10)";
+    c.style.borderRadius = isMobile ? "12px" : "14px";
+    c.style.background = "#373737";
+    c.style.padding = isMobile ? (isTiny ? "9px" : "10px") : "12px";
+    c.style.display = "flex";
+    c.style.flexDirection = "column";
+    c.style.gap = isMobile ? "8px" : "10px";
+
+    const top = document.createElement("div");
+    top.style.display = "flex";
+    top.style.alignItems = "baseline";
+    top.style.justifyContent = "space-between";
+    top.style.gap = "10px";
+
+    const l = document.createElement("div");
+    l.style.fontSize = isMobile ? "12px" : "13px";
+    l.style.fontWeight = "900";
+    l.style.color = "rgba(255,255,255,.78)";
+    l.textContent = isArabic() ? "إجمالي الملفات" : "Total files";
+
+    const v = document.createElement("div");
+    v.style.fontSize = isMobile ? (isTiny ? "20px" : "22px") : "26px";
+    v.style.fontWeight = "950";
+    v.style.color = "#fff";
+    v.style.lineHeight = "1";
+    v.style.letterSpacing = "-.2px";
+    v.textContent = String(totalFiles);
+
+    top.appendChild(l);
+    top.appendChild(v);
+
+    const chips = document.createElement("div");
+    chips.style.display = "flex";
+    chips.style.flexWrap = "wrap";
+    chips.style.gap = isMobile ? "6px" : "8px";
+
+    const mkChip = (color, label, count) => {
+      const chip = document.createElement("div");
+      chip.style.display = "inline-flex";
+      chip.style.alignItems = "center";
+      chip.style.justifyContent = "center";
+      chip.style.gap = "8px";
+      chip.style.border = "1px solid rgba(255,255,255,.10)";
+      chip.style.background = "rgba(255,255,255,.05)";
+      chip.style.borderRadius = "999px";
+      chip.style.padding = isMobile ? "6px 10px" : "7px 12px";
+      chip.style.lineHeight = "1";
+
+      const dot = document.createElement("span");
+      dot.setAttribute("aria-hidden", "true");
+      dot.style.width = "8px";
+      dot.style.height = "8px";
+      dot.style.borderRadius = "999px";
+      dot.style.background = String(color || "#18b5d5");
+      dot.style.boxShadow = "0 0 0 3px rgba(255,255,255,.03)";
+
+      const txt = document.createElement("span");
+      txt.style.fontSize = isMobile ? "10px" : "11px";
+      txt.style.fontWeight = "950";
+      txt.style.color = "rgba(255,255,255,.80)";
+      txt.style.whiteSpace = "nowrap";
+      txt.textContent = (isArabic() ? label + ": " : label + ": ") + String(count);
+
+      chip.appendChild(dot);
+      chip.appendChild(txt);
+      return chip;
+    };
+
+    chips.appendChild(mkChip("rgba(24,181,213,.95)", isArabic() ? "صور" : "Images", imagesCount));
+    chips.appendChild(mkChip("rgba(167,139,250,.95)", isArabic() ? "فيديو" : "Video", videosCount));
+    chips.appendChild(mkChip("rgba(255,255,255,.55)", isArabic() ? "أخرى" : "Other", otherCount));
+
+    c.appendChild(top);
+    c.appendChild(chips);
+    return c;
+  };
+
+  grid.appendChild(renderTotalFilesCard());
 
   const bytesFromGb = (gb) => Math.floor(Math.max(0, Number(gb || 0)) * 1024 * 1024 * 1024);
   const maxStorageBytesForPlan = () => {
@@ -286,12 +372,12 @@ const renderSmartStats = (dash) => {
 
     const c = document.createElement("div");
     c.style.border = "1px solid rgba(255,255,255,.10)";
-    c.style.borderRadius = "14px";
+    c.style.borderRadius = isMobile ? "12px" : "14px";
     c.style.background = "#373737";
-    c.style.padding = "12px";
+    c.style.padding = isMobile ? (isTiny ? "9px" : "10px") : "12px";
     c.style.display = "flex";
     c.style.flexDirection = "column";
-    c.style.gap = "10px";
+    c.style.gap = isMobile ? "8px" : "10px";
 
     const head = document.createElement("div");
     head.style.display = "flex";
@@ -300,7 +386,7 @@ const renderSmartStats = (dash) => {
     head.style.gap = "10px";
 
     const l = document.createElement("div");
-    l.style.fontSize = "12px";
+    l.style.fontSize = isMobile ? "12px" : "13px";
     l.style.fontWeight = "900";
     l.style.color = "rgba(255,255,255,.78)";
     l.textContent = isArabic() ? "الحجم الكلي" : "Total size";
@@ -319,8 +405,36 @@ const renderSmartStats = (dash) => {
     head.appendChild(l);
     head.appendChild(chip);
 
+    const valueRow = document.createElement("div");
+    valueRow.style.display = "flex";
+    valueRow.style.alignItems = "baseline";
+    valueRow.style.justifyContent = "space-between";
+    valueRow.style.gap = "10px";
+
+    const v = document.createElement("div");
+    v.style.fontSize = isMobile ? (isTiny ? "14px" : "15px") : "18px";
+    v.style.fontWeight = "950";
+    v.style.color = "#fff";
+    v.style.letterSpacing = "-.2px";
+    v.style.direction = "ltr";
+    v.style.textAlign = "left";
+    v.style.whiteSpace = "nowrap";
+    v.style.overflow = "hidden";
+    v.style.textOverflow = "ellipsis";
+    v.textContent = fmtBytes(usedBytes) + (isArabic() ? " من " : " from ") + fmtBytes(maxBytes);
+
+    const hint = document.createElement("div");
+    hint.style.fontSize = "11px";
+    hint.style.fontWeight = "900";
+    hint.style.color = "rgba(255,255,255,.62)";
+    hint.style.whiteSpace = "nowrap";
+    hint.textContent = isArabic() ? ("متبقي " + fmtBytes(remain)) : ("Remaining " + fmtBytes(remain));
+
+    valueRow.appendChild(v);
+    valueRow.appendChild(hint);
+
     const bar = document.createElement("div");
-    bar.style.height = "10px";
+    bar.style.height = "9px";
     bar.style.borderRadius = "999px";
     bar.style.background = "rgba(255,255,255,.08)";
     bar.style.border = "1px solid rgba(255,255,255,.10)";
@@ -330,74 +444,178 @@ const renderSmartStats = (dash) => {
     fill.style.height = "100%";
     fill.style.width = String(pct) + "%";
     fill.style.borderRadius = "999px";
-    fill.style.background = "rgba(24,181,213,.92)";
+    fill.style.background = "linear-gradient(90deg, rgba(24,181,213,.95), rgba(24,181,213,.55))";
     bar.appendChild(fill);
 
-    const scale = document.createElement("div");
-    scale.style.display = "flex";
-    scale.style.alignItems = "center";
-    scale.style.justifyContent = "space-between";
-    scale.style.gap = "10px";
-
-    const used = document.createElement("div");
-    used.style.fontSize = "11px";
-    used.style.fontWeight = "950";
-    used.style.color = "rgba(255,255,255,.72)";
-    used.style.whiteSpace = "nowrap";
-    used.textContent = fmtBytes(usedBytes);
-
-    const max = document.createElement("div");
-    max.style.fontSize = "11px";
-    max.style.fontWeight = "950";
-    max.style.color = "rgba(255,255,255,.72)";
-    max.style.whiteSpace = "nowrap";
-    max.textContent = fmtBytes(maxBytes);
-
-    scale.appendChild(used);
-    scale.appendChild(max);
-
-    const hint = document.createElement("div");
-    hint.style.fontSize = "12px";
-    hint.style.fontWeight = "900";
-    hint.style.color = "rgba(255,255,255,.65)";
-    hint.textContent = isArabic()
-      ? ("المتبقي: " + fmtBytes(remain))
-      : ("Remaining: " + fmtBytes(remain));
-
     c.appendChild(head);
+    c.appendChild(valueRow);
     c.appendChild(bar);
-    c.appendChild(scale);
-    c.appendChild(hint);
     return c;
   };
 
   const renderLastUploadCard = () => {
     const c = document.createElement("div");
     c.style.border = "1px solid rgba(255,255,255,.10)";
-    c.style.borderRadius = "14px";
+    c.style.borderRadius = isMobile ? "12px" : "14px";
     c.style.background = "#373737";
-    c.style.padding = "12px";
+    c.style.padding = isMobile ? (isTiny ? "9px" : "10px") : "12px";
     c.style.display = "flex";
     c.style.flexDirection = "column";
-    c.style.gap = "8px";
+    c.style.gap = isMobile ? "8px" : "10px";
 
     const l = document.createElement("div");
-    l.style.fontSize = "13px";
+    l.style.fontSize = isMobile ? "12px" : "13px";
     l.style.fontWeight = "900";
     l.style.color = "rgba(255,255,255,.78)";
     l.textContent = isArabic() ? "آخر رفع" : "Last upload";
 
-    const v = document.createElement("div");
-    v.style.fontSize = "18px";
-    v.style.fontWeight = "950";
-    v.style.color = "#fff";
-    v.textContent = lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—");
-
     c.appendChild(l);
-    c.appendChild(v);
 
-    const linkBlock = lastUrl ? renderLinkBlock(lastUrl, { compact: true }) : null;
-    if (linkBlock) c.appendChild(linkBlock);
+    const stripTokenFromUrl = (raw) => {
+      const u = String(raw || "");
+      if (!u) return "";
+      try {
+        const x = new URL(u, window.location.origin);
+        try {
+          x.searchParams.delete("token");
+        } catch {}
+        return x.toString();
+      } catch {
+        return u;
+      }
+    };
+
+    const cleanUrl = stripTokenFromUrl(lastUrl);
+    const displayUrl = (() => {
+      const raw = String(cleanUrl || "").trim();
+      if (!raw) return "";
+      try {
+        const x = new URL(raw, window.location.origin);
+        const host = String(x.hostname || "").trim();
+        const parts = String(x.pathname || "").split("/").filter(Boolean);
+        const tailRaw = String(parts[parts.length - 1] || "").trim();
+        const tail = tailRaw.length > 18 ? tailRaw.slice(0, 9) + "…" + tailRaw.slice(-7) : tailRaw;
+        const out = (host ? host + "/" : "") + (tail || "");
+        return out || raw;
+      } catch {
+        return raw.length > 34 ? raw.slice(0, 16) + "…" + raw.slice(-16) : raw;
+      }
+    })();
+
+    const mkIconBtn = (label, tone, iconClass) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.setAttribute("aria-label", label);
+      el.setAttribute("title", label);
+      el.style.width = "30px";
+      el.style.height = "30px";
+      el.style.borderRadius = "999px";
+      el.style.display = "grid";
+      el.style.placeItems = "center";
+      el.style.border = "1px solid rgba(255,255,255,.10)";
+      el.style.background =
+        tone === "brand" ? "rgba(24,181,213,.15)" : tone === "neutral" ? "rgba(255,255,255,.06)" : "rgba(239,68,68,.12)";
+      el.style.color = tone === "brand" ? "#18b5d5" : "#fff";
+      el.style.cursor = "pointer";
+      el.style.padding = "0";
+      const ic = document.createElement("i");
+      ic.className = String(iconClass || "");
+      ic.setAttribute("aria-hidden", "true");
+      ic.style.display = "block";
+      ic.style.fontSize = "14px";
+      ic.style.lineHeight = "1";
+      ic.style.opacity = "0.95";
+      el.appendChild(ic);
+      el.onmouseenter = () => {
+        try {
+          el.style.background = tone === "brand" ? "rgba(24,181,213,.22)" : "rgba(255,255,255,.10)";
+        } catch {}
+      };
+      el.onmouseleave = () => {
+        try {
+          el.style.background =
+            tone === "brand" ? "rgba(24,181,213,.15)" : tone === "neutral" ? "rgba(255,255,255,.06)" : "rgba(239,68,68,.12)";
+        } catch {}
+      };
+      return el;
+    };
+
+    const linkRow = document.createElement("div");
+    linkRow.style.display = "flex";
+    linkRow.style.alignItems = "center";
+    linkRow.style.justifyContent = "space-between";
+    linkRow.style.gap = "8px";
+    linkRow.style.padding = isMobile ? "8px 10px" : "9px 12px";
+    linkRow.style.borderRadius = "12px";
+    linkRow.style.border = "1px solid rgba(255,255,255,.10)";
+    linkRow.style.background = "#303030";
+
+    const a = document.createElement("a");
+    a.href = cleanUrl || "#";
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.style.minWidth = "0";
+    a.style.flex = "1 1 auto";
+    a.style.display = "block";
+    a.style.direction = "ltr";
+    a.style.textAlign = "left";
+    a.style.color = "#18b5d5";
+    a.style.fontSize = isMobile ? "11px" : "12px";
+    a.style.fontWeight = "950";
+    a.style.textDecoration = "none";
+    a.style.whiteSpace = "nowrap";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+    a.textContent = displayUrl || (isArabic() ? "—" : "—");
+    a.onclick = (e) => {
+      try {
+        if (!cleanUrl) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } catch {}
+    };
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.alignItems = "center";
+    actions.style.gap = "6px";
+    actions.style.flex = "0 0 auto";
+
+    const openBtn = mkIconBtn(isArabic() ? "فتح" : "Open", "neutral", "sicon-share");
+    openBtn.onclick = (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!cleanUrl) return;
+        window.open(cleanUrl, "_blank", "noopener");
+      } catch {}
+    };
+
+    const copyBtn = mkIconBtn(isArabic() ? "نسخ" : "Copy", "brand", "sicon-swap-fill");
+    copyBtn.onclick = (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!cleanUrl) return;
+        copyText(cleanUrl);
+      } catch {}
+    };
+
+    actions.appendChild(openBtn);
+    actions.appendChild(copyBtn);
+
+    linkRow.appendChild(a);
+    linkRow.appendChild(actions);
+    c.appendChild(linkRow);
+
+    const v = document.createElement("div");
+    v.style.fontSize = "11px";
+    v.style.fontWeight = "900";
+    v.style.color = "rgba(255,255,255,.62)";
+    v.style.whiteSpace = "nowrap";
+    v.textContent = lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—");
+    c.appendChild(v);
 
     return c;
   };
