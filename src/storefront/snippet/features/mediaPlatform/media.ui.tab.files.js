@@ -515,13 +515,16 @@ const renderGrid = (items, opts) => {
 
     const badge = document.createElement("div");
     badge.style.flex = "0 0 auto";
-    badge.style.fontSize = isMobile ? "9px" : "10px";
+    badge.style.fontSize = isMobile ? "7px" : "8px";
     badge.style.fontWeight = "950";
-    badge.style.padding = isMobile ? "3px 6px" : "4px 7px";
+    badge.style.padding = isMobile ? "2px 5px" : "3px 6px";
     badge.style.borderRadius = "999px";
     badge.style.border = "1px solid rgba(24,181,213,.35)";
     badge.style.background = "rgba(24,181,213,.10)";
     badge.style.color = "#18b5d5";
+    badge.style.lineHeight = "1";
+    badge.style.letterSpacing = ".2px";
+    badge.style.whiteSpace = "nowrap";
     badge.textContent = (() => {
       const rtKey = String(rt || "").trim().toLowerCase();
       if (fmt) return fmt;
