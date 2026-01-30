@@ -17,6 +17,14 @@ const renderConversionPlatform = (opts) => {
   const onReset = typeof o.onReset === "function" ? o.onReset : null;
   const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
   const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
+  const maxFileNameChars = 34;
+  const clipText = (s, maxChars) => {
+    const str = String(s == null ? "" : s);
+    const m = Math.max(8, Math.floor(Number(maxChars || maxFileNameChars) || maxFileNameChars));
+    if (str.length <= m) return str;
+    const keep = Math.max(1, m - 3);
+    return str.slice(0, keep) + "...";
+  };
 
   const card = document.createElement("div");
   card.style.border = "1px solid rgba(255,255,255,.08)";
@@ -172,17 +180,43 @@ const renderConversionPlatform = (opts) => {
     w.style.flexDirection = "column";
     w.style.gap = isMobile ? "8px" : "10px";
 
+    const head = document.createElement("div");
+    head.style.display = "flex";
+    head.style.alignItems = "flex-start";
+    head.style.justifyContent = "space-between";
+    head.style.gap = "10px";
+    head.style.flexWrap = "wrap";
+
     const left = document.createElement("div");
     left.style.display = "flex";
     left.style.flexDirection = "column";
     left.style.gap = "4px";
     left.style.minWidth = "0";
 
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = isMobile ? "6px" : "8px";
+
+    const num = document.createElement("div");
+    num.textContent = String(n || "");
+    num.style.flex = "0 0 auto";
+    num.style.minWidth = "26px";
+    num.style.height = "26px";
+    num.style.display = "grid";
+    num.style.placeItems = "center";
+    num.style.borderRadius = "10px";
+    num.style.border = "1px solid rgba(24,181,213,.28)";
+    num.style.background = "rgba(24,181,213,.10)";
+    num.style.color = "#18b5d5";
+    num.style.fontWeight = "950";
+    num.style.fontSize = isMobile ? "11px" : "12px";
+
     const tt = document.createElement("div");
     tt.style.color = "rgba(255,255,255,.95)";
-    tt.style.fontSize = "12px";
+    tt.style.fontSize = isMobile ? (isTiny ? "13px" : "14px") : "18px";
     tt.style.fontWeight = "950";
-    tt.textContent = String(n) + ". " + String(t || "");
+    tt.textContent = String(t || "");
 
     const ss = document.createElement("div");
     ss.style.color = "rgba(255,255,255,.55)";
@@ -191,9 +225,12 @@ const renderConversionPlatform = (opts) => {
     ss.style.lineHeight = "1.6";
     ss.textContent = String(sub || "");
 
-    left.appendChild(tt);
+    row.appendChild(num);
+    row.appendChild(tt);
+    left.appendChild(row);
     if (ss.textContent) left.appendChild(ss);
-    w.appendChild(left);
+    head.appendChild(left);
+    w.appendChild(head);
     return w;
   };
 
@@ -493,6 +530,10 @@ const renderConversionPlatform = (opts) => {
       name.style.color = "#fff";
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
+      name.style.padding = "5px 8px";
+      name.style.borderRadius = "10px";
+      name.style.border = "1px solid rgba(255,255,255,.10)";
+      name.style.background = "rgba(255,255,255,.05)";
       name.style.minWidth = "0";
       name.style.flex = "0 1 320px";
       name.style.maxWidth = "420px";
@@ -501,8 +542,9 @@ const renderConversionPlatform = (opts) => {
       name.style.whiteSpace = "nowrap";
       name.style.textAlign = isArabic() ? "right" : "left";
       name.style.direction = isArabic() ? "rtl" : "ltr";
-      name.textContent = String(f.name || "");
-      name.title = String(f.name || "");
+      const rawName = String(f.name || "");
+      name.textContent = clipText(rawName, maxFileNameChars);
+      name.title = rawName;
 
       const size = document.createElement("div");
       size.style.color = "rgba(255,255,255,.88)";
@@ -1047,12 +1089,17 @@ const renderConversionPlatform = (opts) => {
       nameText.style.color = "#fff";
       nameText.style.fontSize = "12px";
       nameText.style.fontWeight = "950";
+      nameText.style.padding = "6px 10px";
+      nameText.style.borderRadius = "10px";
+      nameText.style.border = "1px solid rgba(255,255,255,.10)";
+      nameText.style.background = "rgba(255,255,255,.05)";
       nameText.style.overflow = "hidden";
       nameText.style.textOverflow = "ellipsis";
       nameText.style.whiteSpace = "nowrap";
       nameText.style.minWidth = "0";
       nameText.style.flex = "1 1 auto";
-      nameText.textContent = shownName;
+      nameText.textContent = clipText(shownName, maxFileNameChars);
+      nameText.title = shownName;
 
       const editBtn = document.createElement("button");
       editBtn.type = "button";

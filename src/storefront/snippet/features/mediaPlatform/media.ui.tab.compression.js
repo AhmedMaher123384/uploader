@@ -18,6 +18,14 @@ const renderCompressionPlatform = (opts) => {
   const selected = Array.isArray(state.compressFiles) ? state.compressFiles : [];
   const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
   const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
+  const maxFileNameChars = 34;
+  const clipText = (s, maxChars) => {
+    const str = String(s == null ? "" : s);
+    const m = Math.max(8, Math.floor(Number(maxChars || maxFileNameChars) || maxFileNameChars));
+    if (str.length <= m) return str;
+    const keep = Math.max(1, m - 3);
+    return str.slice(0, keep) + "...";
+  };
 
   const mkStep = (n, titleText, subText) => {
     const box = document.createElement("div");
@@ -340,6 +348,10 @@ const renderCompressionPlatform = (opts) => {
       name.style.color = "#fff";
       name.style.fontSize = "12px";
       name.style.fontWeight = "950";
+      name.style.padding = "5px 8px";
+      name.style.borderRadius = "10px";
+      name.style.border = "1px solid rgba(255,255,255,.10)";
+      name.style.background = "rgba(255,255,255,.05)";
       name.style.minWidth = "0";
       name.style.flex = "0 1 320px";
       name.style.maxWidth = "420px";
@@ -348,8 +360,9 @@ const renderCompressionPlatform = (opts) => {
       name.style.whiteSpace = "nowrap";
       name.style.textAlign = isArabic() ? "right" : "left";
       name.style.direction = isArabic() ? "rtl" : "ltr";
-      name.textContent = String(f.name || "");
-      name.title = String(f.name || "");
+      const rawName = String(f.name || "");
+      name.textContent = clipText(rawName, maxFileNameChars);
+      name.title = rawName;
 
       const size = document.createElement("div");
       size.style.color = "rgba(255,255,255,.88)";
@@ -645,12 +658,17 @@ const renderCompressionPlatform = (opts) => {
       nameText.style.fontSize = "12px";
       nameText.style.fontWeight = "950";
       nameText.style.color = "#fff";
+      nameText.style.padding = "6px 10px";
+      nameText.style.borderRadius = "10px";
+      nameText.style.border = "1px solid rgba(255,255,255,.10)";
+      nameText.style.background = "rgba(255,255,255,.05)";
       nameText.style.overflow = "hidden";
       nameText.style.textOverflow = "ellipsis";
       nameText.style.whiteSpace = "nowrap";
       nameText.style.minWidth = "0";
       nameText.style.flex = "1 1 auto";
-      nameText.textContent = shownName;
+      nameText.textContent = clipText(shownName, maxFileNameChars);
+      nameText.title = shownName;
 
       let editBtn = null;
 
