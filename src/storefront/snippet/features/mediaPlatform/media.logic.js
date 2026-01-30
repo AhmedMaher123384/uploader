@@ -195,17 +195,6 @@ const buildUrl = (path, params = {}) => {
   u.searchParams.set("token", token);
   return u.toString();
 };
-
-const buildPublicUrl = (path, params = {}) => {
-  const origin = getBackendOrigin();
-  if (!origin) return null;
-  const u = new URL(origin + path);
-  for (const [k, v] of Object.entries(params || {})) {
-    if (v == null || String(v) === "") continue;
-    u.searchParams.set(String(k), String(v));
-  }
-  return u.toString();
-};
 `,
   `
 const fetchJson = async (url, opts = {}) => {
@@ -538,7 +527,7 @@ const buildAllowedFormatsPopover = (planKey) => {
       if (!ext) continue;
 
       if (["jpg", "jpeg", "png", "gif", "webp", "avif", "tif", "tiff", "svg"].indexOf(ext) >= 0) groups.images.push(ext);
-      else if (["mp4", "webm", "mpeg", "mpg"].indexOf(ext) >= 0) groups.videos.push(ext);
+      else if (["mp4", "webm"].indexOf(ext) >= 0) groups.videos.push(ext);
       else if (["pdf", "json"].indexOf(ext) >= 0) groups.docs.push(ext);
       else if (["woff", "woff2", "ttf", "otf", "eot"].indexOf(ext) >= 0) groups.fonts.push(ext);
       else if (["css"].indexOf(ext) >= 0) groups.web.push(ext);
@@ -567,11 +556,11 @@ const buildAllowedFormatsPopover = (planKey) => {
   `
 const guessResourceType = (file) => {
   const t = String((file && file.type) || "").toLowerCase();
-  if (t === "video/mpeg") return "video";
+  if (t === "video/mpeg") return "raw";
   if (t.indexOf("video/") === 0) return "video";
   if (t.indexOf("image/") === 0) return "image";
   const ext = getExt(file && file.name);
-  if (["mp4", "webm", "mpeg", "mpg", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
+  if (["mp4", "webm", "mov", "avi", "m4v", "mkv"].indexOf(ext) >= 0) return "video";
   if (["jpg", "jpeg", "png", "webp", "avif", "gif", "tif", "tiff", "svg", "bmp", "heic", "heif"].indexOf(ext) >= 0) return "image";
   return "raw";
 };
@@ -1766,195 +1755,6 @@ const mount = () => {
           return { videoBitsPerSecond, audioBitsPerSecond };
         };
 
-        const loadScriptOnce = (src, key) => {
-          const s = String(src || "").trim();
-          const k = String(key || "").trim() || s;
-          if (!s) return Promise.reject(new Error("Missing src"));
-          try {
-            if (!window.__bundleAppScriptOnce) window.__bundleAppScriptOnce = new Map();
-          } catch {}
-          try {
-            const m = window.__bundleAppScriptOnce;
-            if (m && m.get) {
-              const hit = m.get(k);
-              if (hit) return hit;
-            }
-          } catch {}
-          const p = new Promise((resolve, reject) => {
-            try {
-              const esc = (() => {
-                try {
-                  if (window.CSS && typeof CSS.escape === "function") return CSS.escape(k);
-                } catch {}
-                return String(k || "").replace(/"/g, '\\"');
-              })();
-              const existing = document.querySelector('script[data-bundleapp="' + esc + '"]');
-              if (existing) {
-                existing.addEventListener("load", () => resolve(true), { once: true });
-                existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
-                return;
-              }
-            } catch {}
-            let el = null;
-            try {
-              el = document.createElement("script");
-              el.src = s;
-              el.async = true;
-              el.crossOrigin = "anonymous";
-              try {
-                el.dataset.bundleapp = k;
-              } catch {}
-              el.onload = () => resolve(true);
-              el.onerror = () => reject(new Error("Script load failed"));
-              document.head.appendChild(el);
-            } catch (e) {
-              reject(e);
-            }
-          });
-          try {
-            const m = window.__bundleAppScriptOnce;
-            if (m && m.set) m.set(k, p);
-          } catch {}
-          return p;
-        };
-
-        const getFfmpegWasm = async () => {
-          try {
-            if (window.__bundleAppFfmpegWasmPromise) return await window.__bundleAppFfmpegWasmPromise;
-          } catch {}
-          const p = (async () => {
-            const ffmpegUmd = [
-              "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js",
-              "https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"
-            ];
-            try {
-              const u = buildPublicUrl("/api/storefront/ffmpeg/ffmpeg.min.js");
-              if (u) ffmpegUmd.push(u);
-            } catch {}
-            let ffmpegUmdOk = false;
-            for (let i = 0; i < ffmpegUmd.length; i += 1) {
-              try {
-                await loadScriptOnce(ffmpegUmd[i], "ffmpeg@0.12.10");
-                ffmpegUmdOk = true;
-                break;
-              } catch {}
-            }
-            if (!ffmpegUmdOk) throw new Error("FFmpeg wasm not available");
-            const mod = (typeof window !== "undefined" && window.FFmpeg) ? window.FFmpeg : null;
-            const createFFmpeg = mod && typeof mod.createFFmpeg === "function" ? mod.createFFmpeg : null;
-            if (!createFFmpeg) throw new Error("FFmpeg wasm not available");
-
-            const coreCandidates = [
-              "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js",
-              "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js"
-            ];
-            try {
-              const u = buildPublicUrl("/api/storefront/ffmpeg/ffmpeg-core.js");
-              if (u) coreCandidates.push(u);
-            } catch {}
-            const pickCore = async () => {
-              for (let i = 0; i < coreCandidates.length; i += 1) {
-                const u = coreCandidates[i];
-                try {
-                  const resp = await fetch(u, { method: "HEAD", cache: "force-cache" });
-                  if (resp && resp.ok) return u;
-                } catch {}
-              }
-              return coreCandidates[0];
-            };
-
-            const ffmpeg = createFFmpeg({
-              log: false,
-              corePath: await pickCore()
-            });
-            try {
-              await ffmpeg.load();
-            } catch (e) {
-              throw new Error(String((e && e.message) || e || "FFmpeg wasm load failed"));
-            }
-            return ffmpeg;
-          })();
-          try {
-            window.__bundleAppFfmpegWasmPromise = p;
-          } catch {}
-          return await p;
-        };
-
-        const convertVideoToMpegOnClient = async (file, opts, onProgress) => {
-          const f = file || null;
-          if (!f) throw new Error("Missing file");
-          try {
-            if (typeof onProgress === "function") onProgress(1);
-          } catch {}
-
-          const ffmpeg = await getFfmpegWasm();
-          const sp = String((opts && opts.speed) || "fast").trim().toLowerCase();
-          const qRaw = opts && opts.quality != null ? Number(opts.quality) : null;
-          const quality = qRaw && Number.isFinite(qRaw) ? Math.max(1, Math.min(100, Math.round(qRaw))) : sp === "small" ? 70 : 78;
-          const qv = 31 - Math.round(((quality - 1) * 29) / 99);
-          const qScale = Math.max(2, Math.min(31, qv));
-
-          try {
-            ffmpeg.setProgress(({ ratio }) => {
-              try {
-                if (typeof onProgress !== "function") return;
-                const r = Number(ratio || 0) || 0;
-                const pct = Math.max(0, Math.min(99, Math.round(r * 99)));
-                onProgress(pct);
-              } catch {}
-            });
-          } catch {}
-
-          const mod = (typeof window !== "undefined" && window.FFmpeg) ? window.FFmpeg : null;
-          const fetchFile = mod && typeof mod.fetchFile === "function" ? mod.fetchFile : null;
-          if (!fetchFile) throw new Error("FFmpeg wasm not available");
-
-          const inNameRaw = String((f && f.name) || "input").trim();
-          const safeIn = inNameRaw.replace(/[^A-Za-z0-9_.()+ -]+/g, "_").slice(0, 80) || "input";
-          const inName = "in_" + safeIn;
-          const outName = "out.mpeg";
-
-          try {
-            ffmpeg.FS("writeFile", inName, await fetchFile(f));
-            await ffmpeg.run(
-              "-hide_banner",
-              "-loglevel",
-              "error",
-              "-i",
-              inName,
-              "-map_metadata",
-              "-1",
-              "-pix_fmt",
-              "yuv420p",
-              "-c:v",
-              "mpeg2video",
-              "-q:v",
-              String(qScale),
-              "-c:a",
-              "mp2",
-              "-b:a",
-              sp === "small" ? "96k" : "128k",
-              "-f",
-              "mpeg",
-              outName
-            );
-            const data = ffmpeg.FS("readFile", outName);
-            const out = new Blob([data && data.buffer ? data.buffer : data], { type: "video/mpeg" });
-            if (!out || !out.size) throw new Error("Empty response");
-            try {
-              if (typeof onProgress === "function") onProgress(100);
-            } catch {}
-            return { blob: out, format: "mpeg" };
-          } finally {
-            try {
-              ffmpeg.FS("unlink", inName);
-            } catch {}
-            try {
-              ffmpeg.FS("unlink", outName);
-            } catch {}
-          }
-        };
-
         const convertVideoOnClient = async (file, opts, onProgress) => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
@@ -2841,7 +2641,7 @@ const mount = () => {
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
                 const normalizedTarget = (() => {
-                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" || safeTarget === "mpeg" ? safeTarget : "";
+                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
                   return safeTarget;
                 })();
                 const targetFmt = isVideo ? (normalizedTarget || "mp4") : (normalizedTarget || "keep");
@@ -2853,26 +2653,23 @@ const mount = () => {
                     render();
                   } catch {}
                 };
-                const out =
-                  isVideo
-                    ? (targetFmt === "mpeg"
-                        ? await convertVideoToMpegOnClient(f, { speed: state.convertSpeed, quality: q, name: it.name }, onProg)
-                        : await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg))
-                    : await convertOnBackend(
-                        f,
-                        {
-                          format: safeTarget || "keep",
-                          speed: state.convertSpeed,
-                          quality: q,
-                          name: it.name,
-                          preset: String((it && it.targetPreset) || state.convertPreset || "original"),
-                          width: "",
-                          height: "",
-                          mode: "fit",
-                          position: ""
-                        },
-                        onProg
-                      );
+                const out = isVideo
+                  ? await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg)
+                  : await convertOnBackend(
+                      f,
+                      {
+                        format: safeTarget || "keep",
+                        speed: state.convertSpeed,
+                        quality: q,
+                        name: it.name,
+                        preset: String((it && it.targetPreset) || state.convertPreset || "original"),
+                        width: "",
+                        height: "",
+                        mode: "fit",
+                        position: ""
+                      },
+                      onProg
+                    );
                 const b = out && out.blob ? out.blob : null;
                 if (!b || !b.size) throw new Error("Empty response");
                 const obj = URL.createObjectURL(b);
@@ -2957,29 +2754,25 @@ const mount = () => {
               (fmt === "keep"
                 ? (extFromName === "jpg" ? "jpeg" : extFromName)
                 : "") ||
-              (fmt === "mpeg"
-                ? "mpeg"
-                  : fmt === "mp4"
-                    ? "mp4"
-                    : fmt === "webm" || fmt === "webm_local"
-                      ? "webm"
-                      : fmt === "avif"
-                        ? "avif"
-                        : fmt === "webp"
-                          ? "webp"
-                          : fmt === "jpeg"
-                            ? "jpeg"
-                            : fmt === "png"
-                              ? "png"
-                              : "webp");
+              (fmt === "mp4"
+                ? "mp4"
+                  : fmt === "webm" || fmt === "webm_local"
+                    ? "webm"
+                    : fmt === "avif"
+                      ? "avif"
+                      : fmt === "webp"
+                        ? "webp"
+                        : fmt === "jpeg"
+                          ? "jpeg"
+                          : fmt === "png"
+                            ? "png"
+                            : "webp");
 
             const mime =
               ext === "mp4"
                 ? "video/mp4"
                   : ext === "webm"
                     ? "video/webm"
-                    : ext === "mpeg" || ext === "mpg"
-                      ? "video/mpeg"
                     : ext === "png"
                       ? "image/png"
                     : ext === "jpeg" || ext === "jpg"

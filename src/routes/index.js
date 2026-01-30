@@ -308,76 +308,6 @@ function createApiRouter(config) {
     }
   });
 
-  const ffmpegAssetVersion = "0.12.10";
-  const ffmpegAssetAllow = new Map([
-    ["ffmpeg.min.js", { pkg: "@ffmpeg/ffmpeg", path: "dist/umd/ffmpeg.min.js", contentType: "application/javascript; charset=utf-8" }],
-    ["ffmpeg.min.js.map", { pkg: "@ffmpeg/ffmpeg", path: "dist/umd/ffmpeg.min.js.map", contentType: "application/json; charset=utf-8" }],
-    ["ffmpeg-core.js", { pkg: "@ffmpeg/core", path: "dist/umd/ffmpeg-core.js", contentType: "application/javascript; charset=utf-8" }],
-    ["ffmpeg-core.worker.js", { pkg: "@ffmpeg/core", path: "dist/umd/ffmpeg-core.worker.js", contentType: "application/javascript; charset=utf-8" }],
-    ["ffmpeg-core.worker.js.map", { pkg: "@ffmpeg/core", path: "dist/umd/ffmpeg-core.worker.js.map", contentType: "application/json; charset=utf-8" }],
-    ["ffmpeg-core.wasm", { pkg: "@ffmpeg/core", path: "dist/umd/ffmpeg-core.wasm", contentType: "application/wasm" }]
-  ]);
-
-  router.get("/storefront/ffmpeg/:asset", async (req, res, next) => {
-    try {
-      const asset = String(req.params.asset || "").trim();
-      const entry = ffmpegAssetAllow.get(asset);
-      if (!entry) throw new ApiError(404, "Not found", { code: "NOT_FOUND" });
-
-      const bases = ["https://cdn.jsdelivr.net/npm", "https://unpkg.com"];
-      let upstream = null;
-      for (let i = 0; i < bases.length; i += 1) {
-        const u = `${bases[i]}/${entry.pkg}@${ffmpegAssetVersion}/${entry.path}`;
-        try {
-          const r = await axios({
-            method: "GET",
-            url: u,
-            responseType: "stream",
-            timeout: 25_000,
-            validateStatus: () => true
-          });
-          if (r && r.status === 200 && r.data) {
-            upstream = r;
-            break;
-          }
-        } catch (e) {
-          void e;
-        }
-      }
-
-      if (!upstream) throw new ApiError(502, "FFmpeg asset is unavailable", { code: "FFMPEG_ASSET_UNAVAILABLE" });
-
-      res.status(200);
-      res.setHeader("Content-Type", entry.contentType);
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Vary", "Accept-Encoding");
-      if (upstream.headers && upstream.headers["content-length"]) {
-        try {
-          res.setHeader("Content-Length", String(upstream.headers["content-length"]));
-        } catch (e) {
-          void e;
-        }
-      }
-
-      try {
-        upstream.data.on("error", () => {
-          try {
-            res.destroy();
-          } catch (e) {
-            void e;
-          }
-        });
-      } catch (e) {
-        void e;
-      }
-      return upstream.data.pipe(res);
-    } catch (err) {
-      return next(err);
-    }
-  });
-
   router.use("/oauth/salla", createOAuthRouter(config));
 
   function getMediaFolderPrefix() {
@@ -3545,7 +3475,7 @@ function createApiRouter(config) {
     token: Joi.string().trim().min(10),
     signature: Joi.string().trim().min(8),
     hmac: Joi.string().trim().min(8),
-    format: Joi.string().trim().valid("mp4", "webm", "mpeg").default("mp4"),
+    format: Joi.string().trim().valid("mp4", "webm").default("mp4"),
     quality: Joi.number().integer().min(0).max(100),
     speed: Joi.string().trim().valid("fast", "balanced", "small").default("fast"),
     name: Joi.string().trim().min(1).max(180).allow("")
@@ -3657,33 +3587,6 @@ function createApiRouter(config) {
           speed === "small" ? "96k" : "128k",
           "-f",
           "webm",
-          "pipe:1"
-        ];
-      } else if (targetFormat === "mpeg") {
-        ext = "mpeg";
-        contentType = "video/mpeg";
-        const qv = 31 - Math.round(((quality - 1) * 29) / 99);
-        const qScale = Math.max(2, Math.min(31, qv));
-        args = [
-          "-hide_banner",
-          "-loglevel",
-          "error",
-          "-i",
-          "pipe:0",
-          "-map_metadata",
-          "-1",
-          "-pix_fmt",
-          "yuv420p",
-          "-c:v",
-          "mpeg2video",
-          "-q:v",
-          String(qScale),
-          "-c:a",
-          "mp2",
-          "-b:a",
-          speed === "small" ? "96k" : "128k",
-          "-f",
-          "mpeg",
           "pipe:1"
         ];
       } else {
