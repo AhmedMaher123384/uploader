@@ -291,13 +291,13 @@ const renderSmartStats = (dash) => {
     top.style.gap = "10px";
 
     const l = document.createElement("div");
-    l.style.fontSize = isMobile ? "12px" : "13px";
+    l.style.fontSize = isMobile ? "11px" : "12px";
     l.style.fontWeight = "900";
     l.style.color = "rgba(255,255,255,.78)";
     l.textContent = isArabic() ? "إجمالي الملفات" : "Total files";
 
     const v = document.createElement("div");
-    v.style.fontSize = isMobile ? (isTiny ? "20px" : "22px") : "26px";
+    v.style.fontSize = isMobile ? (isTiny ? "16px" : "18px") : "20px";
     v.style.fontWeight = "950";
     v.style.color = "#fff";
     v.style.lineHeight = "1";
@@ -326,14 +326,14 @@ const renderSmartStats = (dash) => {
 
       const dot = document.createElement("span");
       dot.setAttribute("aria-hidden", "true");
-      dot.style.width = "8px";
-      dot.style.height = "8px";
+      dot.style.width = "7px";
+      dot.style.height = "7px";
       dot.style.borderRadius = "999px";
       dot.style.background = String(color || "#18b5d5");
       dot.style.boxShadow = "0 0 0 3px rgba(255,255,255,.03)";
 
       const txt = document.createElement("span");
-      txt.style.fontSize = isMobile ? "10px" : "11px";
+      txt.style.fontSize = isMobile ? "9px" : "10px";
       txt.style.fontWeight = "950";
       txt.style.color = "rgba(255,255,255,.80)";
       txt.style.whiteSpace = "nowrap";
@@ -386,7 +386,7 @@ const renderSmartStats = (dash) => {
     head.style.gap = "10px";
 
     const l = document.createElement("div");
-    l.style.fontSize = isMobile ? "12px" : "13px";
+    l.style.fontSize = isMobile ? "11px" : "12px";
     l.style.fontWeight = "900";
     l.style.color = "rgba(255,255,255,.78)";
     l.textContent = isArabic() ? "الحجم الكلي" : "Total size";
@@ -397,7 +397,7 @@ const renderSmartStats = (dash) => {
     chip.style.color = "rgba(255,255,255,.82)";
     chip.style.borderRadius = "999px";
     chip.style.padding = "4px 8px";
-    chip.style.fontSize = "11px";
+    chip.style.fontSize = "10px";
     chip.style.fontWeight = "950";
     chip.style.lineHeight = "1";
     chip.textContent = String(pct) + "%";
@@ -412,7 +412,7 @@ const renderSmartStats = (dash) => {
     valueRow.style.gap = "10px";
 
     const v = document.createElement("div");
-    v.style.fontSize = isMobile ? (isTiny ? "14px" : "15px") : "18px";
+    v.style.fontSize = isMobile ? (isTiny ? "12px" : "13px") : "15px";
     v.style.fontWeight = "950";
     v.style.color = "#fff";
     v.style.letterSpacing = "-.2px";
@@ -424,7 +424,7 @@ const renderSmartStats = (dash) => {
     v.textContent = fmtBytes(usedBytes) + (isArabic() ? " من " : " from ") + fmtBytes(maxBytes);
 
     const hint = document.createElement("div");
-    hint.style.fontSize = "11px";
+    hint.style.fontSize = "10px";
     hint.style.fontWeight = "900";
     hint.style.color = "rgba(255,255,255,.62)";
     hint.style.whiteSpace = "nowrap";
@@ -434,7 +434,7 @@ const renderSmartStats = (dash) => {
     valueRow.appendChild(hint);
 
     const bar = document.createElement("div");
-    bar.style.height = "9px";
+    bar.style.height = "8px";
     bar.style.borderRadius = "999px";
     bar.style.background = "rgba(255,255,255,.08)";
     bar.style.border = "1px solid rgba(255,255,255,.10)";
@@ -464,7 +464,7 @@ const renderSmartStats = (dash) => {
     c.style.gap = isMobile ? "8px" : "10px";
 
     const l = document.createElement("div");
-    l.style.fontSize = isMobile ? "12px" : "13px";
+    l.style.fontSize = isMobile ? "11px" : "12px";
     l.style.fontWeight = "900";
     l.style.color = "rgba(255,255,255,.78)";
     l.textContent = isArabic() ? "آخر رفع" : "Last upload";
@@ -507,8 +507,8 @@ const renderSmartStats = (dash) => {
       el.type = "button";
       el.setAttribute("aria-label", label);
       el.setAttribute("title", label);
-      el.style.width = "30px";
-      el.style.height = "30px";
+      el.style.width = "28px";
+      el.style.height = "28px";
       el.style.borderRadius = "999px";
       el.style.display = "grid";
       el.style.placeItems = "center";
@@ -522,7 +522,7 @@ const renderSmartStats = (dash) => {
       ic.className = String(iconClass || "");
       ic.setAttribute("aria-hidden", "true");
       ic.style.display = "block";
-      ic.style.fontSize = "14px";
+      ic.style.fontSize = "13px";
       ic.style.lineHeight = "1";
       ic.style.opacity = "0.95";
       el.appendChild(ic);
@@ -560,7 +560,7 @@ const renderSmartStats = (dash) => {
     a.style.direction = "ltr";
     a.style.textAlign = "left";
     a.style.color = "#18b5d5";
-    a.style.fontSize = isMobile ? "11px" : "12px";
+    a.style.fontSize = isMobile ? "10px" : "11px";
     a.style.fontWeight = "950";
     a.style.textDecoration = "none";
     a.style.whiteSpace = "nowrap";
@@ -610,7 +610,7 @@ const renderSmartStats = (dash) => {
     c.appendChild(linkRow);
 
     const v = document.createElement("div");
-    v.style.fontSize = "11px";
+    v.style.fontSize = "10px";
     v.style.fontWeight = "900";
     v.style.color = "rgba(255,255,255,.62)";
     v.style.whiteSpace = "nowrap";
