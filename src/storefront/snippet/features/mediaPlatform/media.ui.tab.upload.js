@@ -306,9 +306,9 @@ const renderUploadHero = (dash) => {
     sub.style.marginBottom = "10px";
     sub.textContent =
       key === "business"
-        ? (isArabic() ? "أقصى مرونة للمشاريع الكبيرة" : "Maximum flexibility for large teams")
+        ? (isArabic() ? "كل الأدوات متاحة بالكامل (رفع/ضغط/تحويل)" : "All tools unlocked (upload/compress/convert)")
         : key === "pro"
-          ? (isArabic() ? "المميزات المتقدمة لصنّاع المحتوى" : "Advanced features for creators")
+          ? (isArabic() ? "كل الأدوات متاحة بالكامل (رفع/ضغط/تحويل)" : "All tools unlocked (upload/compress/convert)")
           : (isArabic() ? "أساسيات الرفع والاستخدام اليومي" : "Essentials for daily use");
     panel.appendChild(sub);
 
@@ -384,12 +384,12 @@ const renderUploadHero = (dash) => {
     const list = (() => {
       if (key === "business")
         return isArabic()
-          ? ["رفع عدد كبير من الملفات دفعة واحدة", "تحويل صيغ متقدم", "ضغط صور دفعات", "مرونة صيغ أوسع", "حدود أعلى للاستخدام"]
-          : ["Upload large batches", "Advanced conversion", "Batch image compression", "Wider formats support", "Higher limits"];
+          ? ["رفع عدد كبير من الملفات دفعة واحدة", "تحويل الصيغ متاح", "ضغط الصور متاح", "مرونة صيغ أوسع", "حدود أعلى للاستخدام"]
+          : ["Upload large batches", "Conversion available", "Image compression available", "Wider formats support", "Higher limits"];
       if (key === "pro")
         return isArabic()
-          ? ["رفع حتى 10 ملفات دفعة واحدة", "تحويل صيغ حتى 10 ملفات", "ضغط صور حتى 10 ملفات", "صيغ إضافية (SVG/Fonts/ZIP/JSON/CSS)"]
-          : ["Upload up to 10 files per run", "Convert up to 10 files", "Compress up to 10 images", "Extra formats (SVG/Fonts/ZIP/JSON/CSS)"];
+          ? ["رفع حتى 10 ملفات دفعة واحدة", "تحويل الصيغ متاح", "ضغط الصور متاح", "صيغ إضافية (SVG/Fonts/ZIP/JSON/CSS)"]
+          : ["Upload up to 10 files per run", "Conversion available", "Image compression available", "Extra formats (SVG/Fonts/ZIP/JSON/CSS)"];
       return isArabic()
         ? ["رفع ملف واحد في المرة", "ضغط صورة واحدة", "بدون تحويل صيغ", "صيغ أساسية للرفع"]
         : ["Upload 1 file per run", "Compress 1 image", "No conversion", "Basic upload formats"];
@@ -652,22 +652,27 @@ const renderSmartStats = (dash) => {
     list.style.display = "flex";
     list.style.flexDirection = "column";
     list.style.gap = isMobile ? "4px" : "5px";
+    list.style.alignSelf = "flex-start";
+    list.style.maxWidth = "100%";
 
     const mkRow = (dotColor, label, count) => {
       const row = document.createElement("div");
       row.style.display = "flex";
       row.style.alignItems = "center";
       row.style.justifyContent = "space-between";
-      row.style.gap = "10px";
+      row.style.gap = "8px";
       row.style.padding = "4px 6px";
       row.style.border = "1px solid rgba(255,255,255,.06)";
       row.style.background = "rgba(255,255,255,.03)";
       row.style.borderRadius = "10px";
+      row.style.alignSelf = "flex-start";
+      row.style.width = "fit-content";
+      row.style.maxWidth = "100%";
 
       const left = document.createElement("div");
       left.style.display = "flex";
       left.style.alignItems = "center";
-      left.style.gap = "8px";
+      left.style.gap = "6px";
       left.style.minWidth = "0";
 
       const dot = document.createElement("span");
@@ -769,8 +774,8 @@ const renderSmartStats = (dash) => {
             ? ("تم استخدام " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • تجاوز +" + fmtBytes(over))
             : ("Used " + fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • over +" + fmtBytes(over)))
         : (isArabic()
-            ? ("تم استخدام " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes) + " • متبقي " + fmtBytes(remain))
-            : ("Used " + fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes) + " • " + fmtBytes(remain) + " left"));
+            ? ("تم استخدام " + fmtBytes(usedBytes) + " من " + fmtBytes(maxBytes))
+            : ("Used " + fmtBytes(usedBytes) + " of " + fmtBytes(maxBytes)));
 
     const bar = document.createElement("div");
     bar.style.height = "8px";
