@@ -970,17 +970,25 @@ function createApiRouter(config) {
         }
       }
 
-      if (!allowedHostOk && !sessionOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-
       const token = String(req.query?.token || "").trim();
+      const accept = String(req.headers.accept || "");
+      const wantsHtml = /text\/html/i.test(accept);
+      const secFetchMode = String(req.headers["sec-fetch-mode"] || "").toLowerCase();
+      const secFetchUser = String(req.headers["sec-fetch-user"] || "");
+      const isNavigate = wantsHtml || secFetchMode === "navigate" || secFetchUser === "?1";
+      let tokenOk = false;
       if (storeId === "sandbox" && token === "sandbox") {
         void token;
+        tokenOk = true;
       } else if (token) {
         ensureValidStorefrontToken(token, storeId);
+        tokenOk = true;
       }
 
+      if (!allowedHostOk && !sessionOk && !(tokenOk && isNavigate)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
       let setSessionCookie = null;
-      if (allowedHostOk && !sessionOk) {
+      if ((allowedHostOk || (tokenOk && isNavigate)) && !sessionOk) {
         try {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
@@ -992,9 +1000,7 @@ function createApiRouter(config) {
         }
       }
 
-      const accept = String(req.headers.accept || "");
-      const wantsHtml = /text\/html/i.test(accept);
-      if (token && wantsHtml) {
+      if (tokenOk && token && isNavigate) {
         try {
           const origin = externalOriginFromReq(req);
           const u = new URL(String(req.originalUrl || req.url || ""), origin || "http://localhost");
@@ -1228,17 +1234,25 @@ function createApiRouter(config) {
         }
       }
 
-      if (!allowedHostOk && !sessionOk) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
-
       const token = String(req.query?.token || "").trim();
+      const accept = String(req.headers.accept || "");
+      const wantsHtml = /text\/html/i.test(accept);
+      const secFetchMode = String(req.headers["sec-fetch-mode"] || "").toLowerCase();
+      const secFetchUser = String(req.headers["sec-fetch-user"] || "");
+      const isNavigate = wantsHtml || secFetchMode === "navigate" || secFetchUser === "?1";
+      let tokenOk = false;
       if (storeId === "sandbox" && token === "sandbox") {
         void token;
+        tokenOk = true;
       } else if (token) {
         ensureValidStorefrontToken(token, storeId);
+        tokenOk = true;
       }
 
+      if (!allowedHostOk && !sessionOk && !(tokenOk && isNavigate)) throw new ApiError(403, "Forbidden", { code: "FORBIDDEN" });
+
       let setSessionCookie = null;
-      if (allowedHostOk && !sessionOk) {
+      if ((allowedHostOk || (tokenOk && isNavigate)) && !sessionOk) {
         try {
           const t = issueMediaSessionToken({ storeId, userAgent: req.headers["user-agent"] });
           const xf = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
@@ -1250,9 +1264,7 @@ function createApiRouter(config) {
         }
       }
 
-      const accept = String(req.headers.accept || "");
-      const wantsHtml = /text\/html/i.test(accept);
-      if (token && wantsHtml) {
+      if (tokenOk && token && isNavigate) {
         try {
           const origin = externalOriginFromReq(req);
           const u = new URL(String(req.originalUrl || req.url || ""), origin || "http://localhost");

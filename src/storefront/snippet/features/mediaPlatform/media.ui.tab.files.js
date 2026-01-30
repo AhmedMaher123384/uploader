@@ -354,10 +354,31 @@ const renderGrid = (items, opts) => {
     }
   };
 
+  const addTokenToUrl = (raw) => {
+    const u = String(raw || "");
+    if (!u) return "";
+    let t = "";
+    try {
+      t = typeof token !== "undefined" ? String(token || "").trim() : "";
+    } catch {}
+    if (!t) return u;
+    try {
+      const x = new URL(u, window.location.origin);
+      const p = String(x.pathname || "");
+      if (!(p.startsWith("/api/m/") || p.startsWith("/p/"))) return u;
+      try {
+        if (!String(x.searchParams.get("token") || "").trim()) x.searchParams.set("token", t);
+      } catch {}
+      return x.toString();
+    } catch {
+      return u;
+    }
+  };
+
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
     const openUrl = stripTokenFromUrl(it.deliveryUrl || it.secureUrl || it.url || "");
-    const copyUrl = stripTokenFromUrl(it.deliveryUrl || it.secureUrl || it.url || "");
+    const copyUrl = addTokenToUrl(stripTokenFromUrl(it.deliveryUrl || it.secureUrl || it.url || ""));
     const src = openUrl;
     const onDelete =
       opts && typeof opts.onDeleteItem === "function"
