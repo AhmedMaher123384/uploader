@@ -745,26 +745,16 @@ const renderConversionPlatform = (opts) => {
       meta.style.alignItems = "center";
       meta.style.gap = "10px";
       meta.style.minWidth = "0";
-      meta.style.flex = "0 1 auto";
+      meta.style.flex = "1 1 auto";
       meta.style.direction = "ltr";
-      if (isArabic()) {
-        meta.style.marginLeft = "auto";
-        meta.appendChild(size);
-        meta.appendChild(name);
-      } else {
-        meta.appendChild(name);
-        meta.appendChild(size);
-      }
+      meta.style.width = "100%";
+      meta.style.justifyContent = "space-between";
+      meta.appendChild(size);
+      meta.appendChild(name);
 
-      if (isArabic()) {
-        row.appendChild(rm);
-        row.appendChild(right);
-        row.appendChild(meta);
-      } else {
-        row.appendChild(rm);
-        row.appendChild(meta);
-        row.appendChild(right);
-      }
+      row.appendChild(rm);
+      row.appendChild(meta);
+      row.appendChild(right);
       list.appendChild(row);
     }
 

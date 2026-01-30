@@ -380,15 +380,10 @@ const renderCompressionPlatform = (opts) => {
       meta.style.minWidth = "0";
       meta.style.flex = "1 1 auto";
       meta.style.direction = "ltr";
-      meta.style.justifyContent = isArabic() ? "flex-end" : "flex-start";
-      if (isArabic()) meta.style.marginLeft = "auto";
-      if (isArabic()) {
-        meta.appendChild(size);
-        meta.appendChild(name);
-      } else {
-        meta.appendChild(name);
-        meta.appendChild(size);
-      }
+      meta.style.width = "100%";
+      meta.style.justifyContent = "space-between";
+      meta.appendChild(size);
+      meta.appendChild(name);
 
       row.appendChild(rm);
       row.appendChild(meta);
