@@ -1755,6 +1755,159 @@ const mount = () => {
           return { videoBitsPerSecond, audioBitsPerSecond };
         };
 
+        const loadScriptOnce = (src, key) => {
+          const s = String(src || "").trim();
+          const k = String(key || "").trim() || s;
+          if (!s) return Promise.reject(new Error("Missing src"));
+          try {
+            if (!window.__bundleAppScriptOnce) window.__bundleAppScriptOnce = new Map();
+          } catch {}
+          try {
+            const m = window.__bundleAppScriptOnce;
+            if (m && m.get) {
+              const hit = m.get(k);
+              if (hit) return hit;
+            }
+          } catch {}
+          const p = new Promise((resolve, reject) => {
+            try {
+              const esc = (() => {
+                try {
+                  if (window.CSS && typeof CSS.escape === "function") return CSS.escape(k);
+                } catch {}
+                return String(k || "").replace(/"/g, '\\"');
+              })();
+              const existing = document.querySelector('script[data-bundleapp="' + esc + '"]');
+              if (existing) {
+                existing.addEventListener("load", () => resolve(true), { once: true });
+                existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
+                return;
+              }
+            } catch {}
+            let el = null;
+            try {
+              el = document.createElement("script");
+              el.src = s;
+              el.async = true;
+              el.crossOrigin = "anonymous";
+              try {
+                el.dataset.bundleapp = k;
+              } catch {}
+              el.onload = () => resolve(true);
+              el.onerror = () => reject(new Error("Script load failed"));
+              document.head.appendChild(el);
+            } catch (e) {
+              reject(e);
+            }
+          });
+          try {
+            const m = window.__bundleAppScriptOnce;
+            if (m && m.set) m.set(k, p);
+          } catch {}
+          return p;
+        };
+
+        const getFfmpegWasm = async () => {
+          try {
+            if (window.__bundleAppFfmpegWasmPromise) return await window.__bundleAppFfmpegWasmPromise;
+          } catch {}
+          const p = (async () => {
+            await loadScriptOnce("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js", "ffmpeg@0.12.10");
+            const mod = (typeof window !== "undefined" && window.FFmpeg) ? window.FFmpeg : null;
+            const createFFmpeg = mod && typeof mod.createFFmpeg === "function" ? mod.createFFmpeg : null;
+            if (!createFFmpeg) throw new Error("FFmpeg wasm not available");
+            const ffmpeg = createFFmpeg({
+              log: false,
+              corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/ffmpeg-core.js"
+            });
+            try {
+              await ffmpeg.load();
+            } catch (e) {
+              throw new Error(String((e && e.message) || e || "FFmpeg wasm load failed"));
+            }
+            return ffmpeg;
+          })();
+          try {
+            window.__bundleAppFfmpegWasmPromise = p;
+          } catch {}
+          return await p;
+        };
+
+        const convertVideoToMpegOnClient = async (file, opts, onProgress) => {
+          const f = file || null;
+          if (!f) throw new Error("Missing file");
+          try {
+            if (typeof onProgress === "function") onProgress(1);
+          } catch {}
+
+          const ffmpeg = await getFfmpegWasm();
+          const sp = String((opts && opts.speed) || "fast").trim().toLowerCase();
+          const qRaw = opts && opts.quality != null ? Number(opts.quality) : null;
+          const quality = qRaw && Number.isFinite(qRaw) ? Math.max(1, Math.min(100, Math.round(qRaw))) : sp === "small" ? 70 : 78;
+          const qv = 31 - Math.round(((quality - 1) * 29) / 99);
+          const qScale = Math.max(2, Math.min(31, qv));
+
+          try {
+            ffmpeg.setProgress(({ ratio }) => {
+              try {
+                if (typeof onProgress !== "function") return;
+                const r = Number(ratio || 0) || 0;
+                const pct = Math.max(0, Math.min(99, Math.round(r * 99)));
+                onProgress(pct);
+              } catch {}
+            });
+          } catch {}
+
+          const mod = (typeof window !== "undefined" && window.FFmpeg) ? window.FFmpeg : null;
+          const fetchFile = mod && typeof mod.fetchFile === "function" ? mod.fetchFile : null;
+          if (!fetchFile) throw new Error("FFmpeg wasm not available");
+
+          const inNameRaw = String((f && f.name) || "input").trim();
+          const safeIn = inNameRaw.replace(/[^A-Za-z0-9_.()+ -]+/g, "_").slice(0, 80) || "input";
+          const inName = "in_" + safeIn;
+          const outName = "out.mpeg";
+
+          try {
+            ffmpeg.FS("writeFile", inName, await fetchFile(f));
+            await ffmpeg.run(
+              "-hide_banner",
+              "-loglevel",
+              "error",
+              "-i",
+              inName,
+              "-map_metadata",
+              "-1",
+              "-pix_fmt",
+              "yuv420p",
+              "-c:v",
+              "mpeg2video",
+              "-q:v",
+              String(qScale),
+              "-c:a",
+              "mp2",
+              "-b:a",
+              sp === "small" ? "96k" : "128k",
+              "-f",
+              "mpeg",
+              outName
+            );
+            const data = ffmpeg.FS("readFile", outName);
+            const out = new Blob([data && data.buffer ? data.buffer : data], { type: "video/mpeg" });
+            if (!out || !out.size) throw new Error("Empty response");
+            try {
+              if (typeof onProgress === "function") onProgress(100);
+            } catch {}
+            return { blob: out, format: "mpeg" };
+          } finally {
+            try {
+              ffmpeg.FS("unlink", inName);
+            } catch {}
+            try {
+              ffmpeg.FS("unlink", outName);
+            } catch {}
+          }
+        };
+
         const convertVideoOnClient = async (file, opts, onProgress) => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
@@ -2656,7 +2809,7 @@ const mount = () => {
                 const out =
                   isVideo
                     ? (targetFmt === "mpeg"
-                        ? await convertOnBackend(f, { format: "mpeg", speed: state.convertSpeed, quality: q, name: it.name }, onProg)
+                        ? await convertVideoToMpegOnClient(f, { speed: state.convertSpeed, quality: q, name: it.name }, onProg)
                         : await convertVideoOnClient(f, { format: targetFmt, speed: state.convertSpeed, quality: q, name: it.name }, onProg))
                     : await convertOnBackend(
                         f,
