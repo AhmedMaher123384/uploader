@@ -232,27 +232,9 @@ const renderUploadHero = (dash) => {
     })();
     const maxStorage = limits && limits.maxStorageBytes ? fmtBytes(limits.maxStorageBytes) : "";
     const maxFile = limits && limits.maxFileBytes ? fmtBytes(limits.maxFileBytes) : "";
-    const uploadPerRun = (() => {
-      try {
-        return typeof maxUploadFilesForPlan === "function" ? maxUploadFilesForPlan(key) : null;
-      } catch {
-        return null;
-      }
-    })();
-    const compressPerRun = (() => {
-      try {
-        return typeof maxCompressFilesForPlan === "function" ? maxCompressFilesForPlan(key) : null;
-      } catch {
-        return null;
-      }
-    })();
-    const convertPerRun = (() => {
-      try {
-        return typeof maxConvertFilesForPlan === "function" ? maxConvertFilesForPlan(key) : null;
-      } catch {
-        return null;
-      }
-    })();
+    const uploadPerRun = key === "business" ? 50 : key === "pro" ? 10 : 1;
+    const compressPerRun = key === "business" ? 50 : key === "pro" ? 10 : 1;
+    const convertPerRun = key === "business" ? 50 : key === "pro" ? 10 : 0;
     const formatsSummary = (() => {
       if (key === "business") return isArabic() ? "كل الصيغ (مع حظر أمني لبعض الصيغ)" : "All formats (with security blocks)";
       if (key === "pro") return isArabic() ? "صور + فيديو + PDF + ZIP/JSON/SVG/CSS + خطوط" : "Images + Videos + PDF + ZIP/JSON/SVG/CSS + Fonts";
@@ -354,12 +336,12 @@ const renderUploadHero = (dash) => {
 
     grid.appendChild(mkStat(isArabic() ? "مساحة التخزين" : "Storage", maxStorage || "—"));
     grid.appendChild(mkStat(isArabic() ? "حد حجم الملف" : "Max file", maxFile || "—"));
-    if (uploadPerRun != null) grid.appendChild(mkStat(isArabic() ? "رفع دفعة واحدة" : "Upload per run", String(uploadPerRun)));
-    if (compressPerRun != null) grid.appendChild(mkStat(isArabic() ? "ضغط صور دفعة واحدة" : "Compress per run", String(compressPerRun)));
+    grid.appendChild(mkStat(isArabic() ? "رفع دفعة واحدة" : "Upload per run", String(uploadPerRun)));
+    grid.appendChild(mkStat(isArabic() ? "ضغط صور دفعة واحدة" : "Compress per run", String(compressPerRun)));
     grid.appendChild(
       mkStat(
         isArabic() ? "تحويل الصيغ" : "Conversion",
-        convertPerRun && Number(convertPerRun) > 0
+        Number(convertPerRun) > 0
           ? (isArabic() ? ("متاح (حتى " + String(convertPerRun) + " ملف)") : ("Available (up to " + String(convertPerRun) + " files)"))
           : (isArabic() ? "غير متاح" : "Not available")
       )
@@ -638,7 +620,7 @@ const renderSmartStats = (dash) => {
     l.textContent = isArabic() ? "إجمالي الملفات" : "Total files";
 
     const v = document.createElement("div");
-    v.style.fontSize = isMobile ? (isTiny ? "14px" : "15px") : "17px";
+    v.style.fontSize = isMobile ? (isTiny ? "13px" : "14px") : "16px";
     v.style.fontWeight = "950";
     v.style.color = "#fff";
     v.style.lineHeight = "1";
@@ -652,8 +634,7 @@ const renderSmartStats = (dash) => {
     list.style.display = "flex";
     list.style.flexDirection = "column";
     list.style.gap = isMobile ? "4px" : "5px";
-    list.style.alignSelf = "flex-start";
-    list.style.maxWidth = "100%";
+    list.style.width = "100%";
 
     const mkRow = (dotColor, label, count) => {
       const row = document.createElement("div");
@@ -665,9 +646,7 @@ const renderSmartStats = (dash) => {
       row.style.border = "1px solid rgba(255,255,255,.06)";
       row.style.background = "rgba(255,255,255,.03)";
       row.style.borderRadius = "10px";
-      row.style.alignSelf = "flex-start";
-      row.style.width = "fit-content";
-      row.style.maxWidth = "100%";
+      row.style.width = "100%";
 
       const left = document.createElement("div");
       left.style.display = "flex";
@@ -761,11 +740,16 @@ const renderSmartStats = (dash) => {
     line.style.fontSize = isMobile ? "10px" : "11px";
     line.style.fontWeight = "700";
     line.style.color = "rgba(255,255,255,.82)";
+    line.style.padding = "6px 8px";
+    line.style.border = "1px solid rgba(255,255,255,.08)";
+    line.style.background = "rgba(255,255,255,.04)";
+    line.style.borderRadius = "12px";
+    line.style.width = "100%";
     line.style.whiteSpace = "nowrap";
     line.style.overflow = "hidden";
     line.style.textOverflow = "ellipsis";
     line.style.direction = isArabic() ? "rtl" : "ltr";
-    line.style.textAlign = "left";
+    line.style.textAlign = "center";
     line.style.letterSpacing = ".1px";
     const over = Math.max(0, usedBytes - maxBytes);
     line.textContent =
