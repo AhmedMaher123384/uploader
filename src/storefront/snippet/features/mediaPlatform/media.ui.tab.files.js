@@ -515,9 +515,9 @@ const renderGrid = (items, opts) => {
 
     const badge = document.createElement("div");
     badge.style.flex = "0 0 auto";
-    badge.style.fontSize = "11px";
+    badge.style.fontSize = isMobile ? "9px" : "10px";
     badge.style.fontWeight = "950";
-    badge.style.padding = isMobile ? "4px 7px" : "5px 8px";
+    badge.style.padding = isMobile ? "3px 6px" : "4px 7px";
     badge.style.borderRadius = "999px";
     badge.style.border = "1px solid rgba(24,181,213,.35)";
     badge.style.background = "rgba(24,181,213,.10)";

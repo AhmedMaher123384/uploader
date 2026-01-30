@@ -4041,8 +4041,10 @@ const mount = () => {
             const imgBtn = pill(labels.img, state.type === "image");
             const vidBtn = pill(labels.vid, state.type === "video");
             const tuneFilter = (b) => {
-              b.style.padding = "6px 10px";
-              b.style.fontSize = "11px";
+              const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
+              const isTiny = typeof uiIsTinyMobile === "function" && uiIsTinyMobile();
+              b.style.padding = isMobile ? (isTiny ? "6px 10px" : "7px 12px") : "8px 14px";
+              b.style.fontSize = isMobile ? (isTiny ? "11px" : "12px") : "13px";
               b.style.borderRadius = "999px";
               b.style.width = "auto";
               b.style.lineHeight = "1";
@@ -4066,9 +4068,18 @@ const mount = () => {
             vidBtn.onclick = () => setType("video");
 
             const typeRow = document.createElement("div");
+            const isMobile = typeof uiIsMobile === "function" && uiIsMobile();
             typeRow.style.display = "flex";
-            typeRow.style.gap = "6px";
+            typeRow.style.gap = isMobile ? "6px" : "8px";
             typeRow.style.flexWrap = "wrap";
+            typeRow.style.alignItems = "center";
+            typeRow.style.justifyContent = "center";
+            typeRow.style.width = "100%";
+            typeRow.style.padding = isMobile ? "6px" : "7px";
+            typeRow.style.borderRadius = "14px";
+            typeRow.style.border = "1px solid rgba(255,255,255,.10)";
+            typeRow.style.background = "rgba(255,255,255,.03)";
+            typeRow.style.marginBottom = "8px";
             typeRow.appendChild(allBtn);
             typeRow.appendChild(imgBtn);
             typeRow.appendChild(vidBtn);
