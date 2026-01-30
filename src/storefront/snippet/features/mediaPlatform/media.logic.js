@@ -1700,7 +1700,7 @@ const mount = () => {
             return "";
           }
           let candidates = [];
-          if (f === "mp4") {
+          if (f === "mp4" || f === "mpeg") {
             candidates = [
               "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
               "video/mp4;codecs=avc1,mp4a.40.2",
@@ -1759,7 +1759,7 @@ const mount = () => {
           const f = file || null;
           if (!f) throw new Error("Missing file");
           const format = String((opts && opts.format) || "webm").trim().toLowerCase();
-          if (format !== "webm" && format !== "webm_local" && format !== "mp4") throw new Error("Unsupported format");
+          if (format !== "webm" && format !== "webm_local" && format !== "mp4" && format !== "mpeg") throw new Error("Unsupported format");
 
           let srcUrl = "";
           let video = null;
@@ -1821,7 +1821,7 @@ const mount = () => {
           try {
             const mimeType = pickBestRecorderMime(format);
             if (!mimeType) {
-              if (format === "mp4") throw new Error("MP4 local conversion is not supported in this browser");
+              if (format === "mp4" || format === "mpeg") throw new Error("MP4 local conversion is not supported in this browser");
               throw new Error("MediaRecorder not supported");
             }
 
@@ -1950,14 +1950,14 @@ const mount = () => {
 
             const outType =
               String(mimeType || "").split(";")[0] ||
-              (format === "mp4" ? "video/mp4" : "video/webm");
+              (format === "mp4" || format === "mpeg" ? "video/mp4" : "video/webm");
             const out = new Blob(chunks, { type: outType });
             if (!out || !out.size) throw new Error("Empty response");
             try {
               if (typeof onProgress === "function") onProgress(100);
             } catch {}
             const derivedFmt =
-              outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0 ? "mp4" : "webm";
+              outType.indexOf("mp4") >= 0 || outType.indexOf("quicktime") >= 0 ? (format === "mpeg" ? "mpeg" : "mp4") : "webm";
             return { blob: out, format: derivedFmt };
           } finally {
             cleanup();
@@ -2641,7 +2641,7 @@ const mount = () => {
                 const rawTarget = String((it && it.targetFormat) || state.convertFormat || "").trim().toLowerCase();
                 const safeTarget = rawTarget === "auto" ? "" : rawTarget;
                 const normalizedTarget = (() => {
-                  if (isVideo) return safeTarget === "mp4" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
+                  if (isVideo) return safeTarget === "mp4" || safeTarget === "mpeg" || safeTarget === "webm" || safeTarget === "webm_local" ? safeTarget : "";
                   return safeTarget;
                 })();
                 const targetFmt = isVideo ? (normalizedTarget || "mp4") : (normalizedTarget || "keep");
@@ -2756,6 +2756,8 @@ const mount = () => {
                 : "") ||
               (fmt === "mp4"
                 ? "mp4"
+                  : fmt === "mpeg"
+                    ? "mpeg"
                   : fmt === "webm" || fmt === "webm_local"
                     ? "webm"
                     : fmt === "avif"
@@ -2771,6 +2773,8 @@ const mount = () => {
             const mime =
               ext === "mp4"
                 ? "video/mp4"
+                  : ext === "mpeg"
+                    ? "video/mp4"
                   : ext === "webm"
                     ? "video/webm"
                     : ext === "png"
@@ -2948,6 +2952,8 @@ const mount = () => {
                 (rf ? rf : "") ||
                 (fmt === "mp4"
                   ? "mp4"
+                    : fmt === "mpeg"
+                      ? "mpeg"
                     : fmt === "webm" || fmt === "webm_local"
                       ? "webm"
                       : fmt === "avif"

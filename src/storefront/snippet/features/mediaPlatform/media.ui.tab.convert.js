@@ -598,6 +598,7 @@ const renderConversionPlatform = (opts) => {
       const opts = convertIsVideo
         ? [
             { value: "mp4", label: "MP4" },
+            { value: "mpeg", label: "MPEG" },
             { value: "webm", label: "WebM (VP9)" },
             { value: "webm_local", label: "WebM" },
           ]
@@ -1046,6 +1047,8 @@ const renderConversionPlatform = (opts) => {
         (rf ? rf : "") ||
         (tf === "mp4"
           ? "mp4"
+          : tf === "mpeg"
+            ? "mpeg"
           : tf === "mov"
             ? "mov"
             : tf === "webm" || tf === "webm_local"
@@ -1240,6 +1243,8 @@ const renderConversionPlatform = (opts) => {
                 (rf ? rf : "") ||
                 (fmt === "mp4"
                   ? "mp4"
+                    : fmt === "mpeg"
+                      ? "mpeg"
                     : fmt === "webm" || fmt === "webm_local"
                       ? "webm"
                       : fmt === "avif"
@@ -1337,6 +1342,7 @@ const renderConversionPlatform = (opts) => {
       String(state.convertFormat || "mp4"),
       [
         { value: "mp4", label: isArabic() ? "MP4 (H.264) " : "MP4 (H.264) " },
+        { value: "mpeg", label: "MPEG" },
         { value: "webm", label: isArabic() ? "WebM (VP9)" : "WebM (VP9)" },
         { value: "webm_local", label: isArabic() ? "WebM " : "WebM " },
       ],
