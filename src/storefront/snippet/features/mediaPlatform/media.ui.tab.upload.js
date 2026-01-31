@@ -941,13 +941,23 @@ const renderSmartStats = (dash) => {
     linkRow.appendChild(actions);
     c.appendChild(linkRow);
 
-    const v = document.createElement("div");
-    v.style.fontSize = "10px";
-    v.style.fontWeight = "900";
-    v.style.color = "rgba(255,255,255,.62)";
-    v.style.whiteSpace = "nowrap";
-    v.textContent = lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—");
-    c.appendChild(v);
+    const metaRow = document.createElement("div");
+    metaRow.style.fontSize = isMobile ? "10px" : "11px";
+    metaRow.style.fontWeight = "700";
+    metaRow.style.color = "rgba(255,255,255,.82)";
+    metaRow.style.padding = "6px 8px";
+    metaRow.style.border = "1px solid rgba(255,255,255,.08)";
+    metaRow.style.background = "rgba(255,255,255,.04)";
+    metaRow.style.borderRadius = "12px";
+    metaRow.style.width = "100%";
+    metaRow.style.whiteSpace = "nowrap";
+    metaRow.style.overflow = "hidden";
+    metaRow.style.textOverflow = "ellipsis";
+    metaRow.style.direction = isArabic() ? "rtl" : "ltr";
+    metaRow.style.textAlign = "center";
+    metaRow.style.letterSpacing = ".1px";
+    metaRow.textContent = lastAt ? fmtDateTime(lastAt) : (isArabic() ? "—" : "—");
+    c.appendChild(metaRow);
 
     return c;
   };
